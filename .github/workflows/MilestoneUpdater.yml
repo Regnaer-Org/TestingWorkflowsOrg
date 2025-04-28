@@ -100,7 +100,7 @@ jobs:
             fi
 
             if [ "$current_milestone" = "$ISSUE_MILESTONE" ]; then
-              echo "Sub-issue $num already has milestone $ISSUE_MILESTONE, skipping."
+              echo "DEBUG: Sub-issue $num already has milestone $ISSUE_MILESTONE. No update needed."
               continue
             fi
 
