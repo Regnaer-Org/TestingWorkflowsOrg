@@ -57,11 +57,12 @@ jobs:
         run: |
           echo "CHECK_TYPE_OUTPUT_TYPE=${{ steps.check_type.outputs.type }}"
 
-      - name: Exit if issue type is not bug or story
-        if: ${{ steps.check_type.outputs.type != 'bug' && steps.check_type.outputs.type != 'story' }}
+      # This step will fail (exit 1) if not Bug or Story, stopping the job
+      - name: Stop workflow if issue type is not Bug or Story
+        if: ${{ steps.check_type.outputs.type != 'Bug' && steps.check_type.outputs.type != 'Story' }}
         run: |
-          echo "Issue type is neither 'bug' nor 'story'. Exiting."
-          exit 0
+          echo "Issue type is neither 'Bug' nor 'Story'. Stopping workflow."
+          exit 1
 
       - name: Get sub-issues via GraphQL
         id: subissues
