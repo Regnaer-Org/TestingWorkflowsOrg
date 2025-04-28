@@ -14,15 +14,24 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.milestone_sync }}
         run: |
+          # Extract repository and issue details
           org="${GITHUB_REPOSITORY%/*}"
           repo="${GITHUB_REPOSITORY#*/}"
           number="${{ github.event.issue.number }}"
-          
+      
+          # Validate the issue number
+          if [[ -z "$number" || ! "$number" =~ ^[0-9]+$ ]]; then
+            echo "ERROR: Invalid issue number: $number"
+            exit 1
+          fi
+      
+          # Debugging output
           echo "DEBUG: Repository Org: $org"
           echo "DEBUG: Repository Name: $repo"
           echo "DEBUG: Issue Number: $number"
-
-          result=$(gh api graphql -H "GraphQL-Features: issue_types" -f owner="$org" -f repository="$repo" -f number="$number" -f query='
+      
+          # Ensure the issue number is passed as an integer
+          result=$(gh api graphql -H "GraphQL-Features: issue_types" -F owner="$org" -F repository="$repo" -F number=$((number)) -f query='
           query ($owner: String!, $repository: String!, $number: Int!) {
             repository(owner: $owner, name: $repository) {
               issue(number: $number) {
@@ -30,19 +39,20 @@ jobs:
               }
             }
           }')
-          
+      
           echo "DEBUG: Raw GraphQL result:"
           echo "$result"
-          
+      
+          # Extract issue type from result
           type=$(echo "$result" | jq -r '.data.repository.issue.issueType.name')
           echo "DEBUG: Extracted issue type: $type"
           echo "type=$type" >> $GITHUB_OUTPUT
-
+      
+          # Validate the extracted issue type
           if [ -z "$type" ] || [ "$type" = "null" ]; then
             echo "ERROR: Failed to determine issue type. Exiting."
             exit 1
           fi
-
       - name: Debug issue type
         run: |
           echo "DEBUG: Issue type is ${{ steps.check_type.outputs.type }}"
