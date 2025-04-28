@@ -1,0 +1,203 @@
+name: Update Issue Sprint in Project (using GITHUB_TOKEN)
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'The number of the issue to update'
+        required: true
+        type: number
+      project_number:
+        description: 'The number of the Project (find it in the Project URL)'
+        required: true
+        type: number
+      sprint_name:
+        description: 'The exact name (title) of the Sprint (Iteration) to set'
+        required: true
+        type: string
+      iteration_field_name:
+        description: 'The name of the Iteration field in the Project'
+        required: false
+        type: string
+        default: 'Sprint'
+      organization:
+        description: 'Organization owner (if project is owned by an org, otherwise leave blank for user project)'
+        required: false
+        type: string
+
+jobs:
+  update_sprint:
+    name: Update Sprint Field
+    runs-on: ubuntu-latest
+    # --- Permissions required for GITHUB_TOKEN ---
+    # These grant permissions to the GITHUB_TOKEN for this job.
+    # May still be insufficient depending on org settings or project scope.
+    permissions:
+      contents: read      # Needed for checkout and potentially gh cli operations
+      issues: write       # Needed to query issue details
+      projects: write     # Needed to query project/field/iteration and update item field value
+    env:
+      # --- Use the built-in GITHUB_TOKEN ---
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO_OWNER: ${{ github.repository_owner }}
+      REPO_NAME: ${{ github.event.repository.name }}
+      # Use organization input if provided, otherwise default to the repo owner (assuming user project)
+      PROJECT_OWNER: ${{ inputs.organization || github.repository_owner }}
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Get Project, Field, Sprint, and Issue Info
+        id: get_info
+        run: |
+          # Determine if querying organization or user project based on PROJECT_OWNER env var
+          if [ "$PROJECT_OWNER" == "$REPO_OWNER" ] && [ -z "${{ inputs.organization }}" ]; then
+            owner_query_part="user(login: \"$PROJECT_OWNER\")"
+            echo "Querying User Project for owner: $PROJECT_OWNER"
+          else
+            owner_query_part="organization(login: \"$PROJECT_OWNER\")"
+            echo "Querying Organization Project for owner: $PROJECT_OWNER"
+          fi
+
+          # Query 1: Get Project ID, Iteration Field ID, and Target Iteration ID
+          # Note: Using jq -e to exit with error if path does not exist or is null/false
+          query1=$(cat <<GRAPHQL
+          query GetProjectData(\$owner: String!, \$projectNumber: Int!, \$iterationFieldName: String!, \$sprintName: String!) {
+            ${owner_query_part} {
+              projectV2(number: \$projectNumber) {
+                id # Project Node ID
+                field(name: \$iterationFieldName) {
+                  ... on ProjectV2IterationField {
+                    id # Iteration Field Node ID
+                    configuration {
+                      iterations {
+                        id # Iteration Node ID
+                        title
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          GRAPHQL
+          )
+
+          echo "Fetching Project/Field/Iteration IDs..."
+          project_data_json=$(gh api graphql -f query="$query1" \
+            -f owner="$PROJECT_OWNER" \
+            -F projectNumber=${{ inputs.project_number }} \
+            -F iterationFieldName="${{ inputs.iteration_field_name }}" \
+            -f sprintName="${{ inputs.sprint_name }}" --jq ".data.${owner_query_part}.projectV2")
+
+          if ! echo "$project_data_json" | jq -e '.id' > /dev/null; then
+             echo "::error::Could not find Project V2 with number ${{ inputs.project_number }} owned by '$PROJECT_OWNER'. Check permissions or project existence. Response: $project_data_json"
+             exit 1
+          fi
+          project_id=$(echo "$project_data_json" | jq -r '.id')
+
+          if ! echo "$project_data_json" | jq -e '.field.id' > /dev/null; then
+             echo "::error::Could not find Iteration field named '${{ inputs.iteration_field_name }}' in Project $project_id. Response: $project_data_json"
+             exit 1
+          fi
+          field_id=$(echo "$project_data_json" | jq -r '.field.id')
+
+          # Find the specific iteration ID by title
+          iteration_id=$(echo "$project_data_json" | jq -r --arg sprintName "${{ inputs.sprint_name }}" '.field.configuration.iterations[] | select(.title == $sprintName) | .id')
+
+          if [ -z "$iteration_id" ] || [ "$iteration_id" == "null" ]; then
+             echo "::error::Could not find Sprint (Iteration) named '${{ inputs.sprint_name }}' in field $field_id. Check spelling and case sensitivity. Available iterations: $(echo "$project_data_json" | jq -c '[.field.configuration.iterations[].title]')"
+             exit 1
+          fi
+
+          echo "Project ID: $project_id"
+          echo "Field ID: $field_id"
+          echo "Target Iteration ID: $iteration_id"
+
+          # Query 2: Get Issue Node ID and its Project Item ID for the specific project
+          query2=$(cat <<GRAPHQL
+          query GetIssueProjectItem(\$repoOwner: String!, \$repoName: String!, \$issueNumber: Int!, \$projectId: ID!) {
+            repository(owner: \$repoOwner, name: \$repoName) {
+              issue(number: \$issueNumber) {
+                id # Issue Node ID
+                projectItems(first: 50) { # Check first 50 projects issue is in
+                  nodes {
+                    id # Project Item Node ID
+                    project {
+                      id
+                    }
+                  }
+                }
+              }
+            }
+          }
+          GRAPHQL
+          )
+
+          echo "Fetching Issue/Project Item IDs..."
+          issue_data_json=$(gh api graphql -f query="$query2" \
+            -f repoOwner="$REPO_OWNER" \
+            -f repoName="$REPO_NAME" \
+            -F issueNumber=${{ inputs.issue_number }} \
+            -f projectId="$project_id" --jq '.data.repository.issue')
+
+          if ! echo "$issue_data_json" | jq -e '.id' > /dev/null; then
+             echo "::error::Could not find Issue #${{ inputs.issue_number }} in repository ${REPO_OWNER}/${REPO_NAME}. Response: $issue_data_json"
+             exit 1
+          fi
+          issue_id=$(echo "$issue_data_json" | jq -r '.id')
+
+          # Find the project item ID that matches our project ID
+          project_item_id=$(echo "$issue_data_json" | jq -r --arg projectId "$project_id" '.projectItems.nodes[] | select(.project.id == $projectId) | .id')
+
+          if [ -z "$project_item_id" ] || [ "$project_item_id" == "null" ]; then
+             echo "::error::Issue #${{ inputs.issue_number }} was not found in Project $project_id. Make sure the issue has been added to the project."
+             exit 1
+          fi
+
+          echo "Issue ID: $issue_id"
+          echo "Project Item ID: $project_item_id"
+
+          # Set outputs for the next step
+          echo "project_id=$project_id" >> $GITHUB_OUTPUT
+          echo "field_id=$field_id" >> $GITHUB_OUTPUT
+          echo "iteration_id=$iteration_id" >> $GITHUB_OUTPUT
+          echo "project_item_id=$project_item_id" >> $GITHUB_OUTPUT
+
+      - name: Update Issue Sprint Field
+        run: |
+          mutation=$(cat <<GRAPHQL
+          mutation UpdateSprint(\$projectId: ID!, \$itemId: ID!, \$fieldId: ID!, \$iterationId: ID!) {
+            updateProjectV2ItemFieldValue(input: {
+              projectId: \$projectId,
+              itemId: \$itemId,
+              fieldId: \$fieldId,
+              value: { iterationId: \$iterationId }
+            }) {
+              projectV2Item {
+                id
+              }
+            }
+          }
+          GRAPHQL
+          )
+
+          echo "Updating Sprint for Item ID: ${{ steps.get_info.outputs.project_item_id }} in Project: ${{ steps.get_info.outputs.project_id }} using GITHUB_TOKEN"
+          # Use --silent to avoid printing the result unless there's an error
+          gh api graphql -f query="$mutation" \
+            -f projectId="${{ steps.get_info.outputs.project_id }}" \
+            -f itemId="${{ steps.get_info.outputs.project_item_id }}" \
+            -f fieldId="${{ steps.get_info.outputs.field_id }}" \
+            -f iterationId="${{ steps.get_info.outputs.iteration_id }}" --silent
+
+          # Verify success (gh api graphql exits non-zero on API errors)
+          if [ $? -eq 0 ]; then
+            echo "Successfully set Sprint field '${{ inputs.iteration_field_name }}' for Issue #${{ inputs.issue_number }} to '${{ inputs.sprint_name }}' in Project #${{ inputs.project_number }}."
+          else
+            # Provide more context on potential failure
+            echo "::error::Failed to update sprint field via GraphQL mutation using GITHUB_TOKEN."
+            echo "::warning::This often happens due to insufficient permissions. The default GITHUB_TOKEN might not have rights to modify Organization Projects or projects outside this repository's direct scope."
+            echo "::warning::Consider using a Personal Access Token (PAT) with 'projects:write' and 'issues:write' scopes stored in a secret (e.g., PROJECT_ACCESS_TOKEN) instead."
+            exit 1
+          fi

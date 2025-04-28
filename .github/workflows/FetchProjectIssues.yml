@@ -1,0 +1,190 @@
+name: Fetch Project Issues
+
+on:
+  workflow_dispatch: # Allows you to manually trigger the workflow
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  fetch-issues:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Check out the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      # Step 3: Fetch issues using GitHub GraphQL API and save as JSON
+      - name: Fetch Issues
+        id: fetch_issues
+        run: |
+          set -ex  # Enable debugging mode and print each command before execution
+          echo 'Fetching issues from the project...'
+          PROJECT_ID="PVT_kwHOAYT8e84A0x6m" # Replace with your hardcoded Project ID
+          AFTER_CURSOR=null  # Start with no pagination cursor
+          HAS_NEXT_PAGE=true
+          OUTPUT_FILE="project-issues.json"
+          echo "[]" > $OUTPUT_FILE  # Initialize an empty JSON array to store all results
+
+          while [ "$HAS_NEXT_PAGE" = "true" ]; do
+            echo "Starting a new iteration of fetching issues..."
+            QUERY=$(cat <<EOF
+            query GetProjectItemsAndIssueDetails(\$afterCursor: String) {
+              node(id: "$PROJECT_ID") {
+                ... on ProjectV2 {
+                  id
+                  title
+                  number
+                  items(first: 100, after: \$afterCursor) {
+                    nodes {
+                      id
+                      fieldValues(first: 20) {
+                        nodes {
+                          ... on ProjectV2ItemFieldTextValue {
+                            text
+                            field {
+                              ... on ProjectV2FieldCommon {
+                                name
+                                id
+                              }
+                            }
+                          }
+                          ... on ProjectV2ItemFieldDateValue {
+                            date
+                            field {
+                              ... on ProjectV2FieldCommon {
+                                name
+                                id
+                              }
+                            }
+                          }
+                          ... on ProjectV2ItemFieldNumberValue {
+                            number
+                            field {
+                              ... on ProjectV2FieldCommon {
+                                name
+                                id
+                              }
+                            }
+                          }
+                          ... on ProjectV2ItemFieldSingleSelectValue {
+                            name
+                            optionId
+                            field {
+                              ... on ProjectV2FieldCommon {
+                                name
+                                id
+                              }
+                            }
+                          }
+                          ... on ProjectV2ItemFieldIterationValue {
+                            title
+                            startDate
+                            duration
+                            iterationId
+                            field {
+                              ... on ProjectV2FieldCommon {
+                                name
+                                id
+                              }
+                            }
+                          }
+                        }
+                      }
+                      content {
+                        ... on Issue {
+                          id
+                          number
+                          title
+                          state
+                          createdAt
+                          updatedAt
+                          closedAt
+                          url
+                          author { login }
+                          assignees(first: 10) { nodes { login } }
+                          labels(first: 20) { nodes { name color } }
+                          milestone {
+                            title
+                            number
+                            state
+                          }
+                          issueType {
+                            name
+                          }
+                          parent {
+                            ... on Issue {
+                              title
+                              number
+                              url
+                              id
+                              issueType {
+                                name
+                              }
+                            }
+                          }
+                          repository {
+                            nameWithOwner
+                          }
+                        }
+                      }
+                    }
+                    pageInfo {
+                      endCursor
+                      hasNextPage
+                    }
+                  }
+                }
+              }
+            }
+          EOF
+            )
+
+            # Make the API request
+            PAYLOAD=$(jq -n --arg query "$QUERY" --argjson vars "{\"afterCursor\":$AFTER_CURSOR}" '{query: $query, variables: $vars}')
+            RESPONSE=$(curl -s -w "%{http_code}" \
+              -H "Authorization: Bearer ${{ secrets.PAT }}" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD" \
+              https://api.github.com/graphql)
+
+            HTTP_STATUS="${RESPONSE: -3}" # Extract HTTP status code
+            RESPONSE_BODY="${RESPONSE::-3}" # Extract response body (everything except last 3 characters)
+
+            # Debugging: Log the HTTP status and response
+            echo "HTTP Status: $HTTP_STATUS"
+            echo "Response Body: $RESPONSE_BODY"
+
+            if [ "$HTTP_STATUS" -ne 200 ]; then
+              echo "Error: Failed to fetch project issues. HTTP Status: $HTTP_STATUS"
+              echo "Response: $RESPONSE_BODY"
+              exit 1
+            fi
+
+            # Parse response and extract items, pageInfo
+            ITEMS=$(echo "$RESPONSE_BODY" | jq '.data.node.items.nodes')
+            END_CURSOR=$(echo "$RESPONSE_BODY" | jq -r '.data.node.items.pageInfo.endCursor')
+            HAS_NEXT_PAGE=$(echo "$RESPONSE_BODY" | jq -r '.data.node.items.pageInfo.hasNextPage')
+
+            # Append items to output file
+            jq -c --argjson newItems "$ITEMS" '. + $newItems' $OUTPUT_FILE > temp.json && mv temp.json $OUTPUT_FILE
+
+            echo "Fetched 100 items. Next cursor: $END_CURSOR"
+            AFTER_CURSOR="\"$END_CURSOR\""  # Update cursor for the next iteration
+          done
+
+          echo "All project issues fetched successfully! Saved to $OUTPUT_FILE."
+
+      # Step 4: Upload the JSON file as an artifact
+      - name: Upload JSON as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: project-issues
+          path: project-issues.json

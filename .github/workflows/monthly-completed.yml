@@ -1,0 +1,22 @@
+name: Get Closed Issues
+
+on:
+  workflow_dispatch:
+
+jobs:
+  get-closed-issues:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get closed issues in the past 30 days
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          response=$(curl -H "Accept: application/vnd.github+json" \
+                          -H "Authorization: token $GITHUB_TOKEN" \
+                          "https://api.github.com/search/issues?q=repo:regnaer/TestingWorkflows+is:issue+state:closed+closed:>$(date -d '-30 days' +%Y-%m-%d)")
+          echo "$response" | jq '[.items[] | {id: .id, title: .title, state: .state, created_at: .created_at, closed_at: .closed_at, url: .html_url}]' > closed_issues.json
+      - name: Upload result
+        uses: actions/upload-artifact@v4
+        with:
+          name: closed-issues-json
+          path: closed_issues.json
