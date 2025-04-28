@@ -48,10 +48,10 @@ jobs:
         id: subissues
         env:
           GH_TOKEN: ${{ secrets.milestone_sync }}
-          ISSUE_NODE_ID: ${{ github.event.issue.node_id }}
+          ISSUE_ID: ${{ github.event.issue.node_id }}
         run: |
           # Get all issues linked to the parent issue (sub-issues).
-          gh api graphql -F id="$ISSUE_NODE_ID" -f query='
+          gh api graphql -F id="$ISSUE_ID" -f query='
           query($id: ID!) {
             node(id: $id) {
               ... on Issue {
