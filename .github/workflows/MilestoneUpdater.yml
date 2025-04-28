@@ -31,7 +31,7 @@ jobs:
           echo "DEBUG: Issue Number: $number"
 
           # Query the issue's type using the GraphQL API with the issue_types preview header
-          result=$(gh api graphql -H "GraphQL-Features: issue_types" -F owner="$org" -F repo="$repo" -F number=$((number)) -f query='
+          result=$(gh api graphql -H "GraphQL-Features: issue_types" -f owner="$org" -f repo="$repo" -F number=$((number)) -f query='
           query ($owner: String!, $repo: String!, $number: Int!) {
             repository(owner: $owner, name: $repo) {
               issue(number: $number) {
@@ -52,6 +52,10 @@ jobs:
             echo "ERROR: Failed to determine issue type. Exiting."
             exit 1
           fi
+
+      - name: Debug output - show extracted type
+        run: |
+          echo "CHECK_TYPE_OUTPUT_TYPE=${{ steps.check_type.outputs.type }}"
 
       - name: Exit if issue type is not bug or story
         if: ${{ steps.check_type.outputs.type != 'bug' && steps.check_type.outputs.type != 'story' }}
@@ -82,8 +86,8 @@ jobs:
           ' > result.json
           jq '[.data.node.subIssues.nodes[].number]' result.json > subissues_numbers.json
           jq '[.data.node.subIssues.nodes[].id]' result.json > subissues_ids.json
-          echo "numbers=$(cat subissues_numbers.json | jq -c '.')" >> "$GITHUB_OUTPUT"
-          echo "ids=$(cat subissues_ids.json | jq -c '.')" >> "$GITHUB_OUTPUT"
+          echo "numbers=$(cat subissues_numbers.json | jq -c '.')" >> $GITHUB_OUTPUT
+          echo "ids=$(cat subissues_ids.json | jq -c '.')" >> $GITHUB_OUTPUT
 
       - name: Update sub-issues with parent's milestone
         env:
