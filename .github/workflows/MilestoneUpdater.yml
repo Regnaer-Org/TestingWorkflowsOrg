@@ -18,20 +18,20 @@ jobs:
           repo="${GITHUB_REPOSITORY#*/}"
           number="${{ github.event.issue.number }}"
 
-          # Query the issue's type using the GraphQL API with the issue_types preview header.
-          result=$(gh api graphql -H "GraphQL-Features: issue_types" -f owner="$org" -f repo="$repo" -F number="$number" -f query='
-          query ($owner: String!, $repo: String!, $number: Int!) {
-            repository(owner: $owner, name: $repo) {
+          result=$(gh api graphql -H "GraphQL-Features: issue_types" -f owner="$org" -f repository="$repo" -F number="$number" -f query='
+          query ($owner: String!, $repository: String!, $number: Int!) {
+            repository(owner: $owner, name: $repository) {
               issue(number: $number) {
                 issueType { name }
               }
             }
           }')
           type=$(echo "$result" | jq -r '.data.repository.issue.issueType.name')
-          echo "type=$type" >> "$GITHUB_OUTPUT"
+          echo "type=$type"
+          echo "type=$type" >> $GITHUB_OUTPUT
 
       - name: Exit if issue type is not bug or story
-        if: steps.check_type.outputs.type != 'bug' && steps.check_type.outputs.type != 'story'
+        if: ${{ steps.check_type.outputs.type != 'bug' && steps.check_type.outputs.type != 'story' }}
         run: |
           echo "Issue type is neither 'bug' nor 'story'. Exiting."
           exit 0
@@ -42,7 +42,6 @@ jobs:
           GH_TOKEN: ${{ secrets.milestone_sync }}
           ISSUE_NODE_ID: ${{ github.event.issue.node_id }}
         run: |
-          # Get all sub-issues using the subIssues connection.
           gh api graphql -H "GraphQL-Features:sub_issues" -H "GraphQL-Features:issue_types" -F id="$ISSUE_NODE_ID" -f query='
             query($id: ID!) {
               node(id: $id) {
@@ -59,8 +58,8 @@ jobs:
           ' > result.json
           jq '[.data.node.subIssues.nodes[].number]' result.json > subissues_numbers.json
           jq '[.data.node.subIssues.nodes[].id]' result.json > subissues_ids.json
-          echo "numbers=$(cat subissues_numbers.json | jq -c '.')" >> "$GITHUB_OUTPUT"
-          echo "ids=$(cat subissues_ids.json | jq -c '.')" >> "$GITHUB_OUTPUT"
+          echo "numbers=$(cat subissues_numbers.json | jq -c '.')" >> $GITHUB_OUTPUT
+          echo "ids=$(cat subissues_ids.json | jq -c '.')" >> $GITHUB_OUTPUT
 
       - name: Update sub-issues with parent's milestone
         env:
@@ -103,10 +102,3 @@ jobs:
                 }
               }' -F projectId="$PROJECT_NODE_ID" -F contentId="$issue_id"
           done
-
-# Notes:
-# - This workflow triggers when an issue with type "bug" or "story" has its milestone updated.
-# - All sub-issues are updated with the parent's milestone regardless of their type.
-# - Sub-issues are also added to the specified project.
-# - The workflow expects a secret named 'milestone_sync' containing a PAT with 'repo', 'project', and 'issues' scopes.
-# - If you expect more than 100 sub-issues, add pagination logic.
