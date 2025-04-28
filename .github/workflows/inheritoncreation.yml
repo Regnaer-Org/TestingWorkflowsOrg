@@ -1,0 +1,257 @@
+name: Inherit Parent Issue Fields
+
+on:
+  issues:
+    types:
+      - opened
+
+jobs:
+  inherit-fields-from-parent:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get parent issue (if any) via GraphQL
+        id: getparent
+        env:
+          GH_TOKEN: ${{ secrets.milestone_sync }}
+        run: |
+          issue_node_id="${{ github.event.issue.node_id }}"
+
+          # Query for parent issue using subIssues GraphQL API
+          parent_result=$(gh api graphql -H "GraphQL-Features:sub_issues" -f query='
+            query($id: ID!) {
+              node(id: $id) {
+                ... on Issue {
+                  parent {
+                    id
+                    number
+                    milestone { number }
+                    labels(first: 100) { nodes { name } }
+                    projectItems(first: 10) {
+                      nodes {
+                        project {
+                          id
+                          title
+                        }
+                        fieldValues(first: 20) {
+                          nodes {
+                            ... on ProjectV2ItemFieldSingleSelectValue {
+                              field {
+                                ... on ProjectV2SingleSelectField { name id }
+                              }
+                              name
+                              optionId
+                            }
+                            ... on ProjectV2ItemFieldIterationValue {
+                              field {
+                                ... on ProjectV2IterationField { name id }
+                              }
+                              title
+                              iterationId
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ' -f id="$issue_node_id")
+
+          parent_id=$(echo "$parent_result" | jq -r '.data.node.parent.id // empty')
+
+          if [ -z "$parent_id" ]; then
+            echo "No parent issue. Stopping workflow."
+            echo "has_parent=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          parent_number=$(echo "$parent_result" | jq -r '.data.node.parent.number')
+          parent_milestone=$(echo "$parent_result" | jq -r '.data.node.parent.milestone.number // empty')
+          parent_labels=$(echo "$parent_result" | jq -c '[.data.node.parent.labels.nodes[].name]')
+          parent_project_items=$(echo "$parent_result" | jq -c '.data.node.parent.projectItems.nodes')
+          echo "Parent issue number: $parent_number"
+          echo "Parent milestone: $parent_milestone"
+          echo "Parent labels: $parent_labels"
+          echo "Parent project items: $parent_project_items"
+
+          echo "has_parent=true" >> $GITHUB_OUTPUT
+          echo "parent_number=$parent_number" >> $GITHUB_OUTPUT
+          echo "parent_milestone=$parent_milestone" >> $GITHUB_OUTPUT
+          echo "parent_labels=$parent_labels" >> $GITHUB_OUTPUT
+          echo "parent_project_items=$parent_project_items" >> $GITHUB_OUTPUT
+
+      - name: Stop if no parent
+        if: ${{ steps.getparent.outputs.has_parent != 'true' }}
+        run: |
+          echo "No parent found, workflow stopping."
+          exit 0
+
+      - name: Inherit Milestone from Parent
+        if: ${{ steps.getparent.outputs.parent_milestone != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.milestone_sync }}
+        run: |
+          milestone_number="${{ steps.getparent.outputs.parent_milestone }}"
+          echo "DEBUG: Inheriting milestone $milestone_number"
+          gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }} \
+            -X PATCH \
+            -F milestone="$milestone_number"
+
+      - name: Inherit Labels from Parent
+        if: ${{ steps.getparent.outputs.parent_labels != '[]' && steps.getparent.outputs.parent_labels != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.milestone_sync }}
+        run: |
+          labels=$(echo '${{ steps.getparent.outputs.parent_labels }}' | jq -r '. | join(",")')
+          echo "DEBUG: Inheriting labels: $labels"
+          gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }} \
+            -X PATCH \
+            -F labels="$labels"
+
+      - name: Lookup ProjectV2 Field IDs for Sprint and Team
+        id: lookup_fields
+        env:
+          GH_TOKEN: ${{ secrets.milestone_sync }}
+        run: |
+          PROJECT_NODE_ID="PVT_kwDODH0FwM4A3yi4"
+          # Fetch all fields for the project
+          fields_result=$(gh api graphql -f query='
+            query($project: ID!) {
+              node(id: $project) {
+                ... on ProjectV2 {
+                  fields(first: 50) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options {
+                          id
+                          name
+                        }
+                      }
+                      ... on ProjectV2IterationField {
+                        id
+                        name
+                        configuration {
+                          iterations {
+                            id
+                            title
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ' -F project="$PROJECT_NODE_ID")
+
+          # Find Sprint and Team field ids
+          sprint_field_id=$(echo "$fields_result" | jq -r '.data.node.fields.nodes[] | select(.name == "Sprint") | .id // empty')
+          team_field_id=$(echo "$fields_result" | jq -r '.data.node.fields.nodes[] | select(.name == "Team") | .id // empty')
+
+          # Dump all iteration options for Sprint for reference
+          sprint_iterations=$(echo "$fields_result" | jq -c '.data.node.fields.nodes[] | select(.name == "Sprint") | .configuration.iterations // empty')
+          team_options=$(echo "$fields_result" | jq -c '.data.node.fields.nodes[] | select(.name == "Team") | .options // empty')
+
+          echo "DEBUG: Sprint field id: $sprint_field_id"
+          echo "DEBUG: Team field id: $team_field_id"
+          echo "DEBUG: Sprint iteration options: $sprint_iterations"
+          echo "DEBUG: Team options: $team_options"
+
+          echo "sprint_field_id=$sprint_field_id" >> $GITHUB_OUTPUT
+          echo "team_field_id=$team_field_id" >> $GITHUB_OUTPUT
+          echo "sprint_iterations=$sprint_iterations" >> $GITHUB_OUTPUT
+          echo "team_options=$team_options" >> $GITHUB_OUTPUT
+
+      - name: Inherit ProjectV2 Sprint and Team fields from Parent (if present)
+        if: ${{ steps.getparent.outputs.parent_project_items != '' && steps.getparent.outputs.parent_project_items != '[]' }}
+        env:
+          GH_TOKEN: ${{ secrets.milestone_sync }}
+        run: |
+          parent_items=$(echo '${{ steps.getparent.outputs.parent_project_items }}' | jq -c '.')
+          new_issue_node_id="${{ github.event.issue.node_id }}"
+          PROJECT_NODE_ID="PVT_kwDODH0FwM4A3yi4"
+          SPRINT_FIELD_ID="${{ steps.lookup_fields.outputs.sprint_field_id }}"
+          TEAM_FIELD_ID="${{ steps.lookup_fields.outputs.team_field_id }}"
+          SPRINT_ITERATIONS=$(echo '${{ steps.lookup_fields.outputs.sprint_iterations }}')
+          TEAM_OPTIONS=$(echo '${{ steps.lookup_fields.outputs.team_options }}')
+
+          # Prepare to copy Sprint and Team values
+          selected_sprint_id=""
+          selected_sprint_title=""
+          selected_team_option_id=""
+          selected_team_name=""
+
+          for row in $(echo "$parent_items" | jq -c '.[]'); do
+            # Sprint (iteration)
+            for fv in $(echo "$row" | jq -c '.fieldValues.nodes[]?'); do
+              sprint_field=$(echo "$fv" | jq -r '.field.name // empty')
+              sprint_title=$(echo "$fv" | jq -r '.title // empty')
+              sprint_iteration_id=$(echo "$fv" | jq -r '.iterationId // empty')
+              if [[ "$sprint_field" == "Sprint" && "$sprint_title" != "" && "$sprint_iteration_id" != "" ]]; then
+                # Validate that this iteration exists in the project
+                match=$(echo "$SPRINT_ITERATIONS" | jq -r --arg id "$sprint_iteration_id" '.[] | select(.id == $id)')
+                if [ ! -z "$match" ]; then
+                  selected_sprint_id="$sprint_iteration_id"
+                  selected_sprint_title="$sprint_title"
+                  echo "DEBUG: Validated and selected Sprint: $selected_sprint_title ($selected_sprint_id)"
+                fi
+              fi
+              # Team (single select)
+              team_field=$(echo "$fv" | jq -r '.field.name // empty')
+              team_name=$(echo "$fv" | jq -r '.name // empty')
+              team_option_id=$(echo "$fv" | jq -r '.optionId // empty')
+              if [[ "$team_field" == "Team" && "$team_name" != "" && "$team_option_id" != "" ]]; then
+                # Validate that this option exists in the project
+                match=$(echo "$TEAM_OPTIONS" | jq -r --arg id "$team_option_id" '.[] | select(.id == $id)')
+                if [ ! -z "$match" ]; then
+                  selected_team_option_id="$team_option_id"
+                  selected_team_name="$team_name"
+                  echo "DEBUG: Validated and selected Team: $selected_team_name ($selected_team_option_id)"
+                fi
+              fi
+            done
+          done
+
+          # Add the new issue to the project if not present (is idempotent)
+          item_add_result=$(gh api graphql -f query='
+            mutation($projectId: ID!, $contentId: ID!) {
+              addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
+                item {
+                  id
+                }
+              }
+            }' -F projectId="$PROJECT_NODE_ID" -F contentId="$new_issue_node_id")
+          new_item_id=$(echo "$item_add_result" | jq -r '.data.addProjectV2ItemById.item.id // empty')
+          if [ -z "$new_item_id" ]; then
+            echo "ERROR: Unable to add new issue to project."
+            exit 1
+          fi
+
+          # Set Sprint (iteration) field if present/validated
+          if [[ "$selected_sprint_id" != "" ]]; then
+            echo "DEBUG: Setting Sprint (iteration) field for new issue to $selected_sprint_title ($selected_sprint_id)"
+            gh api graphql -f query='
+              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: String!) {
+                updateProjectV2ItemFieldValue(input: {projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { iterationId: $value }}) {
+                  projectV2Item { id }
+                }
+              }' -F projectId="$PROJECT_NODE_ID" -F itemId="$new_item_id" -F fieldId="$SPRINT_FIELD_ID" -F value="$selected_sprint_id"
+          fi
+
+          # Set Team (single select) field if present/validated
+          if [[ "$selected_team_option_id" != "" ]]; then
+            echo "DEBUG: Setting Team (single select) field for new issue to $selected_team_name ($selected_team_option_id)"
+            gh api graphql -f query='
+              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                updateProjectV2ItemFieldValue(input: {projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { singleSelectOptionId: $optionId }}) {
+                  projectV2Item { id }
+                }
+              }' -F projectId="$PROJECT_NODE_ID" -F itemId="$new_item_id" -F fieldId="$TEAM_FIELD_ID" -F optionId="$selected_team_option_id"
+          fi
+
+          if [[ "$selected_sprint_id" == "" && "$selected_team_option_id" == "" ]]; then
+            echo "No valid Sprint or Team field to inherit."
+          fi
