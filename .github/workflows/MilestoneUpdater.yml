@@ -17,21 +17,38 @@ jobs:
           org="${GITHUB_REPOSITORY%/*}"
           repo="${GITHUB_REPOSITORY#*/}"
           number="${{ github.event.issue.number }}"
+          
+          echo "DEBUG: Repository Org: $org"
+          echo "DEBUG: Repository Name: $repo"
+          echo "DEBUG: Issue Number: $number"
 
-          # Query the issue's type using the GraphQL API with the issue_types preview header.
-          result=$(gh api graphql -H "GraphQL-Features: issue_types" -f owner="$org" -f repo="$repo" -F number="$number" -f query='
-          query ($owner: String!, $repo: String!, $number: Int!) {
-            repository(owner: $owner, name: $repo) {
+          result=$(gh api graphql -H "GraphQL-Features: issue_types" -f owner="$org" -f repository="$repo" -f number="$number" -f query='
+          query ($owner: String!, $repository: String!, $number: Int!) {
+            repository(owner: $owner, name: $repository) {
               issue(number: $number) {
                 issueType { name }
               }
             }
           }')
+          
+          echo "DEBUG: Raw GraphQL result:"
+          echo "$result"
+          
           type=$(echo "$result" | jq -r '.data.repository.issue.issueType.name')
-          echo "type=$type" >> "$GITHUB_OUTPUT"
+          echo "DEBUG: Extracted issue type: $type"
+          echo "type=$type" >> $GITHUB_OUTPUT
+
+          if [ -z "$type" ] || [ "$type" = "null" ]; then
+            echo "ERROR: Failed to determine issue type. Exiting."
+            exit 1
+          fi
+
+      - name: Debug issue type
+        run: |
+          echo "DEBUG: Issue type is ${{ steps.check_type.outputs.type }}"
 
       - name: Exit if issue type is not bug or story
-        if: steps.check_type.outputs.type != 'bug' && steps.check_type.outputs.type != 'story'
+        if: ${{ steps.check_type.outputs.type != 'bug' && steps.check_type.outputs.type != 'story' }}
         run: |
           echo "Issue type is neither 'bug' nor 'story'. Exiting."
           exit 0
@@ -42,7 +59,6 @@ jobs:
           GH_TOKEN: ${{ secrets.milestone_sync }}
           ISSUE_NODE_ID: ${{ github.event.issue.node_id }}
         run: |
-          # Get all sub-issues using the subIssues connection.
           gh api graphql -H "GraphQL-Features:sub_issues" -H "GraphQL-Features:issue_types" -F id="$ISSUE_NODE_ID" -f query='
             query($id: ID!) {
               node(id: $id) {
@@ -72,34 +88,12 @@ jobs:
             echo "No sub-issues found. Exiting."
             exit 0
           fi
-
-          for num in $(echo "$numbers" | jq '.[]'); do
-            echo "Updating sub-issue $num with milestone $ISSUE_MILESTONE"
-            gh api repos/${{ github.repository }}/issues/$num \
-              -X PATCH \
-              -F milestone="$ISSUE_MILESTONE"
-          done
-
-      - name: Add sub-issues to Project PVT_kwDODH0FwM4A3yi4 (if not already present)
-        env:
-          GH_TOKEN: ${{ secrets.milestone_sync }}
-        run: |
-          ids=${{ steps.subissues.outputs.ids }}
-          PROJECT_NODE_ID="PVT_kwDODH0FwM4A3yi4"
-
-          if [ "$ids" = "" ] || [ "$ids" = "[]" ]; then
-            echo "No sub-issue ids found. Exiting."
-            exit 0
-          fi
-
-          for issue_id in $(echo "$ids" | jq -r '.[]'); do
-            echo "Adding sub-issue node $issue_id to project $PROJECT_NODE_ID"
+          
+          for number in $(echo "$numbers" | jq -r '.[]'); do
             gh api graphql -f query='
-              mutation($projectId: ID!, $contentId: ID!) {
-                addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
-                  item {
-                    id
-                  }
-                }
-              }' -F projectId="$PROJECT_NODE_ID" -F contentId="$issue_id"
+            mutation($number: Int!, $milestone: Int!) {
+              updateIssue(input: {number: $number, milestone: $milestone}) {
+                issue { number }
+              }
+            }' -f number="$number" -f milestone="${ISSUE_MILESTONE}"
           done
