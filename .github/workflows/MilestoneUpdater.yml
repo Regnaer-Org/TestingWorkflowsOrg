@@ -9,7 +9,6 @@ jobs:
   sync-milestone-to-subissues:
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Check parent issue type using GraphQL
       - name: Check parent issue type using GraphQL
         id: check_type
         env:
@@ -31,50 +30,38 @@ jobs:
           type=$(echo "$result" | jq -r '.data.repository.issue.issueType.name')
           echo "type=$type" >> "$GITHUB_OUTPUT"
 
-      # Step 2: Debug output to confirm issue type
-      - name: Debug Output
-        run: |
-          echo "Type is: ${{ steps.check_type.outputs.type }}"
-
-      # Step 3: Exit if issue type is not 'bug' or 'story'
       - name: Exit if issue type is not bug or story
-        if: ${{ steps.check_type.outputs.type != 'bug' && steps.check_type.outputs.type != 'story' }}
+        if: steps.check_type.outputs.type != 'bug' && steps.check_type.outputs.type != 'story'
         run: |
           echo "Issue type is neither 'bug' nor 'story'. Exiting."
           exit 0
 
-      # Step 4: Get sub-issues via GraphQL
       - name: Get sub-issues via GraphQL
         id: subissues
         env:
           GH_TOKEN: ${{ secrets.milestone_sync }}
-          ISSUE_ID: ${{ github.event.issue.id }}
+          ISSUE_NODE_ID: ${{ github.event.issue.node_id }}
         run: |
-          # Get all issues linked to the parent issue (sub-issues).
-          gh api graphql -F id="$ISSUE_ID" -f query='
-          query($id: ID!) {
-            node(id: $id) {
-              ... on Issue {
-                timelineItems(itemTypes: [CONNECTED_EVENT], first: 50) {
-                  nodes {
-                    ... on ConnectedEvent {
-                      subject {
-                        __typename
-                        ... on Issue { number id }
-                      }
+          # Get all sub-issues using the subIssues connection.
+          gh api graphql -H "GraphQL-Features:sub_issues" -H "GraphQL-Features:issue_types" -F id="$ISSUE_NODE_ID" -f query='
+            query($id: ID!) {
+              node(id: $id) {
+                ... on Issue {
+                  subIssues(first: 100) {
+                    nodes {
+                      number
+                      id
                     }
                   }
                 }
               }
             }
-          }' > result.json
-          # Prepare numbers and node_ids arrays for later use.
-          jq '[.data.node.timelineItems.nodes[].subject | select(.number)] | map(.number)' result.json > subissues_numbers.json
-          jq '[.data.node.timelineItems.nodes[].subject | select(.node_id)] | map(.node_id)' result.json > subissues_nodeids.json
+          ' > result.json
+          jq '[.data.node.subIssues.nodes[].number]' result.json > subissues_numbers.json
+          jq '[.data.node.subIssues.nodes[].id]' result.json > subissues_ids.json
           echo "numbers=$(cat subissues_numbers.json | jq -c '.')" >> "$GITHUB_OUTPUT"
-          echo "nodeids=$(cat subissues_nodeids.json | jq -c '.')" >> "$GITHUB_OUTPUT"
+          echo "ids=$(cat subissues_ids.json | jq -c '.')" >> "$GITHUB_OUTPUT"
 
-      # Step 5: Update sub-issues with parent's milestone
       - name: Update sub-issues with parent's milestone
         env:
           GH_TOKEN: ${{ secrets.milestone_sync }}
@@ -93,21 +80,20 @@ jobs:
               -F milestone="$ISSUE_MILESTONE"
           done
 
-      # Step 6: Add sub-issues to Project PVT_kwDODH0FwM4A3yi4 (if not already present)
-      - name: Add sub-issues to Project PVT_kwDODH0FwM4A3yi4
+      - name: Add sub-issues to Project PVT_kwDODH0FwM4A3yi4 (if not already present)
         env:
           GH_TOKEN: ${{ secrets.milestone_sync }}
         run: |
-          nodeids=${{ steps.subissues.outputs.nodeids }}
+          ids=${{ steps.subissues.outputs.ids }}
           PROJECT_NODE_ID="PVT_kwDODH0FwM4A3yi4"
 
-          if [ "$nodeids" = "" ] || [ "$nodeids" = "[]" ]; then
-            echo "No sub-issue node IDs found. Exiting."
+          if [ "$ids" = "" ] || [ "$ids" = "[]" ]; then
+            echo "No sub-issue ids found. Exiting."
             exit 0
           fi
 
-          for node_id in $(echo "$nodeids" | jq -r '.[]'); do
-            echo "Adding sub-issue node $node_id to project $PROJECT_NODE_ID"
+          for issue_id in $(echo "$ids" | jq -r '.[]'); do
+            echo "Adding sub-issue node $issue_id to project $PROJECT_NODE_ID"
             gh api graphql -f query='
               mutation($projectId: ID!, $contentId: ID!) {
                 addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
@@ -115,5 +101,12 @@ jobs:
                     id
                   }
                 }
-              }' -F projectId="$PROJECT_NODE_ID" -F contentId="$node_id"
+              }' -F projectId="$PROJECT_NODE_ID" -F contentId="$issue_id"
           done
+
+# Notes:
+# - This workflow triggers when an issue with type "bug" or "story" has its milestone updated.
+# - All sub-issues are updated with the parent's milestone regardless of their type.
+# - Sub-issues are also added to the specified project.
+# - The workflow expects a secret named 'milestone_sync' containing a PAT with 'repo', 'project', and 'issues' scopes.
+# - If you expect more than 100 sub-issues, add pagination logic.
