@@ -8,8 +8,9 @@ jobs:
   sync-sprint-to-subissues:
     runs-on: ubuntu-latest
     steps:
-      - name: Check parent issue type using GraphQL
-        id: check_type
+      # 1. Get the issue's type
+      - name: Get parent issue type
+        id: issue_type
         env:
           GH_TOKEN: ${{ secrets.milestone_sync }}
         run: |
@@ -17,59 +18,41 @@ jobs:
           repo="${GITHUB_REPOSITORY#*/}"
           number="${{ github.event.issue.number }}"
           result=$(gh api graphql -H "GraphQL-Features: issue_types" -f owner="$org" -f repo="$repo" -F number="$number" -f query='
-          query ($owner: String!, $repo: String!, $number: Int!) {
-            repository(owner: $owner, name: $repo) {
-              issue(number: $number) {
-                issueType { name }
+            query ($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                issue(number: $number) {
+                  issueType { name }
+                  id
+                  node_id
+                }
               }
             }
-          }')
+          ')
           type=$(echo "$result" | jq -r '.data.repository.issue.issueType.name')
+          node_id=$(echo "$result" | jq -r '.data.repository.issue.node_id')
           echo "type=$type" >> $GITHUB_OUTPUT
+          echo "node_id=$node_id" >> $GITHUB_OUTPUT
+          echo "type: $type"
           if [ -z "$type" ] || [ "$type" = "null" ]; then
             echo "ERROR: Failed to determine issue type. Exiting."
             exit 1
           fi
 
-      - name: Stop workflow if issue type is not Bug or Story
-        if: ${{ steps.check_type.outputs.type != 'Bug' && steps.check_type.outputs.type != 'Story' }}
+      # 2. Stop workflow if not Story or Bug
+      - name: Stop if not Bug or Story
+        if: ${{ steps.issue_type.outputs.type != 'Bug' && steps.issue_type.outputs.type != 'Story' }}
         run: |
           echo "Issue type is neither 'Bug' nor 'Story'. Stopping workflow."
           exit 0
 
-      - name: Get Sprint field id by name
-        id: sprint_field
-        env:
-          GH_TOKEN: ${{ secrets.milestone_sync }}
-        run: |
-          PROJECT_NODE_ID="PVT_kwDODH0FwM4A3yi4"
-          sprint_field_id=$(
-            gh api graphql -f query='
-              query($project: ID!) {
-                node(id: $project) {
-                  ... on ProjectV2 {
-                    fields(first: 50) {
-                      nodes {
-                        id
-                        name
-                      }
-                    }
-                  }
-                }
-              }
-            ' -F project="$PROJECT_NODE_ID" | jq -r '.data.node.fields.nodes[] | select(.name == "Sprint") | .id // empty'
-          )
-          echo "sprint_field_id=$sprint_field_id" >> $GITHUB_OUTPUT
-
-      - name: Get parent Sprint value (iterationId and title)
+      # 3. Get the issue's Sprint (iterationId and title), for each project item
+      - name: Get parent Sprint (iterationId and title)
         id: parent_sprint
         env:
           GH_TOKEN: ${{ secrets.milestone_sync }}
         run: |
-          set -e
           PROJECT_NODE_ID="PVT_kwDODH0FwM4A3yi4"
-          issue_node_id="${{ github.event.issue.node_id }}"
-
+          issue_node_id="${{ steps.issue_type.outputs.node_id }}"
           parent_items=$(gh api graphql -f query='
             query($id: ID!) {
               node(id: $id) {
@@ -91,41 +74,26 @@ jobs:
               }
             }
           ' -f id="$issue_node_id")
-
-          # Defensive: check if projectItems is null/empty or issue not attached to this project
-          has_project=$(echo "$parent_items" | jq --arg proj "$PROJECT_NODE_ID" '[.data.node.projectItems.nodes[] | select(.project.id == $proj)] | length')
-          if [ "$has_project" = "0" ]; then
-            echo "Triggering issue is not attached to the project. Skipping."
-            echo "parent_sprint_id=" >> $GITHUB_OUTPUT
-            echo "parent_sprint_name=" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # Get the first non-empty iterationId+title for this project (Sprint)
+          # Find the iterationId and title for our project, if set
           parent_sprint_id=$(echo "$parent_items" | jq -r --arg proj "$PROJECT_NODE_ID" '
             .data.node.projectItems.nodes[] | select(.project.id == $proj) |
-              .fieldValues.nodes[]? | select(.iterationId != null) | .iterationId' | head -n1)
+              .fieldValues.nodes[]? | select(.iterationId != null) | .iterationId // empty' | head -n1)
           parent_sprint_name=$(echo "$parent_items" | jq -r --arg proj "$PROJECT_NODE_ID" '
             .data.node.projectItems.nodes[] | select(.project.id == $proj) |
-              .fieldValues.nodes[]? | select(.iterationId != null) | .title' | head -n1)
-
-          echo "Sprint debug info for triggering issue:"
-          echo "  Parent Sprint id (iterationId): $parent_sprint_id"
-          echo "  Parent Sprint name (title): $parent_sprint_name"
-          if [ -z "$parent_sprint_id" ]; then
-            echo "  Parent issue does NOT have a Sprint set."
-          fi
-
+              .fieldValues.nodes[]? | select(.iterationId != null) | .title // empty' | head -n1)
           echo "parent_sprint_id=$parent_sprint_id" >> $GITHUB_OUTPUT
           echo "parent_sprint_name=$parent_sprint_name" >> $GITHUB_OUTPUT
+          echo "DEBUG: Parent Sprint iterationId: $parent_sprint_id"
+          echo "DEBUG: Parent Sprint name: $parent_sprint_name"
 
+      # 4. Get sub-issues of the issue
       - name: Get sub-issues via GraphQL
         id: subissues
         env:
           GH_TOKEN: ${{ secrets.milestone_sync }}
-          ISSUE_NODE_ID: ${{ github.event.issue.node_id }}
         run: |
-          gh api graphql -H "GraphQL-Features:sub_issues" -H "GraphQL-Features:issue_types" -F id="$ISSUE_NODE_ID" -f query='
+          issue_node_id="${{ steps.issue_type.outputs.node_id }}"
+          gh api graphql -H "GraphQL-Features:sub_issues" -F id="$issue_node_id" -f query='
             query($id: ID!) {
               node(id: $id) {
                 ... on Issue {
@@ -145,26 +113,32 @@ jobs:
           echo "numbers=$(cat subissues_numbers.json | jq -c '.')" >> $GITHUB_OUTPUT
           echo "ids=$(cat subissues_ids.json | jq -c '.')" >> $GITHUB_OUTPUT
 
-      - name: Add sub-issues to Project (if not already present)
+      # 5. Get Sprint field id by name (no union selection)
+      - name: Get Sprint field id by name
+        id: sprint_field
         env:
           GH_TOKEN: ${{ secrets.milestone_sync }}
         run: |
-          ids=${{ steps.subissues.outputs.ids }}
           PROJECT_NODE_ID="PVT_kwDODH0FwM4A3yi4"
-          if [ "$ids" = "" ] || [ "$ids" = "[]" ]; then
-            echo "No sub-issue ids found. Exiting."
-            exit 0
-          fi
-          for issue_id in $(echo "$ids" | jq -r '.[]'); do
-            echo "Adding sub-issue node $issue_id to project $PROJECT_NODE_ID"
-            gh api graphql -f query='
-              mutation($projectId: ID!, $contentId: ID!) {
-                addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
-                  item { id }
+          fields_json=$(gh api graphql -f query='
+            query($project: ID!) {
+              node(id: $project) {
+                ... on ProjectV2 {
+                  fields(first: 50) {
+                    nodes {
+                      id
+                      name
+                    }
+                  }
                 }
-              }' -F projectId="$PROJECT_NODE_ID" -F contentId="$issue_id"
-          done
+              }
+            }
+          ' -F project="$PROJECT_NODE_ID")
+          sprint_field_id=$(echo "$fields_json" | jq -r '.data.node.fields.nodes[] | select(.name == "Sprint") | .id // empty')
+          echo "sprint_field_id=$sprint_field_id" >> $GITHUB_OUTPUT
+          echo "DEBUG: Sprint field id: $sprint_field_id"
 
+      # 6. Update or remove Sprint on sub-issues to match parent
       - name: Update or remove Sprint on sub-issues to match parent
         env:
           GH_TOKEN: ${{ secrets.milestone_sync }}
@@ -174,9 +148,6 @@ jobs:
           PARENT_SPRINT_ID="${{ steps.parent_sprint.outputs.parent_sprint_id }}"
           PARENT_SPRINT_NAME="${{ steps.parent_sprint.outputs.parent_sprint_name }}"
           PROJECT_NODE_ID="PVT_kwDODH0FwM4A3yi4"
-          echo "DEBUG: Sprint field id: $SPRINT_FIELD_ID"
-          echo "DEBUG: Parent Sprint iterationId: $PARENT_SPRINT_ID"
-          echo "DEBUG: Parent Sprint name: $PARENT_SPRINT_NAME"
           if [ -z "$SPRINT_FIELD_ID" ]; then
             echo "No Sprint field id found in project."
             exit 0
@@ -186,7 +157,7 @@ jobs:
             exit 0
           fi
           for num in $(echo "$numbers" | jq '.[]'); do
-            sub_node_id=$(gh api "repos/${{ github.repository }}/issues/$num" --jq '.node_id')
+            sub_node_id=$(gh api "repos/${GITHUB_REPOSITORY}/issues/$num" --jq '.node_id')
             item_add_result=$(gh api graphql -f query='
               mutation($projectId: ID!, $contentId: ID!) {
                 addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
