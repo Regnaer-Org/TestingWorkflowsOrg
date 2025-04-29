@@ -37,7 +37,7 @@ jobs:
           echo "Issue type is neither 'Bug' nor 'Story'. Stopping workflow."
           exit 0
 
-      - name: Get Sprint field id and parent Sprint value
+      - name: Get Sprint field id by name and parent Sprint value
         id: parent_sprint
         env:
           GH_TOKEN: ${{ secrets.milestone_sync }}
@@ -45,37 +45,40 @@ jobs:
           PROJECT_NODE_ID="PVT_kwDODH0FwM4A3yi4"
           issue_node_id="${{ github.event.issue.node_id }}"
 
-          fields_result=$(gh api graphql -f query='
-            query($project: ID!) {
-              node(id: $project) {
-                ... on ProjectV2 {
-                  fields(first: 50) {
-                    nodes {
-                      id
-                      name
-                      __typename
+          # Get Sprint field id by name
+          sprint_field_id=$(
+            gh api graphql -f query='
+              query($project: ID!) {
+                node(id: $project) {
+                  ... on ProjectV2 {
+                    fields(first: 50) {
+                      nodes {
+                        id
+                        name
+                        __typename
+                      }
                     }
                   }
                 }
               }
-            }
-          ' -F project="$PROJECT_NODE_ID")
+            ' -F project="$PROJECT_NODE_ID" | jq -r '.data.node.fields.nodes[] | select(.name == "Sprint") | .id // empty'
+          )
 
-          # Look for the field named "Sprint" with type ProjectV2IterationField
-          sprint_field_id=$(echo "$fields_result" | jq -r '.data.node.fields.nodes[] | select(.name == "Sprint" and .__typename == "ProjectV2IterationField") | .id // empty')
-
-          parent_items=$(gh api graphql -f query='
-            query($id: ID!) {
-              node(id: $id) {
-                ... on Issue {
-                  projectItems(first: 10) {
-                    nodes {
-                      project { id }
-                      fieldValues(first: 20) {
-                        nodes {
-                          ... on ProjectV2ItemFieldIterationValue {
-                            field { name }
-                            iterationId
+          # Get parent's current Sprint value (iterationId)
+          parent_sprint_id=$(
+            gh api graphql -f query='
+              query($id: ID!) {
+                node(id: $id) {
+                  ... on Issue {
+                    projectItems(first: 10) {
+                      nodes {
+                        project { id }
+                        fieldValues(first: 20) {
+                          nodes {
+                            ... on ProjectV2ItemFieldIterationValue {
+                              field { name }
+                              iterationId
+                            }
                           }
                         }
                       }
@@ -83,10 +86,8 @@ jobs:
                   }
                 }
               }
-            }
-          ' -f id="$issue_node_id")
-
-          parent_sprint_id=$(echo "$parent_items" | jq -r --arg proj "$PROJECT_NODE_ID" '.data.node.projectItems.nodes[] | select(.project.id == $proj) | .fieldValues.nodes[]? | select(.field.name == "Sprint") | .iterationId // empty')
+            ' -f id="$issue_node_id" | jq -r --arg proj "$PROJECT_NODE_ID" '.data.node.projectItems.nodes[] | select(.project.id == $proj) | .fieldValues.nodes[]? | select(.field.name == "Sprint") | .iterationId // empty'
+          )
 
           echo "sprint_field_id=$sprint_field_id" >> $GITHUB_OUTPUT
           echo "parent_sprint_id=$parent_sprint_id" >> $GITHUB_OUTPUT
