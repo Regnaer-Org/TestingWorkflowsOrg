@@ -35,13 +35,14 @@ jobs:
             echo "ERROR: Failed to determine issue type. Exiting."
             exit 1
           fi
+
       - name: Stop workflow if issue type is not Bug or Story
         if: ${{ steps.check_type.outputs.type != 'Bug' && steps.check_type.outputs.type != 'Story' }}
         run: |
           echo "Issue type is neither 'Bug' nor 'Story'. Stopping workflow."
           exit 0
 
-      - name: Detect Sprint field and get parent Sprint iterationId
+      - name: Detect parent Sprint iterationId
         id: parent_sprint
         env:
           GH_TOKEN: ${{ secrets.milestone_sync }}
@@ -55,11 +56,11 @@ jobs:
             query($id: ID!) {
               node(id: $id) {
                 ... on Issue {
-                  projectItems(first: 10) {
+                  projectItems(first: 25) {
                     nodes {
                       id
                       project { id }
-                      fieldValues(first: 20) {
+                      fieldValues(first: 30) {
                         nodes {
                           ... on ProjectV2ItemFieldIterationValue {
                             field { name id }
@@ -120,9 +121,11 @@ jobs:
                         id
                         name
                         configuration {
-                          iterations {
-                            id
-                            title
+                          ... on ProjectV2IterationFieldConfiguration {
+                            iterations {
+                              id
+                              title
+                            }
                           }
                         }
                       }
@@ -180,6 +183,10 @@ jobs:
             sub_item_id=$(echo "$item_add_result" | jq -r '.data.addProjectV2ItemById.item.id // empty')
             if [ -z "$sub_item_id" ]; then
               echo "Failed to get item id for sub-issue $num"
+              continue
+            fi
+            if [ -z "$SPRINT_FIELD_ID" ]; then
+              echo "Could not determine Sprint field id in project."
               continue
             fi
             if [ -z "$PARENT_SPRINT_ID" ]; then
