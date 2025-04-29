@@ -98,7 +98,9 @@ jobs:
         shell: bash
         run: |
           labels='${{ steps.get_parent.outputs.parent_labels }}'
-          gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }} -X PATCH -F labels="$labels"
+          gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }} \
+            -X PATCH \
+            --field-json labels="$labels"
 
       - name: Lookup ProjectV2 Field IDs for Sprint and Team
         id: lookup_fields
