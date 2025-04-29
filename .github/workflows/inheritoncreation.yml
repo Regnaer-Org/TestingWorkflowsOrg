@@ -14,7 +14,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq
           gh --version || (echo "GitHub CLI not installed!" && exit 1)
-
       - name: Retrieve parent issue and field info
         id: get_parent
         env:
@@ -23,8 +22,6 @@ jobs:
         run: |
           set -eo pipefail
           issue_node_id="${{ github.event.issue.node_id }}"
-
-          # Query for parent issue and relevant fields
           parent_result=$(gh api graphql -H "GraphQL-Features:sub_issues" -f query='
             query($id: ID!) {
               node(id: $id) {
@@ -58,13 +55,11 @@ jobs:
               }
             }
           ' -f id="$issue_node_id")
-
           parent_id=$(echo "$parent_result" | jq -r '.data.node.parent.id // empty')
           if [ -z "$parent_id" ]; then
             echo "has_parent=false" >> $GITHUB_OUTPUT
             exit 0
           fi
-
           parent_number=$(echo "$parent_result" | jq -r '.data.node.parent.number')
           parent_milestone=$(echo "$parent_result" | jq -r '.data.node.parent.milestone.number // empty')
           parent_labels=$(echo "$parent_result" | jq -c '[.data.node.parent.labels.nodes[].name]')
@@ -74,23 +69,20 @@ jobs:
           echo "parent_milestone=$parent_milestone" >> $GITHUB_OUTPUT
           echo "parent_labels=$parent_labels" >> $GITHUB_OUTPUT
           echo "parent_project_items=$parent_project_items" >> $GITHUB_OUTPUT
-
       - name: Stop if no parent
         if: steps.get_parent.outputs.has_parent != 'true'
         run: |
           echo "No parent found, workflow stopping."
           exit 0
-
       - name: Inherit Milestone from Parent
         if: ${{ steps.get_parent.outputs.parent_milestone != '' }}
         env:
           GH_TOKEN: ${{ secrets.milestone_sync }}
         shell: bash
         run: |
-          milestone_number="${{ steps.get_parent.outputs.parent_milestone }}"
+          jq -n --arg milestone "${{ steps.get_parent.outputs.parent_milestone }}" '{"milestone": ($milestone | tonumber)}' > payload.json
           gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }} \
-            -X PATCH -F milestone="$milestone_number"
-
+            -X PATCH --input payload.json
       - name: Inherit Labels from Parent
         if: ${{ steps.get_parent.outputs.parent_labels != '[]' && steps.get_parent.outputs.parent_labels != '' }}
         env:
@@ -98,10 +90,10 @@ jobs:
         shell: bash
         run: |
           labels='${{ steps.get_parent.outputs.parent_labels }}'
+          jq -n --argjson labels "$labels" '{labels: $labels}' > payload.json
           gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }} \
-            -X PATCH \
-            --field-json labels="$labels"
-
+            -X PATCH --input payload.json
+      # The rest: Sprint/Team inheritance (unchanged from earlier, but you can apply the same jq/gh api --input technique if needed)
       - name: Lookup ProjectV2 Field IDs for Sprint and Team
         id: lookup_fields
         env:
@@ -139,17 +131,14 @@ jobs:
               }
             }
           ' -F project="$PROJECT_NODE_ID")
-
           sprint_field_id=$(echo "$fields_result" | jq -r '.data.node.fields.nodes[] | select(.name == "Sprint") | .id // empty')
           team_field_id=$(echo "$fields_result" | jq -r '.data.node.fields.nodes[] | select(.name == "Team") | .id // empty')
           sprint_iterations=$(echo "$fields_result" | jq -c '.data.node.fields.nodes[] | select(.name == "Sprint") | .configuration.iterations // empty')
           team_options=$(echo "$fields_result" | jq -c '.data.node.fields.nodes[] | select(.name == "Team") | .options // empty')
-
           echo "sprint_field_id=$sprint_field_id" >> $GITHUB_OUTPUT
           echo "team_field_id=$team_field_id" >> $GITHUB_OUTPUT
           echo "sprint_iterations=$sprint_iterations" >> $GITHUB_OUTPUT
           echo "team_options=$team_options" >> $GITHUB_OUTPUT
-
       - name: Inherit ProjectV2 Sprint and Team fields from Parent (if present)
         if: ${{ steps.get_parent.outputs.parent_project_items != '' && steps.get_parent.outputs.parent_project_items != '[]' }}
         env:
@@ -164,11 +153,9 @@ jobs:
           TEAM_FIELD_ID="${{ steps.lookup_fields.outputs.team_field_id }}"
           SPRINT_ITERATIONS='${{ steps.lookup_fields.outputs.sprint_iterations }}'
           TEAM_OPTIONS='${{ steps.lookup_fields.outputs.team_options }}'
-
           # Prepare temp files for Sprint and Team selection
           sprint_json=$(mktemp)
           team_json=$(mktemp)
-
           echo "$parent_items" | jq -c '.[]' | while read -r row; do
             echo "$row" | jq -c '.fieldValues.nodes[]?' | while read -r fv; do
               sprint_field=$(echo "$fv" | jq -r '.field.name // empty')
@@ -191,7 +178,6 @@ jobs:
               fi
             done
           done
-
           # Add the new issue to the project (idempotent)
           item_add_result=$(gh api graphql -f query='
             mutation($projectId: ID!, $contentId: ID!) {
@@ -204,7 +190,6 @@ jobs:
             echo "ERROR: Unable to add new issue to project."
             exit 1
           fi
-
           # Apply Sprint if found
           if [ -s "$sprint_json" ]; then
             selected_sprint_id=$(jq -r .id "$sprint_json")
@@ -218,7 +203,6 @@ jobs:
               }' \
               -F projectId="$PROJECT_NODE_ID" -F itemId="$new_item_id" -F fieldId="$SPRINT_FIELD_ID" -F value="$selected_sprint_id"
           fi
-
           # Apply Team if found
           if [ -s "$team_json" ]; then
             selected_team_option_id=$(jq -r .id "$team_json")
@@ -232,9 +216,7 @@ jobs:
               }' \
               -F projectId="$PROJECT_NODE_ID" -F itemId="$new_item_id" -F fieldId="$TEAM_FIELD_ID" -F optionId="$selected_team_option_id"
           fi
-
           if [ ! -s "$sprint_json" ] && [ ! -s "$team_json" ]; then
             echo "No valid Sprint or Team field to inherit."
           fi
-
           rm -f "$sprint_json" "$team_json"
