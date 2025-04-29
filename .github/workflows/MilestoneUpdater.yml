@@ -24,7 +24,6 @@ jobs:
           set -eo pipefail
           issue_node_id="${{ github.event.issue.node_id }}"
 
-          # Query for parent issue and relevant fields
           parent_result=$(gh api graphql -H "GraphQL-Features:sub_issues" -f query='
             query($id: ID!) {
               node(id: $id) {
@@ -87,9 +86,9 @@ jobs:
           GH_TOKEN: ${{ secrets.milestone_sync }}
         shell: bash
         run: |
-          milestone_number="${{ steps.get_parent.outputs.parent_milestone }}"
+          jq -n --arg milestone "${{ steps.get_parent.outputs.parent_milestone }}" '{"milestone": ($milestone | tonumber)}' > payload.json
           gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }} \
-            -X PATCH -F milestone="$milestone_number"
+            -X PATCH --input payload.json
 
       - name: Inherit Labels from Parent
         if: ${{ steps.get_parent.outputs.parent_labels != '[]' && steps.get_parent.outputs.parent_labels != '' }}
@@ -97,10 +96,12 @@ jobs:
           GH_TOKEN: ${{ secrets.milestone_sync }}
         shell: bash
         run: |
-          labels=$(echo '${{ steps.get_parent.outputs.parent_labels }}' | jq -r '. | join(",")')
+          labels='${{ steps.get_parent.outputs.parent_labels }}'
+          jq -n --argjson labels "$labels" '{labels: $labels}' > payload.json
           gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }} \
-            -X PATCH -F labels="$labels"
+            -X PATCH --input payload.json
 
+      # The rest: Sprint/Team inheritance (unchanged from earlier, but you can apply the same jq/gh api --input technique if needed)
       - name: Lookup ProjectV2 Field IDs for Sprint and Team
         id: lookup_fields
         env:
@@ -164,22 +165,19 @@ jobs:
           SPRINT_ITERATIONS='${{ steps.lookup_fields.outputs.sprint_iterations }}'
           TEAM_OPTIONS='${{ steps.lookup_fields.outputs.team_options }}'
 
-          selected_sprint_id=""
-          selected_sprint_title=""
-          selected_team_option_id=""
-          selected_team_name=""
+          # Prepare temp files for Sprint and Team selection
+          sprint_json=$(mktemp)
+          team_json=$(mktemp)
 
-          echo "$parent_items" | jq -c '.[]' | while read row; do
-            echo "$row" | jq -c '.fieldValues.nodes[]?' | while read fv; do
+          echo "$parent_items" | jq -c '.[]' | while read -r row; do
+            echo "$row" | jq -c '.fieldValues.nodes[]?' | while read -r fv; do
               sprint_field=$(echo "$fv" | jq -r '.field.name // empty')
               sprint_title=$(echo "$fv" | jq -r '.title // empty')
               sprint_iteration_id=$(echo "$fv" | jq -r '.iterationId // empty')
               if [[ "$sprint_field" == "Sprint" && "$sprint_title" != "" && "$sprint_iteration_id" != "" ]]; then
                 match=$(echo "$SPRINT_ITERATIONS" | jq -r --arg id "$sprint_iteration_id" '.[] | select(.id == $id)')
                 if [ ! -z "$match" ]; then
-                  selected_sprint_id="$sprint_iteration_id"
-                  selected_sprint_title="$sprint_title"
-                  echo "DEBUG: Validated and selected Sprint: $selected_sprint_title ($selected_sprint_id)"
+                  jq -n --arg id "$sprint_iteration_id" --arg title "$sprint_title" '{id: $id, title: $title}' > "$sprint_json"
                 fi
               fi
               team_field=$(echo "$fv" | jq -r '.field.name // empty')
@@ -188,9 +186,7 @@ jobs:
               if [[ "$team_field" == "Team" && "$team_name" != "" && "$team_option_id" != "" ]]; then
                 match=$(echo "$TEAM_OPTIONS" | jq -r --arg id "$team_option_id" '.[] | select(.id == $id)')
                 if [ ! -z "$match" ]; then
-                  selected_team_option_id="$team_option_id"
-                  selected_team_name="$team_name"
-                  echo "DEBUG: Validated and selected Team: $selected_team_name ($selected_team_option_id)"
+                  jq -n --arg id "$team_option_id" --arg name "$team_name" '{id: $id, name: $name}' > "$team_json"
                 fi
               fi
             done
@@ -209,8 +205,10 @@ jobs:
             exit 1
           fi
 
-          # Set Sprint (iteration) field if present/validated
-          if [[ "$selected_sprint_id" != "" ]]; then
+          # Apply Sprint if found
+          if [ -s "$sprint_json" ]; then
+            selected_sprint_id=$(jq -r .id "$sprint_json")
+            selected_sprint_title=$(jq -r .title "$sprint_json")
             echo "DEBUG: Setting Sprint (iteration) field for new issue to $selected_sprint_title ($selected_sprint_id)"
             gh api graphql -f query='
               mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: String!) {
@@ -221,8 +219,10 @@ jobs:
               -F projectId="$PROJECT_NODE_ID" -F itemId="$new_item_id" -F fieldId="$SPRINT_FIELD_ID" -F value="$selected_sprint_id"
           fi
 
-          # Set Team (single select) field if present/validated
-          if [[ "$selected_team_option_id" != "" ]]; then
+          # Apply Team if found
+          if [ -s "$team_json" ]; then
+            selected_team_option_id=$(jq -r .id "$team_json")
+            selected_team_name=$(jq -r .name "$team_json")
             echo "DEBUG: Setting Team (single select) field for new issue to $selected_team_name ($selected_team_option_id)"
             gh api graphql -f query='
               mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
@@ -233,6 +233,8 @@ jobs:
               -F projectId="$PROJECT_NODE_ID" -F itemId="$new_item_id" -F fieldId="$TEAM_FIELD_ID" -F optionId="$selected_team_option_id"
           fi
 
-          if [[ "$selected_sprint_id" == "" && "$selected_team_option_id" == "" ]]; then
+          if [ ! -s "$sprint_json" ] && [ ! -s "$team_json" ]; then
             echo "No valid Sprint or Team field to inherit."
           fi
+
+          rm -f "$sprint_json" "$team_json"
