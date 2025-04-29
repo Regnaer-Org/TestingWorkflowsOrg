@@ -8,7 +8,7 @@ jobs:
   sync-sprint-to-subissues:
     runs-on: ubuntu-latest
     steps:
-      # 1. Get the issue's type
+      # 1. Get the issue's type and global node ID (GraphQL uses 'id')
       - name: Get parent issue type
         id: issue_type
         env:
@@ -23,15 +23,15 @@ jobs:
                 issue(number: $number) {
                   issueType { name }
                   id
-                  node_id
+                  number
                 }
               }
             }
           ')
           type=$(echo "$result" | jq -r '.data.repository.issue.issueType.name')
-          node_id=$(echo "$result" | jq -r '.data.repository.issue.node_id')
+          issue_id=$(echo "$result" | jq -r '.data.repository.issue.id')
           echo "type=$type" >> $GITHUB_OUTPUT
-          echo "node_id=$node_id" >> $GITHUB_OUTPUT
+          echo "issue_id=$issue_id" >> $GITHUB_OUTPUT
           echo "type: $type"
           if [ -z "$type" ] || [ "$type" = "null" ]; then
             echo "ERROR: Failed to determine issue type. Exiting."
@@ -52,7 +52,7 @@ jobs:
           GH_TOKEN: ${{ secrets.milestone_sync }}
         run: |
           PROJECT_NODE_ID="PVT_kwDODH0FwM4A3yi4"
-          issue_node_id="${{ steps.issue_type.outputs.node_id }}"
+          issue_id="${{ steps.issue_type.outputs.issue_id }}"
           parent_items=$(gh api graphql -f query='
             query($id: ID!) {
               node(id: $id) {
@@ -73,7 +73,7 @@ jobs:
                 }
               }
             }
-          ' -f id="$issue_node_id")
+          ' -f id="$issue_id")
           # Find the iterationId and title for our project, if set
           parent_sprint_id=$(echo "$parent_items" | jq -r --arg proj "$PROJECT_NODE_ID" '
             .data.node.projectItems.nodes[] | select(.project.id == $proj) |
@@ -92,8 +92,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.milestone_sync }}
         run: |
-          issue_node_id="${{ steps.issue_type.outputs.node_id }}"
-          gh api graphql -H "GraphQL-Features:sub_issues" -F id="$issue_node_id" -f query='
+          issue_id="${{ steps.issue_type.outputs.issue_id }}"
+          gh api graphql -H "GraphQL-Features:sub_issues" -F id="$issue_id" -f query='
             query($id: ID!) {
               node(id: $id) {
                 ... on Issue {
@@ -157,7 +157,17 @@ jobs:
             exit 0
           fi
           for num in $(echo "$numbers" | jq '.[]'); do
-            sub_node_id=$(gh api "repos/${GITHUB_REPOSITORY}/issues/$num" --jq '.node_id')
+            sub_issue_data=$(gh api graphql -f query='
+              query($number: Int!, $owner: String!, $repo: String!) {
+                repository(owner: $owner, name: $repo) {
+                  issue(number: $number) {
+                    id
+                  }
+                }
+              }
+            ' -F number="$num" -F owner="${GITHUB_REPOSITORY%/*}" -F repo="${GITHUB_REPOSITORY#*/}")
+            sub_node_id=$(echo "$sub_issue_data" | jq -r '.data.repository.issue.id')
+            # Add to project (idempotent)
             item_add_result=$(gh api graphql -f query='
               mutation($projectId: ID!, $contentId: ID!) {
                 addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
