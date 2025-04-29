@@ -97,9 +97,8 @@ jobs:
           GH_TOKEN: ${{ secrets.milestone_sync }}
         shell: bash
         run: |
-          labels=$(echo '${{ steps.get_parent.outputs.parent_labels }}' | jq -r '. | join(",")')
-          gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }} \
-            -X PATCH -F labels="$labels"
+          labels='${{ steps.get_parent.outputs.parent_labels }}'
+          gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }} -X PATCH -F labels="$labels"
 
       - name: Lookup ProjectV2 Field IDs for Sprint and Team
         id: lookup_fields
