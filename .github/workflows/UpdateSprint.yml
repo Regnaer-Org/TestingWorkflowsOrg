@@ -37,11 +37,12 @@ jobs:
           echo "Issue type is neither 'Bug' nor 'Story'. Stopping workflow."
           exit 0
 
-      - name: Get Sprint field id by name and parent Sprint value
+      - name: Get Sprint field id by name and parent Sprint value (with debug)
         id: parent_sprint
         env:
           GH_TOKEN: ${{ secrets.milestone_sync }}
         run: |
+          set -e
           PROJECT_NODE_ID="PVT_kwDODH0FwM4A3yi4"
           issue_node_id="${{ github.event.issue.node_id }}"
 
@@ -55,7 +56,6 @@ jobs:
                       nodes {
                         id
                         name
-                        __typename
                       }
                     }
                   }
@@ -64,21 +64,28 @@ jobs:
             ' -F project="$PROJECT_NODE_ID" | jq -r '.data.node.fields.nodes[] | select(.name == "Sprint") | .id // empty'
           )
 
-          # Get parent's current Sprint value (iterationId)
-          parent_sprint_id=$(
-            gh api graphql -f query='
-              query($id: ID!) {
-                node(id: $id) {
-                  ... on Issue {
-                    projectItems(first: 10) {
-                      nodes {
-                        project { id }
-                        fieldValues(first: 20) {
-                          nodes {
-                            ... on ProjectV2ItemFieldIterationValue {
-                              field { name }
-                              iterationId
-                            }
+          if [ -z "$sprint_field_id" ]; then
+            echo "No Sprint field found in project, skipping."
+            echo "sprint_field_id=" >> $GITHUB_OUTPUT
+            echo "parent_sprint_id=" >> $GITHUB_OUTPUT
+            echo "parent_sprint_name=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Get all project items for this issue
+          parent_items=$(gh api graphql -f query='
+            query($id: ID!) {
+              node(id: $id) {
+                ... on Issue {
+                  projectItems(first: 10) {
+                    nodes {
+                      project { id }
+                      fieldValues(first: 20) {
+                        nodes {
+                          ... on ProjectV2ItemFieldIterationValue {
+                            field { name }
+                            iterationId
+                            title
                           }
                         }
                       }
@@ -86,11 +93,39 @@ jobs:
                   }
                 }
               }
-            ' -f id="$issue_node_id" | jq -r --arg proj "$PROJECT_NODE_ID" '.data.node.projectItems.nodes[] | select(.project.id == $proj) | .fieldValues.nodes[]? | select(.field.name == "Sprint") | .iterationId // empty'
-          )
+            }
+          ' -f id="$issue_node_id")
+
+          # Defensive: check if projectItems is null/empty or issue not attached to this project
+          has_project=$(echo "$parent_items" | jq --arg proj "$PROJECT_NODE_ID" '[.data.node.projectItems.nodes[] | select(.project.id == $proj)] | length')
+          if [ "$has_project" = "0" ]; then
+            echo "Triggering issue is not attached to the project. Skipping."
+            echo "parent_sprint_id=" >> $GITHUB_OUTPUT
+            echo "parent_sprint_name=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Get the parent Sprint id and name (title)
+          parent_sprint_id=$(echo "$parent_items" | jq -r --arg proj "$PROJECT_NODE_ID" '
+            .data.node.projectItems.nodes[] | select(.project.id == $proj) |
+              .fieldValues.nodes[]? | select(.field.name == "Sprint") | .iterationId // empty
+          ')
+          parent_sprint_name=$(echo "$parent_items" | jq -r --arg proj "$PROJECT_NODE_ID" '
+            .data.node.projectItems.nodes[] | select(.project.id == $proj) |
+              .fieldValues.nodes[]? | select(.field.name == "Sprint") | .title // empty
+          ')
+
+          echo "Sprint debug info for triggering issue:"
+          echo "  Sprint field id: $sprint_field_id"
+          echo "  Parent Sprint id (iterationId): $parent_sprint_id"
+          echo "  Parent Sprint name (title): $parent_sprint_name"
+          if [ -z "$parent_sprint_id" ]; then
+            echo "  Parent issue does NOT have a Sprint set."
+          fi
 
           echo "sprint_field_id=$sprint_field_id" >> $GITHUB_OUTPUT
           echo "parent_sprint_id=$parent_sprint_id" >> $GITHUB_OUTPUT
+          echo "parent_sprint_name=$parent_sprint_name" >> $GITHUB_OUTPUT
 
       - name: Get sub-issues via GraphQL
         id: subissues
@@ -145,7 +180,11 @@ jobs:
           numbers=${{ steps.subissues.outputs.numbers }}
           SPRINT_FIELD_ID="${{ steps.parent_sprint.outputs.sprint_field_id }}"
           PARENT_SPRINT_ID="${{ steps.parent_sprint.outputs.parent_sprint_id }}"
+          PARENT_SPRINT_NAME="${{ steps.parent_sprint.outputs.parent_sprint_name }}"
           PROJECT_NODE_ID="PVT_kwDODH0FwM4A3yi4"
+          echo "DEBUG: Sprint field id: $SPRINT_FIELD_ID"
+          echo "DEBUG: Parent Sprint iterationId: $PARENT_SPRINT_ID"
+          echo "DEBUG: Parent Sprint name: $PARENT_SPRINT_NAME"
           if [ -z "$SPRINT_FIELD_ID" ]; then
             echo "No Sprint field id found in project."
             exit 0
@@ -168,7 +207,7 @@ jobs:
               continue
             fi
             if [ -z "$PARENT_SPRINT_ID" ]; then
-              # Remove Sprint from sub-issue if parent has no Sprint
+              echo "Removing Sprint from sub-issue #$num"
               gh api graphql -f query='
                 mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!) {
                   clearProjectV2ItemFieldValue(input: {projectId: $projectId, itemId: $itemId, fieldId: $fieldId}) {
@@ -178,9 +217,8 @@ jobs:
                 -F projectId="$PROJECT_NODE_ID" \
                 -F itemId="$sub_item_id" \
                 -F fieldId="$SPRINT_FIELD_ID"
-              echo "Removed Sprint from sub-issue #$num"
             else
-              # Set Sprint for sub-issue
+              echo "Updating sub-issue #$num to Sprint '$PARENT_SPRINT_NAME' (iterationId: $PARENT_SPRINT_ID)"
               gh api graphql -f query='
                 mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: String!) {
                   updateProjectV2ItemFieldValue(input: {projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { iterationId: $value }}) {
@@ -191,6 +229,5 @@ jobs:
                 -F itemId="$sub_item_id" \
                 -F fieldId="$SPRINT_FIELD_ID" \
                 -F value="$PARENT_SPRINT_ID"
-              echo "Updated sub-issue #$num to Sprint $PARENT_SPRINT_ID"
             fi
           done
