@@ -102,7 +102,7 @@ jobs:
                 }
               }
             }
-            EOF
+          EOF
             )
 
             PAYLOAD=$(jq -n --arg query "$QUERY" --argjson vars "{\"afterCursor\":$AFTER_CURSOR}" '{query: $query, variables: $vars}')
