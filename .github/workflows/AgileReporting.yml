@@ -1,0 +1,135 @@
+name: Export ProjectV2 Items to JSON
+
+on:
+  workflow_dispatch:
+
+jobs:
+  export-project-items:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Export ProjectV2 Items as JSON
+        env:
+          GH_TOKEN: ${{ secrets.MILESTONE_SYNC }}
+          PROJECT_ID: PVT_kwDODH0FwM4A3yi4
+          OUTPUT_FILE: projectv2-items.json
+        run: |
+          set -euo pipefail
+
+          # GraphQL query with correct fragments for project fields and issue repo-level fields
+          read -r -d '' QUERY <<'EOF'
+          query($projectId: ID!, $after: String) {
+            node(id: $projectId) {
+              ... on ProjectV2 {
+                id
+                title
+                number
+                items(first: 100, after: $after) {
+                  nodes {
+                    id
+                    fieldValues(first: 100) {
+                      nodes {
+                        ... on ProjectV2ItemFieldTextValue {
+                          text
+                          field { ... on ProjectV2FieldCommon { name id } }
+                        }
+                        ... on ProjectV2ItemFieldDateValue {
+                          date
+                          field { ... on ProjectV2FieldCommon { name id } }
+                        }
+                        ... on ProjectV2ItemFieldNumberValue {
+                          number
+                          field { ... on ProjectV2FieldCommon { name id } }
+                        }
+                        ... on ProjectV2ItemFieldSingleSelectValue {
+                          name
+                          optionId
+                          field { ... on ProjectV2SingleSelectField { name id } }
+                        }
+                        ... on ProjectV2ItemFieldIterationValue {
+                          title
+                          startDate
+                          duration
+                          iterationId
+                          field { ... on ProjectV2IterationField { name id } }
+                        }
+                      }
+                    }
+                    content {
+                      ... on Issue {
+                        id
+                        number
+                        title
+                        state
+                        createdAt
+                        updatedAt
+                        url
+                        author { login }
+                        closedAt
+                        milestone { title number state }
+                        issueType { name }
+                        labels(first: 100) { nodes { name color } }
+                        assignees(first: 100) { nodes { login } }
+                        parent {
+                          ... on Issue { title number url id issueType { name } }
+                        }
+                        repository { nameWithOwner }
+                      }
+                    }
+                  }
+                  pageInfo {
+                    endCursor
+                    hasNextPage
+                  }
+                }
+              }
+            }
+          }
+          EOF
+
+          # Initialize
+          all_nodes_json='[]'
+          after=null
+          has_next_page=true
+          page=1
+
+          while [ "$has_next_page" = true ]; do
+            echo "Fetching page $page..."
+            VARS="{\"projectId\":\"$PROJECT_ID\", \"after\":$after}"
+            PAYLOAD=$(jq -n --arg query "$QUERY" --argjson variables "$VARS" '{query: $query, variables: $variables}')
+            RESPONSE=$(curl -s -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/json" -d "$PAYLOAD" https://api.github.com/graphql)
+
+            # Check for errors
+            if echo "$RESPONSE" | jq -e '.errors' > /dev/null; then
+              echo "GraphQL error:"
+              echo "$RESPONSE" | jq .
+              exit 1
+            fi
+
+            # Extract items and accumulate
+            ITEMS=$(echo "$RESPONSE" | jq '.data.node.items.nodes')
+            all_nodes_json=$(jq -s '.[0] + .[1]' <(echo "$all_nodes_json") <(echo "$ITEMS"))
+
+            # Pagination: update cursor, check next page
+            pageInfo=$(echo "$RESPONSE" | jq '.data.node.items.pageInfo')
+            after=$(echo "$pageInfo" | jq -r '.endCursor')
+            has_next_page=$(echo "$pageInfo" | jq -r '.hasNextPage')
+            if [ "$after" = "null" ]; then
+              after=null
+            else
+              after="\"$after\""
+            fi
+            page=$((page+1))
+          done
+
+          # Output full JSON
+          echo "$all_nodes_json" > "$OUTPUT_FILE"
+          echo "Output written: $OUTPUT_FILE"
+
+      - name: Upload ProjectV2 JSON as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: projectv2-items
+          path: projectv2-items.json
