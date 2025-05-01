@@ -14,7 +14,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Fetch All Project Items (Paginated)
+      - name: Validate Token and Fetch All Project Items
         id: fetch_items
         env:
           GH_TOKEN: ${{ secrets.MILESTONE_SYNC }}
@@ -22,6 +22,16 @@ jobs:
           OUTPUT_FILENAME: project-issues.json
         run: |
           set -e
+          echo "Validating the provided GitHub token..."
+          
+          # Validate GitHub Token
+          TOKEN_VALIDATION=$(curl -s -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/json" https://api.github.com/user)
+          if echo "$TOKEN_VALIDATION" | jq -e '.message? | select(. == "Bad credentials")' > /dev/null; then
+            echo "Error: Invalid GitHub token provided."
+            exit 1
+          fi
+          echo "Token validation successful."
+
           echo "Fetching all ProjectV2 items for project: $PROJECT_ID"
 
           # GraphQL query (with cursor)
@@ -116,12 +126,11 @@ jobs:
 
             # Extract items and accumulate
             ITEMS=$(echo "$RESPONSE" | jq -e '.data?.node?.items?.nodes // empty')
-            if [ -z "$ITEMS" ]; then
-              echo "Error: No items found in the response."
-              echo "$RESPONSE" | jq .
-              exit 1
+            if [ "$ITEMS" = "[]" ]; then
+              echo "Warning: No items found in the response for this page."
+            else
+              jq -c --argjson newItems "$ITEMS" '. + $newItems' "$OUTPUT_FILE" > "tmp.json" && mv "tmp.json" "$OUTPUT_FILE"
             fi
-            jq -c --argjson newItems "$ITEMS" '. + $newItems' "$OUTPUT_FILE" > "tmp.json" && mv "tmp.json" "$OUTPUT_FILE"
 
             # Pagination: update cursor, check next page
             END_CURSOR=$(echo "$RESPONSE" | jq -r '.data?.node?.items?.pageInfo?.endCursor // null')
