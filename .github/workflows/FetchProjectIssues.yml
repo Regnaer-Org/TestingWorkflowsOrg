@@ -27,7 +27,7 @@ jobs:
         run: |
           set -ex  # Enable debugging mode and print each command before execution
           echo 'Fetching issues from the project...'
-          PROJECT_ID="PVT_kwHOAYT8e84A0x6m" # Replace with your hardcoded Project ID
+          PROJECT_ID="PVT_kwDODH0FwM4A3yi4" # Replace with your hardcoded Project ID
           AFTER_CURSOR=null  # Start with no pagination cursor
           HAS_NEXT_PAGE=true
           OUTPUT_FILE="project-issues.json"
