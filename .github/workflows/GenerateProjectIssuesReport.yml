@@ -6,7 +6,6 @@ on:
 permissions:
   contents: read
   id-token: write
-  project: read  # Ensure this is included for accessing project-related data
 
 jobs:
   fetch-all-items:
