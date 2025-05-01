@@ -2,59 +2,63 @@ name: Fetch All Project Items (Paginated)
 
 on:
   workflow_dispatch:
-    inputs:
-      project_node_id:
-        description: 'The Node ID of the ProjectV2 board (e.g., PVT_...)'
-        required: true
-        type: string
-      output_filename:
-        description: 'Filename for the final JSON output'
-        required: false
-        type: string
-        default: 'all_project_items.json'
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   fetch-all-items:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read # Needed for checkout
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Fetch All Project Items
+      - name: Fetch All Project Items (Paginated)
         id: fetch_items
         env:
-          # Use a Classic PAT stored as a secret. Needs 'repo' and 'project' scopes.
-          GH_TOKEN: ${{ secrets.GH_PAT_PROJECTS }}
-          PROJECT_ID: ${{ inputs.project_node_id }}
-          OUTPUT_FILENAME: ${{ inputs.output_filename }}
+          GH_TOKEN: ${{ secrets.MILESTONE_SYNC }}
+          PROJECT_ID: PVT_kwDODH0FwM4A3yi4
+          OUTPUT_FILENAME: project-issues.json
         run: |
-          echo "Starting fetch for Project ID: $PROJECT_ID"
-          echo "Output filename: $OUTPUT_FILENAME"
+          set -e
+          echo "Fetching all ProjectV2 items for project: $PROJECT_ID"
 
-          # Define the GraphQL query with a variable for the cursor
-          read -r -d '' query << EOF
-          query GetProjectItemsPaginated(\$projectId: ID!, \$itemsCursor: String) {
-            node(id: \$projectId) {
+          # GraphQL query (with cursor)
+          read -r -d '' QUERY <<'EOF'
+          query($projectId: ID!, $after: String) {
+            node(id: $projectId) {
               ... on ProjectV2 {
                 id
                 title
                 number
-                items(first: 100, after: \$itemsCursor) { # Max 'first' is 100, use 'after'
+                items(first: 100, after: $after) {
                   nodes {
-                    id # Project Item Node ID
-                    # --- Get ProjectV2 Field Values for this item ---
+                    id
                     fieldValues(first: 20) {
                       nodes {
-                        ... on ProjectV2ItemFieldTextValue { text field { ... on ProjectV2Field { name id } } }
-                        ... on ProjectV2ItemFieldDateValue { date field { ... on ProjectV2Field { name id } } }
-                        ... on ProjectV2ItemFieldNumberValue { number field { ... on ProjectV2Field { name id } } }
-                        ... on ProjectV2ItemFieldSingleSelectValue { name optionId field { ... on ProjectV2SingleSelectField { name id } } }
-                        ... on ProjectV2ItemFieldIterationValue { title startDate duration iterationId field { ... on ProjectV2IterationField { name id } } }
+                        ... on ProjectV2ItemFieldTextValue {
+                          text
+                          field { ... on ProjectV2FieldCommon { name id } }
+                        }
+                        ... on ProjectV2ItemFieldDateValue {
+                          date
+                          field { ... on ProjectV2FieldCommon { name id } }
+                        }
+                        ... on ProjectV2ItemFieldNumberValue {
+                          number
+                          field { ... on ProjectV2FieldCommon { name id } }
+                        }
+                        ... on ProjectV2ItemFieldSingleSelectValue {
+                          name
+                          optionId
+                          field { ... on ProjectV2FieldCommon { name id } }
+                        }
+                        ... on ProjectV2ItemFieldIterationValue {
+                          title startDate duration iterationId field { ... on ProjectV2FieldCommon { name id } }
+                        }
                       }
                     }
-                    # --- Get details about the content (if it's an Issue) ---
                     content {
                       ... on Issue {
                         id number title state createdAt updatedAt closedAt url
@@ -66,9 +70,6 @@ jobs:
                         parent { ... on Issue { title number url id issueType { name } } }
                         repository { nameWithOwner }
                       }
-                      # Add fragments for other content types if needed (PRs, Drafts)
-                      # ... on PullRequest { ... }
-                      # ... on DraftIssue { ... }
                     }
                   }
                   pageInfo {
@@ -81,127 +82,52 @@ jobs:
           }
           EOF
 
-          # Initialize variables for pagination
-          all_nodes_json='[]' # Start with an empty JSON array for all nodes
-          cursor="null"       # Start with null cursor for the first page (JSON null)
-          has_next_page=true  # Assume there's at least one page
-          page_count=0
-          max_pages=200       # Safety break to prevent infinite loops
+          OUTPUT_FILE="$OUTPUT_FILENAME"
+          echo "[]" > "$OUTPUT_FILE"
+          HAS_NEXT_PAGE=true
+          CURSOR=
+          PAGE=1
 
-          # Retry mechanism parameters
-          MAX_RETRIES=3
-          RETRY_DELAY=5 # seconds
+          while [ "$HAS_NEXT_PAGE" = "true" ]; do
+            if [ -z "$CURSOR" ]; then
+              VARS="{\"projectId\":\"$PROJECT_ID\"}"
+            else
+              VARS="{\"projectId\":\"$PROJECT_ID\", \"after\":\"$CURSOR\"}"
+            fi
 
-          echo "Starting pagination loop..."
+            # Build GraphQL payload for this page
+            PAYLOAD=$(jq -n --arg query "$QUERY" --argjson variables "$VARS" '{query: $query, variables: $variables}')
+            RESPONSE=$(curl -s -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/json" -d "$PAYLOAD" https://api.github.com/graphql)
 
-          while $has_next_page; do
-            page_count=$((page_count + 1))
-            echo "--- Preparing page $page_count ---"
-            echo "Cursor for this page: $cursor"
-
-            # --- Start Retry Loop for API Call ---
-            retry_count=0
-            success=false
-            while [[ $retry_count -lt $MAX_RETRIES ]]; do
-              echo "Attempting API call (Attempt $((retry_count + 1))/$MAX_RETRIES) for page $page_count..."
-              # Use --argjson for cursor to correctly handle the 'null' string as JSON null
-              if gh api graphql -F projectId="$PROJECT_ID" -f query="$query" --argjson itemsCursor "$cursor" > page_data.json; then
-                echo "API call successful for page $page_count."
-                success=true
-                break # Exit retry loop on success
-              else
-                echo "ERROR: 'gh api graphql' command failed on page $page_count (Attempt $((retry_count + 1))). Waiting ${RETRY_DELAY}s..."
-                # Optionally print response even on failure if file has content
-                if [[ -s page_data.json ]]; then
-                     echo "--- Start of failed API Response ---"
-                     jq . page_data.json || cat page_data.json
-                     echo "--- End of failed API Response ---"
-                fi
-                sleep $RETRY_DELAY
-                retry_count=$((retry_count + 1))
-              fi
-            done # End Retry Loop
-
-            # Check if all retries failed
-            if [[ "$success" != "true" ]]; then
-              echo "ERROR: Reached maximum retry limit ($MAX_RETRIES) for page $page_count. Exiting."
+            # Check for errors
+            if echo "$RESPONSE" | jq -e '.errors' > /dev/null; then
+              echo "GraphQL error:"
+              echo "$RESPONSE" | jq .
               exit 1
             fi
-            # --- End Retry Loop for API Call ---
 
+            # Extract items and accumulate
+            ITEMS=$(echo "$RESPONSE" | jq '.data.node.items.nodes')
+            jq -c --argjson newItems "$ITEMS" '. + $newItems' "$OUTPUT_FILE" > "tmp.json" && mv "tmp.json" "$OUTPUT_FILE"
 
-            echo "Validating response for page $page_count..."
-            # Validate basic response structure
-            if ! jq -e '.data.node.items' page_data.json > /dev/null; then
-               echo "ERROR: '.data.node.items' not found in GraphQL response on page $page_count even after successful API call."
-               echo "--- Start of page_data.json content ---"
-               jq . page_data.json || cat page_data.json
-               echo "--- End of page_data.json content ---"
-               exit 1
-            fi
-            echo "Response validation passed for page $page_count."
-
-            # Extract nodes from the current page
-            current_page_nodes=$(jq -c '.data.node.items.nodes // []' page_data.json)
-            echo "Extracted $(echo "$current_page_nodes" | jq length) nodes from page $page_count."
-
-            # Extract pageInfo
-            page_info=$(jq -c '.data.node.items.pageInfo // {"hasNextPage": false, "endCursor": null}' page_data.json)
-            has_next_page=$(echo "$page_info" | jq -r '.hasNextPage')
-            new_cursor=$(echo "$page_info" | jq -r '.endCursor // "null"') # Get new cursor, default to "null" string if missing
-
-            # Append current page nodes to the main list
-            all_nodes_json=$(jq -s '.[0] + .[1]' <(echo "$all_nodes_json") <(echo "$current_page_nodes"))
-            echo "Total nodes accumulated: $(echo "$all_nodes_json" | jq length)"
-
-            # Update cursor for the next iteration - ensure it's quoted for --argjson processing if not null
-            if [[ "$new_cursor" == "null" ]]; then
-                cursor="null"
+            # Pagination: update cursor, check next page
+            END_CURSOR=$(echo "$RESPONSE" | jq -r '.data.node.items.pageInfo.endCursor')
+            HAS_NEXT_PAGE=$(echo "$RESPONSE" | jq -r '.data.node.items.pageInfo.hasNextPage')
+            if [ "$END_CURSOR" = "null" ] || [ -z "$END_CURSOR" ]; then
+              CURSOR=
             else
-                cursor="\"$new_cursor\""
+              CURSOR="$END_CURSOR"
             fi
 
-            echo "Page $page_count processed. hasNextPage: $has_next_page. Next cursor: $new_cursor"
+            echo "Fetched page $PAGE, hasNextPage: $HAS_NEXT_PAGE, next cursor: $CURSOR"
+            PAGE=$((PAGE+1))
+          done
 
-            # Safety break
-            if [[ $page_count -ge $max_pages ]]; then
-              echo "WARNING: Reached maximum page limit ($max_pages). Stopping pagination."
-              break
-            fi
+          echo "All project items fetched and saved to $OUTPUT_FILE"
+          echo "output_path=$OUTPUT_FILE" >> $GITHUB_OUTPUT
 
-            # Break loop if hasNextPage is false
-            if [[ "$has_next_page" != "true" ]]; then
-              echo "No more pages indicated by hasNextPage."
-              break
-            fi
-          done # End Main Pagination Loop
-
-          echo "Pagination complete. Total pages fetched: $page_count"
-          echo "Total nodes collected: $(echo "$all_nodes_json" | jq length)"
-
-          # Construct the final JSON object embedding the aggregated nodes
-          # Get the base structure from the last successful page_data.json
-          if [[ -f page_data.json ]]; then
-              base_structure=$(jq '.data' page_data.json)
-              # Inject the aggregated nodes array into the structure
-              final_json=$(echo "$base_structure" | jq --argjson nodes "$all_nodes_json" '.node.items.nodes = $nodes')
-              # Wrap it back in the top-level "data" key
-              final_output=$(jq -n --argjson data "$final_json" '{"data": $data}')
-          else
-              # Handle case where no pages were successfully fetched (e.g., project empty or immediate error)
-              echo "Warning: No page data was successfully processed. Creating basic JSON structure."
-              final_output=$(jq -n --argjson nodes "$all_nodes_json" \
-                              '{data: {node: {items: {nodes: $nodes, pageInfo:{hasNextPage:false, endCursor:null}}}}}')
-          fi
-
-          # Save the final aggregated JSON to the output file
-          echo "$final_output" > "$OUTPUT_FILENAME"
-
-          echo "Successfully fetched all items and saved to $OUTPUT_FILENAME"
-          echo "output_path=$OUTPUT_FILENAME" >> $GITHUB_OUTPUT
-
-      - name: Upload Full JSON Report Artifact
+      - name: Upload JSON as Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: full-project-data # Name of the artifact zip file
-          path: ${{ steps.fetch_items.outputs.output_path }} # Path to the generated JSON file
+          name: project-issues
+          path: project-issues.json
