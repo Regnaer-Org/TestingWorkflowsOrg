@@ -1,176 +1,143 @@
-name: Export ProjectV2 Items to JSON
+name: Fetch Project Issues
 
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
-  export-project-items:
+  fetch-issues:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Export ProjectV2 Items as JSON
-        env:
-          OUTPUT_FILE: projectv2-items.json
-        run: |
-          set -euo pipefail
-          PROJECT_ID="PVT_kwDODH0FwM4A3yi4"
-          echo "==== ENVIRONMENT ===="
-          echo "PROJECT_ID: $PROJECT_ID"
-          echo "OUTPUT_FILE: $OUTPUT_FILE"
-          echo "====================="
-          # Show GitHub Actions context for debugging
-          echo "==== GITHUB CONTEXT ===="
-          env | grep GITHUB_ || true
-          echo "========================"
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
 
-          # The GraphQL query as a HEREDOC (hardcoded project ID)
-          read -r -d '' QUERY <<EOF
-          query(\$after: String) {
-            node(id: "$PROJECT_ID") {
-              ... on ProjectV2 {
-                id
-                title
-                number
-                items(first: 100, after: \$after) {
-                  nodes {
-                    id
-                    fieldValues(first: 100) {
-                      nodes {
-                        ... on ProjectV2ItemFieldTextValue {
-                          text
-                          field { ... on ProjectV2FieldCommon { name id } }
+      - name: Fetch Issues (using updated ProjectV2 GraphQL query)
+        id: fetch_issues
+        run: |
+          set -ex
+          echo 'Fetching issues from the project...'
+          PROJECT_ID="PVT_kwDODH0FwM4A3yi4"
+          AFTER_CURSOR=null
+          HAS_NEXT_PAGE=true
+          OUTPUT_FILE="project-issues.json"
+          echo "[]" > $OUTPUT_FILE
+
+          while [ "$HAS_NEXT_PAGE" = "true" ]; do
+            echo "Starting a new iteration of fetching issues..."
+
+            # This is the GraphQL query from your "non-working" workflow, but placed in the working workflow
+            QUERY=$(cat <<EOF
+            query GetProjectV2Items(\$afterCursor: String) {
+              node(id: "$PROJECT_ID") {
+                ... on ProjectV2 {
+                  id
+                  title
+                  number
+                  items(first: 100, after: \$afterCursor) {
+                    nodes {
+                      id
+                      fieldValues(first: 100) {
+                        nodes {
+                          ... on ProjectV2ItemFieldTextValue {
+                            text
+                            field { ... on ProjectV2FieldCommon { name id } }
+                          }
+                          ... on ProjectV2ItemFieldDateValue {
+                            date
+                            field { ... on ProjectV2FieldCommon { name id } }
+                          }
+                          ... on ProjectV2ItemFieldNumberValue {
+                            number
+                            field { ... on ProjectV2FieldCommon { name id } }
+                          }
+                          ... on ProjectV2ItemFieldSingleSelectValue {
+                            name
+                            optionId
+                            field { ... on ProjectV2SingleSelectField { name id } }
+                          }
+                          ... on ProjectV2ItemFieldIterationValue {
+                            title
+                            startDate
+                            duration
+                            iterationId
+                            field { ... on ProjectV2IterationField { name id } }
+                          }
                         }
-                        ... on ProjectV2ItemFieldDateValue {
-                          date
-                          field { ... on ProjectV2FieldCommon { name id } }
-                        }
-                        ... on ProjectV2ItemFieldNumberValue {
+                      }
+                      content {
+                        ... on Issue {
+                          id
                           number
-                          field { ... on ProjectV2FieldCommon { name id } }
-                        }
-                        ... on ProjectV2ItemFieldSingleSelectValue {
-                          name
-                          optionId
-                          field { ... on ProjectV2SingleSelectField { name id } }
-                        }
-                        ... on ProjectV2ItemFieldIterationValue {
                           title
-                          startDate
-                          duration
-                          iterationId
-                          field { ... on ProjectV2IterationField { name id } }
+                          state
+                          createdAt
+                          updatedAt
+                          url
+                          author { login }
+                          closedAt
+                          milestone { title number state }
+                          issueType { name }
+                          labels(first: 100) { nodes { name color } }
+                          assignees(first: 100) { nodes { login } }
+                          parent {
+                            ... on Issue { title number url id issueType { name } }
+                          }
+                          repository { nameWithOwner }
                         }
                       }
                     }
-                    content {
-                      ... on Issue {
-                        id
-                        number
-                        title
-                        state
-                        createdAt
-                        updatedAt
-                        url
-                        author { login }
-                        closedAt
-                        milestone { title number state }
-                        issueType { name }
-                        labels(first: 100) { nodes { name color } }
-                        assignees(first: 100) { nodes { login } }
-                        parent {
-                          ... on Issue { title number url id issueType { name } }
-                        }
-                        repository { nameWithOwner }
-                      }
+                    pageInfo {
+                      endCursor
+                      hasNextPage
                     }
-                  }
-                  pageInfo {
-                    endCursor
-                    hasNextPage
                   }
                 }
               }
             }
-          }
-          EOF
+            EOF
+            )
 
-          # Initial values
-          all_nodes_json='[]'
-          after=null
-          has_next_page=true
-          page=1
-          while [ "$has_next_page" = true ]; do
-            echo "==== FETCHING PAGE $page ===="
-            echo "Current after cursor: $after"
-            VARS="{\"after\":$after}"
-            PAYLOAD=$(jq -n --arg query "$QUERY" --argjson variables "$VARS" '{query: $query, variables: $variables}')
-            echo "---- GraphQL Query ----"
-            echo "$QUERY"
-            echo "---- Variables ----"
-            echo "$VARS"
-            echo "---- Payload ----"
-            echo "$PAYLOAD" | jq .
-            echo "========================"
-            RESPONSE=$(curl --retry 3 --retry-delay 5 --retry-connrefused -s -w "\n%{http_code}" \
+            PAYLOAD=$(jq -n --arg query "$QUERY" --argjson vars "{\"afterCursor\":$AFTER_CURSOR}" '{query: $query, variables: $vars}')
+            RESPONSE=$(curl -s -w "%{http_code}" \
               -H "Authorization: Bearer ${{ secrets.MILESTONE_SYNC }}" \
               -H "Content-Type: application/json" \
-              -d "$PAYLOAD" https://api.github.com/graphql)
-            # Separate HTTP status and body
-            HTTP_BODY=$(echo "$RESPONSE" | sed '$d')
-            HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
-            echo "==== HTTP STATUS: $HTTP_STATUS ===="
-            # Print full response for debugging
-            echo "==== FULL GRAPHQL RESPONSE ===="
-            echo "$HTTP_BODY" | jq . || echo "$HTTP_BODY"
-            echo "==============================="
-            # Save raw response to file for each page
-            echo "$HTTP_BODY" > "graphql_response_page${page}.json"
-            # Error handling
-            if [ "$HTTP_STATUS" != "200" ]; then
-              echo "Non-200 HTTP status: $HTTP_STATUS"
-              echo "$HTTP_BODY" > graphql_error_response.json
+              -d "$PAYLOAD" \
+              https://api.github.com/graphql)
+
+            HTTP_STATUS="${RESPONSE: -3}"
+            RESPONSE_BODY="${RESPONSE::-3}"
+
+            echo "HTTP Status: $HTTP_STATUS"
+            echo "Response Body: $RESPONSE_BODY"
+
+            if [ "$HTTP_STATUS" -ne 200 ]; then
+              echo "Error: Failed to fetch project issues. HTTP Status: $HTTP_STATUS"
+              echo "Response: $RESPONSE_BODY"
               exit 1
             fi
-            if echo "$HTTP_BODY" | jq -e '.errors' > /dev/null; then
-              echo "GraphQL error occurred (see graphql_error_response.json):"
-              echo "$HTTP_BODY" | jq .
-              echo "$HTTP_BODY" > graphql_error_response.json
-              # Print helpful hints
-              echo "==== DEBUGGING HINTS ===="
-              echo "Check:"
-              echo "- Is the PROJECT_ID correct and accessible for this token?"
-              echo "- Does the PAT in secrets.MILESTONE_SYNC have 'read:org' and 'repo' scopes?"
-              echo "- Is the ProjectV2 enabled and visible to this user?"
-              echo "- Does your IP have access to GitHub API (no firewall issues)?"
-              echo "========================="
-              exit 1
-            fi
-            # Extract items and add to accumulator
-            ITEMS=$(echo "$HTTP_BODY" | jq '.data.node.items.nodes // []')
-            all_nodes_json=$(jq -s '.[0] + .[1]' <(echo "$all_nodes_json") <(echo "$ITEMS"))
-            # Pagination
-            pageInfo=$(echo "$HTTP_BODY" | jq '.data.node.items.pageInfo')
-            after=$(echo "$pageInfo" | jq -r '.endCursor')
-            has_next_page=$(echo "$pageInfo" | jq -r '.hasNextPage')
-            if [ "$after" = "null" ]; then
-              after=null
-            else
-              after="\"$after\""
-            fi
-            echo "==== End page $page ===="
-            page=$((page+1))
+
+            ITEMS=$(echo "$RESPONSE_BODY" | jq '.data.node.items.nodes')
+            END_CURSOR=$(echo "$RESPONSE_BODY" | jq -r '.data.node.items.pageInfo.endCursor')
+            HAS_NEXT_PAGE=$(echo "$RESPONSE_BODY" | jq -r '.data.node.items.pageInfo.hasNextPage')
+
+            jq -c --argjson newItems "$ITEMS" '. + $newItems' $OUTPUT_FILE > temp.json && mv temp.json $OUTPUT_FILE
+
+            echo "Fetched 100 items. Next cursor: $END_CURSOR"
+            AFTER_CURSOR="\"$END_CURSOR\""
           done
-          # Output full JSON
-          echo "$all_nodes_json" > "$OUTPUT_FILE"
-          echo "Output written: $OUTPUT_FILE"
-          ls -lh "$OUTPUT_FILE"
-      - name: Upload ProjectV2 JSON and Debug Artifacts
+
+          echo "All project issues fetched successfully! Saved to $OUTPUT_FILE."
+
+      - name: Upload JSON as Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: projectv2-json-and-debug
-          path: |
-            projectv2-items.json
-            graphql_error_response.json
-            graphql_response_page*.json
+          name: project-issues
+          path: project-issues.json
