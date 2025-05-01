@@ -90,29 +90,42 @@ jobs:
 
           while [ "$HAS_NEXT_PAGE" = "true" ]; do
             if [ -z "$CURSOR" ]; then
-              VARS="{\"projectId\":\"$PROJECT_ID\"}"
+              VARS=$(jq -n --arg projectId "$PROJECT_ID" '{projectId: $projectId}')
             else
-              VARS="{\"projectId\":\"$PROJECT_ID\", \"after\":\"$CURSOR\"}"
+              VARS=$(jq -n --arg projectId "$PROJECT_ID" --arg after "$CURSOR" '{projectId: $projectId, after: $after}')
             fi
 
             # Build GraphQL payload for this page
             PAYLOAD=$(jq -n --arg query "$QUERY" --argjson variables "$VARS" '{query: $query, variables: $variables}')
+            
+            # Debugging payload
+            echo "GraphQL Query Payload: $PAYLOAD"
+            
             RESPONSE=$(curl -s -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/json" -d "$PAYLOAD" https://api.github.com/graphql)
+            
+            # Debugging response
+            echo "GraphQL Query Response:"
+            echo "$RESPONSE" | jq .
 
             # Check for errors
-            if echo "$RESPONSE" | jq -e '.errors' > /dev/null; then
-              echo "GraphQL error:"
+            if echo "$RESPONSE" | jq -e '.errors?' > /dev/null; then
+              echo "GraphQL Error Detected:"
               echo "$RESPONSE" | jq .
               exit 1
             fi
 
             # Extract items and accumulate
-            ITEMS=$(echo "$RESPONSE" | jq '.data.node.items.nodes')
+            ITEMS=$(echo "$RESPONSE" | jq -e '.data?.node?.items?.nodes // empty')
+            if [ -z "$ITEMS" ]; then
+              echo "Error: No items found in the response."
+              echo "$RESPONSE" | jq .
+              exit 1
+            fi
             jq -c --argjson newItems "$ITEMS" '. + $newItems' "$OUTPUT_FILE" > "tmp.json" && mv "tmp.json" "$OUTPUT_FILE"
 
             # Pagination: update cursor, check next page
-            END_CURSOR=$(echo "$RESPONSE" | jq -r '.data.node.items.pageInfo.endCursor')
-            HAS_NEXT_PAGE=$(echo "$RESPONSE" | jq -r '.data.node.items.pageInfo.hasNextPage')
+            END_CURSOR=$(echo "$RESPONSE" | jq -r '.data?.node?.items?.pageInfo?.endCursor // null')
+            HAS_NEXT_PAGE=$(echo "$RESPONSE" | jq -r '.data?.node?.items?.pageInfo?.hasNextPage // false')
             if [ "$END_CURSOR" = "null" ] || [ -z "$END_CURSOR" ]; then
               CURSOR=
             else
