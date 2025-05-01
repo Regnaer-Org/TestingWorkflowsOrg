@@ -150,7 +150,7 @@ jobs:
             # Make the API request
             PAYLOAD=$(jq -n --arg query "$QUERY" --argjson vars "{\"afterCursor\":$AFTER_CURSOR}" '{query: $query, variables: $vars}')
             RESPONSE=$(curl -s -w "%{http_code}" \
-              -H "Authorization: Bearer ${{ secrets.PAT }}" \
+              -H "Authorization: Bearer ${{ secrets.MILESTONE_SYNC }}" \
               -H "Content-Type: application/json" \
               -d "$PAYLOAD" \
               https://api.github.com/graphql)
