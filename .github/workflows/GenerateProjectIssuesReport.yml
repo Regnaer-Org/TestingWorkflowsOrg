@@ -18,7 +18,7 @@ jobs:
       - name: Validate Token and Fetch All Project Items
         id: fetch_items
         env:
-          GH_TOKEN: ${{ secrets.MILESTONE_SYNC }}
+          GH_TOKEN: ${{ secrets.ISSUE_FETCH }}
           PROJECT_ID: PVT_kwDODH0FwM4A3yi4
           OUTPUT_FILENAME: project-issues.json
         run: |
