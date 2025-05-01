@@ -1,4 +1,4 @@
-name: Fetch Project Issues
+name: Fetch Project Issues2
 
 on:
   workflow_dispatch:
