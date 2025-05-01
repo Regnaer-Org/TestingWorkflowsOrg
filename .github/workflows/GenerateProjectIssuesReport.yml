@@ -6,6 +6,7 @@ on:
 permissions:
   contents: read
   id-token: write
+  project: read  # Ensure this is included for accessing project-related data
 
 jobs:
   fetch-all-items:
@@ -121,12 +122,13 @@ jobs:
             if echo "$RESPONSE" | jq -e '.errors?' > /dev/null; then
               echo "GraphQL Error Detected:"
               echo "$RESPONSE" | jq .
+              echo "Verify PROJECT_ID and token permissions."
               exit 1
             fi
 
             # Extract items and accumulate
             ITEMS=$(echo "$RESPONSE" | jq -e '.data?.node?.items?.nodes // empty')
-            if [ "$ITEMS" = "[]" ]; then
+            if [ "$ITEMS" = "[]" ] || [ -z "$ITEMS" ]; then
               echo "Warning: No items found in the response for this page."
             else
               jq -c --argjson newItems "$ITEMS" '. + $newItems' "$OUTPUT_FILE" > "tmp.json" && mv "tmp.json" "$OUTPUT_FILE"
