@@ -1,0 +1,186 @@
+name: Daily Agile Snapshot CSV
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 8:00 PM Central = 01:00 UTC (next day)
+    - cron: '0 1 * * *'
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  fetch-issues:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Set snapshot filename (YYYY.MM.DD)
+        id: setvars
+        run: |
+          SNAPSHOT_DATE=$(date +'%Y.%m.%d')
+          echo "SNAPSHOT_DATE=$SNAPSHOT_DATE" >> $GITHUB_ENV
+          echo "SNAPSHOT_FILENAME=project.issues_${SNAPSHOT_DATE}.csv" >> $GITHUB_ENV
+
+      - name: Fetch Issues (using updated ProjectV2 GraphQL query)
+        id: fetch_issues
+        run: |
+          set -ex
+          echo 'Fetching issues from the project...'
+          PROJECT_ID="PVT_kwDODH0FwM4A3yi4"
+          AFTER_CURSOR=null
+          HAS_NEXT_PAGE=true
+          OUTPUT_FILE="project-issues.json"
+          echo "[]" > $OUTPUT_FILE
+          while [ "$HAS_NEXT_PAGE" = "true" ]; do
+            echo "Starting a new iteration of fetching issues..."
+            QUERY=$(cat <<EOF
+            query GetProjectV2Items(\$afterCursor: String) {
+              node(id: "$PROJECT_ID") {
+                ... on ProjectV2 {
+                  id
+                  title
+                  number
+                  items(first: 100, after: \$afterCursor) {
+                    nodes {
+                      id
+                      fieldValues(first: 100) {
+                        nodes {
+                          ... on ProjectV2ItemFieldTextValue {
+                            text
+                            field { ... on ProjectV2FieldCommon { name id } }
+                          }
+                          ... on ProjectV2ItemFieldDateValue {
+                            date
+                            field { ... on ProjectV2FieldCommon { name id } }
+                          }
+                          ... on ProjectV2ItemFieldNumberValue {
+                            number
+                            field { ... on ProjectV2FieldCommon { name id } }
+                          }
+                          ... on ProjectV2ItemFieldSingleSelectValue {
+                            name
+                            optionId
+                            field { ... on ProjectV2SingleSelectField { name id } }
+                          }
+                          ... on ProjectV2ItemFieldIterationValue {
+                            title
+                            startDate
+                            duration
+                            iterationId
+                            field { ... on ProjectV2IterationField { name id } }
+                          }
+                        }
+                      }
+                      content {
+                        ... on Issue {
+                          id
+                          number
+                          title
+                          state
+                          createdAt
+                          updatedAt
+                          url
+                          author { login }
+                          closedAt
+                          milestone { title number state }
+                          issueType { name }
+                          labels(first: 100) { nodes { name color } }
+                          assignees(first: 100) { nodes { login } }
+                          parent {
+                            ... on Issue { title number url id issueType { name } }
+                          }
+                          repository { nameWithOwner }
+                        }
+                      }
+                    }
+                    pageInfo {
+                      endCursor
+                      hasNextPage
+                    }
+                  }
+                }
+              }
+            }
+          EOF
+            )
+            PAYLOAD=$(jq -n --arg query "$QUERY" --argjson vars "{\"afterCursor\":$AFTER_CURSOR}" '{query: $query, variables: $vars}')
+            RESPONSE=$(curl -s -w "%{http_code}" \
+              -H "Authorization: Bearer ${{ secrets.MILESTONE_SYNC }}" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD" \
+              https://api.github.com/graphql)
+            HTTP_STATUS="${RESPONSE: -3}"
+            RESPONSE_BODY="${RESPONSE::-3}"
+            echo "HTTP Status: $HTTP_STATUS"
+            echo "Response Body: $RESPONSE_BODY"
+            if [ "$HTTP_STATUS" -ne 200 ]; then
+              echo "Error: Failed to fetch project issues. HTTP Status: $HTTP_STATUS"
+              echo "Response: $RESPONSE_BODY"
+              exit 1
+            fi
+            ITEMS=$(echo "$RESPONSE_BODY" | jq '.data.node.items.nodes')
+            END_CURSOR=$(echo "$RESPONSE_BODY" | jq -r '.data.node.items.pageInfo.endCursor')
+            HAS_NEXT_PAGE=$(echo "$RESPONSE_BODY" | jq -r '.data.node.items.pageInfo.hasNextPage')
+            jq -c --argjson newItems "$ITEMS" '. + $newItems' $OUTPUT_FILE > temp.json && mv temp.json $OUTPUT_FILE
+            echo "Fetched 100 items. Next cursor: $END_CURSOR"
+            AFTER_CURSOR="\"$END_CURSOR\""
+          done
+          echo "All project issues fetched successfully! Saved to $OUTPUT_FILE."
+
+      - name: Convert JSON to CSV
+        run: |
+          # Use jq to flatten and convert the array to CSV
+          jq -r '
+            .[] | [
+              .id,
+              .content.id,
+              .content.number,
+              .content.title,
+              .content.state,
+              .content.createdAt,
+              .content.updatedAt,
+              .content.url,
+              .content.author.login,
+              .content.closedAt,
+              (.content.milestone.title // ""),
+              (.content.milestone.number // ""),
+              (.content.milestone.state // ""),
+              (.content.issueType.name // ""),
+              ([.content.labels.nodes[].name] | join(";")),
+              ([.content.assignees.nodes[].login] | join(";")),
+              (.content.parent.title // ""),
+              (.content.parent.number // ""),
+              (.content.parent.url // ""),
+              (.content.parent.id // ""),
+              (.content.parent.issueType.name // ""),
+              .content.repository.nameWithOwner
+            ] | @csv
+          ' project-issues.json > project-issues.csv
+
+          # Add CSV header
+          sed -i '1i\
+id,content.id,content.number,content.title,content.state,content.createdAt,content.updatedAt,content.url,content.author.login,content.closedAt,content.milestone.title,content.milestone.number,content.milestone.state,content.issueType.name,content.labels.nodes,content.assignees.nodes,content.parent.title,content.parent.number,content.parent.url,content.parent.id,content.parent.issueType.name,content.repository.nameWithOwner
+' project-issues.csv
+
+      - name: Move CSV to agilereporting directory
+        run: |
+          mkdir -p agilereporting
+          mv project-issues.csv "agilereporting/${SNAPSHOT_FILENAME}"
+
+      - name: Commit and push snapshot to repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "agilereporting/${SNAPSHOT_FILENAME}"
+          git commit -m "Agile snapshot for $SNAPSHOT_DATE" || echo "Nothing to commit"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
