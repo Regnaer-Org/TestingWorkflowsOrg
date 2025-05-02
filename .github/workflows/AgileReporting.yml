@@ -1,10 +1,13 @@
-name: Fetch Project Issues2
+name: Daily Agile Snapshot
 
 on:
   workflow_dispatch:
+  schedule:
+    # 8:00 PM Central = 01:00 UTC (next day)
+    - cron: '0 1 * * *'
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 jobs:
@@ -19,6 +22,13 @@ jobs:
         with:
           node-version: '20.x'
 
+      - name: Set snapshot filename (YYYY.MM.DD)
+        id: setvars
+        run: |
+          SNAPSHOT_DATE=$(date +'%Y.%m.%d')
+          echo "SNAPSHOT_DATE=$SNAPSHOT_DATE" >> $GITHUB_ENV
+          echo "SNAPSHOT_FILENAME=project.issues_${SNAPSHOT_DATE}.json" >> $GITHUB_ENV
+
       - name: Fetch Issues (using updated ProjectV2 GraphQL query)
         id: fetch_issues
         run: |
@@ -29,11 +39,8 @@ jobs:
           HAS_NEXT_PAGE=true
           OUTPUT_FILE="project-issues.json"
           echo "[]" > $OUTPUT_FILE
-
           while [ "$HAS_NEXT_PAGE" = "true" ]; do
             echo "Starting a new iteration of fetching issues..."
-
-            # This is the GraphQL query from your "non-working" workflow, but placed in the working workflow
             QUERY=$(cat <<EOF
             query GetProjectV2Items(\$afterCursor: String) {
               node(id: "$PROJECT_ID") {
@@ -104,40 +111,41 @@ jobs:
             }
           EOF
             )
-
             PAYLOAD=$(jq -n --arg query "$QUERY" --argjson vars "{\"afterCursor\":$AFTER_CURSOR}" '{query: $query, variables: $vars}')
             RESPONSE=$(curl -s -w "%{http_code}" \
               -H "Authorization: Bearer ${{ secrets.MILESTONE_SYNC }}" \
               -H "Content-Type: application/json" \
               -d "$PAYLOAD" \
               https://api.github.com/graphql)
-
             HTTP_STATUS="${RESPONSE: -3}"
             RESPONSE_BODY="${RESPONSE::-3}"
-
             echo "HTTP Status: $HTTP_STATUS"
             echo "Response Body: $RESPONSE_BODY"
-
             if [ "$HTTP_STATUS" -ne 200 ]; then
               echo "Error: Failed to fetch project issues. HTTP Status: $HTTP_STATUS"
               echo "Response: $RESPONSE_BODY"
               exit 1
             fi
-
             ITEMS=$(echo "$RESPONSE_BODY" | jq '.data.node.items.nodes')
             END_CURSOR=$(echo "$RESPONSE_BODY" | jq -r '.data.node.items.pageInfo.endCursor')
             HAS_NEXT_PAGE=$(echo "$RESPONSE_BODY" | jq -r '.data.node.items.pageInfo.hasNextPage')
-
             jq -c --argjson newItems "$ITEMS" '. + $newItems' $OUTPUT_FILE > temp.json && mv temp.json $OUTPUT_FILE
-
             echo "Fetched 100 items. Next cursor: $END_CURSOR"
             AFTER_CURSOR="\"$END_CURSOR\""
           done
-
           echo "All project issues fetched successfully! Saved to $OUTPUT_FILE."
 
-      - name: Upload JSON as Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: project-issues
-          path: project-issues.json
+      - name: Move JSON to agilereporting directory
+        run: |
+          mkdir -p agilereporting
+          mv project-issues.json "agilereporting/${SNAPSHOT_FILENAME}"
+
+      - name: Commit and push snapshot to repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "agilereporting/${SNAPSHOT_FILENAME}"
+          git commit -m "Agile snapshot for $SNAPSHOT_DATE" || echo "Nothing to commit"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
