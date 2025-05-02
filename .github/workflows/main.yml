@@ -1,4 +1,4 @@
-name: Daily Agile Snapshot CSV
+name: Daily Agile Snapshot
 
 on:
   workflow_dispatch:
@@ -137,7 +137,6 @@ jobs:
 
       - name: Convert JSON to CSV
         run: |
-          # Use jq to flatten and convert the array to CSV
           jq -r '
             .[] | [
               .id,
@@ -165,10 +164,7 @@ jobs:
             ] | @csv
           ' project-issues.json > project-issues.csv
 
-          # Add CSV header
-          sed -i '1i\
-id,content.id,content.number,content.title,content.state,content.createdAt,content.updatedAt,content.url,content.author.login,content.closedAt,content.milestone.title,content.milestone.number,content.milestone.state,content.issueType.name,content.labels.nodes,content.assignees.nodes,content.parent.title,content.parent.number,content.parent.url,content.parent.id,content.parent.issueType.name,content.repository.nameWithOwner
-' project-issues.csv
+          sed -i '1iid,content.id,content.number,content.title,content.state,content.createdAt,content.updatedAt,content.url,content.author.login,content.closedAt,content.milestone.title,content.milestone.number,content.milestone.state,content.issueType.name,content.labels.nodes,content.assignees.nodes,content.parent.title,content.parent.number,content.parent.url,content.parent.id,content.parent.issueType.name,content.repository.nameWithOwner' project-issues.csv
 
       - name: Move CSV to agilereporting directory
         run: |
