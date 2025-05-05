@@ -1,4 +1,4 @@
-name: Daily Agile Snapshot
+name: Daily Agile Snapshot with Debugging
 
 on:
   workflow_dispatch:
@@ -29,7 +29,7 @@ jobs:
           echo "SNAPSHOT_DATE=$SNAPSHOT_DATE" >> $GITHUB_ENV
           echo "SNAPSHOT_FILENAME=project.issues_${SNAPSHOT_DATE}.csv" >> $GITHUB_ENV
 
-      - name: Fetch Issues (using updated ProjectV2 GraphQL query)
+      - name: Fetch Issues (with debugging)
         id: fetch_issues
         run: |
           set -ex
@@ -38,7 +38,9 @@ jobs:
           AFTER_CURSOR=null
           HAS_NEXT_PAGE=true
           OUTPUT_FILE="project-issues.json"
+          DEBUG_FILE="debug_raw_response.json"
           echo "[]" > $OUTPUT_FILE
+          echo "[]" > $DEBUG_FILE
           while [ "$HAS_NEXT_PAGE" = "true" ]; do
             echo "Starting a new iteration of fetching issues..."
             QUERY=$(cat <<EOF
@@ -120,7 +122,7 @@ jobs:
             HTTP_STATUS="${RESPONSE: -3}"
             RESPONSE_BODY="${RESPONSE::-3}"
             echo "HTTP Status: $HTTP_STATUS"
-            echo "Response Body: $RESPONSE_BODY"
+            echo "Response Body: $RESPONSE_BODY" >> $DEBUG_FILE
             if [ "$HTTP_STATUS" -ne 200 ]; then
               echo "Error: Failed to fetch project issues. HTTP Status: $HTTP_STATUS"
               echo "Response: $RESPONSE_BODY"
@@ -135,8 +137,15 @@ jobs:
           done
           echo "All project issues fetched successfully! Saved to $OUTPUT_FILE."
 
-      - name: Convert JSON to CSV
+      - name: Debug Field Values Before CSV Conversion
         run: |
+          echo "Logging raw JSON data for debugging..."
+          jq '.' project-issues.json > debug_project_issues.json
+          echo "Raw JSON saved to debug_project_issues.json"
+
+      - name: Convert JSON to CSV (with debugging)
+        run: |
+          echo "Converting JSON to CSV with detailed logging..."
           jq -r '
             .[] | [
               .id,
@@ -168,18 +177,22 @@ jobs:
             ] | @csv
           ' project-issues.json > project-issues.csv
           sed -i '1iid,id,number,title,state,createdAt,updatedAt,url,author,closedAt,milestone.title,milestone.number,milestone.state,issueType,labels,assignees,parent.title,parent.number,parent.url,parent.id,parent.issueType,repository,sprint,team,priority,status' project-issues.csv
+          echo "CSV Conversion completed. Logging CSV content for debugging..."
+          cat project-issues.csv
 
-      - name: Move CSV to agilereporting directory
+      - name: Move CSV and Debug Files to agilereporting Directory
         run: |
-          mkdir -p agilereporting
+          mkdir -p agilereporting/debug
           mv project-issues.csv "agilereporting/${SNAPSHOT_FILENAME}"
+          mv debug_raw_response.json agilereporting/debug/
+          mv debug_project_issues.json agilereporting/debug/
 
-      - name: Commit and push snapshot to repo
+      - name: Commit and Push Debug Files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add "agilereporting/${SNAPSHOT_FILENAME}"
-          git commit -m "Agile snapshot for $SNAPSHOT_DATE" || echo "Nothing to commit"
+          git add "agilereporting/${SNAPSHOT_FILENAME}" "agilereporting/debug/"
+          git commit -m "Agile snapshot for $SNAPSHOT_DATE with debugging artifacts" || echo "Nothing to commit"
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
