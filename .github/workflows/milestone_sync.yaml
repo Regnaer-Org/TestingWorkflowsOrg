@@ -1,0 +1,43 @@
+name: Sync Milestone to Sub-issues
+
+on:
+  issues:
+    types:
+      - milestoned
+      - unmilestoned # Also trigger when milestone is removed
+
+permissions:
+  issues: write # Needed to update sub-issue milestones
+  projects: write # Needed to add sub-issues to the project
+  contents: read # Needed to checkout the code
+
+jobs:
+  sync_milestone:
+    runs-on: ubuntu-latest
+    # Only run if the event has milestone info or was unmilestoned
+    # The script handles the logic if milestone is null (unmilestoned)
+    if: github.event.action == 'milestoned' || github.event.action == 'unmilestoned'
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python Dependencies
+        run: pip install requests
+
+      - name: Run Milestone Sync Script
+        env:
+          # Use GITHUB_TOKEN provided by Actions runner
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Get data from the event payload
+          PARENT_ISSUE_NODE_ID: ${{ github.event.issue.node_id }}
+          # Pass milestone number, will be empty string if unmilestoned
+          PARENT_MILESTONE_NUMBER: ${{ github.event.issue.milestone.number }}
+          PROJECT_ID: "PVT_kwDODH0FwM4A3yi4" # Your specific ProjectV2 Node ID
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: python .github/scripts/sync_milestone.py
