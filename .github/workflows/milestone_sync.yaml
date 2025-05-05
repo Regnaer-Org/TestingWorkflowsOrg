@@ -7,14 +7,15 @@ on:
       - unmilestoned # Also trigger when milestone is removed
 
 permissions:
-  issues: write # Needed to update sub-issue milestones
-  contents: read # Needed to checkout the code
+  # These permissions might still be useful if the PAT doesn't cover everything,
+  # but the PAT's permissions will likely take precedence for the script's actions.
+  issues: write
+  projects: write
+  contents: read
 
 jobs:
   sync_milestone:
     runs-on: ubuntu-latest
-    # Only run if the event has milestone info or was unmilestoned
-    # The script handles the logic if milestone is null (unmilestoned)
     if: github.event.action == 'milestoned' || github.event.action == 'unmilestoned'
     steps:
       - name: Checkout Repository
@@ -30,8 +31,9 @@ jobs:
 
       - name: Run Milestone Sync Script
         env:
-          # Use GITHUB_TOKEN provided by Actions runner
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # *** CHANGE THIS LINE ***
+          # Use the PAT stored in the secret instead of the default token
+          GITHUB_TOKEN: ${{ secrets.milestone_sync }}
           # Get data from the event payload
           PARENT_ISSUE_NODE_ID: ${{ github.event.issue.node_id }}
           # Pass milestone number, will be empty string if unmilestoned
