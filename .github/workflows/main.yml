@@ -54,33 +54,23 @@ jobs:
                         nodes {
                           ... on ProjectV2ItemFieldTextValue {
                             text
-                            field {
-                              ... on ProjectV2FieldCommon { name }
-                            }
+                            field { ... on ProjectV2FieldCommon { name } }
                           }
                           ... on ProjectV2ItemFieldDateValue {
                             date
-                            field {
-                              ... on ProjectV2FieldCommon { name }
-                            }
+                            field { ... on ProjectV2FieldCommon { name } }
                           }
                           ... on ProjectV2ItemFieldNumberValue {
                             number
-                            field {
-                              ... on ProjectV2FieldCommon { name }
-                            }
+                            field { ... on ProjectV2FieldCommon { name } }
                           }
                           ... on ProjectV2ItemFieldSingleSelectValue {
                             name
-                            field {
-                              ... on ProjectV2SingleSelectField { name }
-                            }
+                            field { ... on ProjectV2SingleSelectField { name } }
                           }
                           ... on ProjectV2ItemFieldIterationValue {
                             title
-                            field {
-                              ... on ProjectV2IterationField { name }
-                            }
+                            field { ... on ProjectV2IterationField { name } }
                           }
                         }
                       }
@@ -140,11 +130,22 @@ jobs:
           done
           echo "All project issues fetched successfully! Saved to $OUTPUT_FILE."
 
-      - name: Convert JSON to CSV (flatten ProjectV2 fields)
+      - name: Convert JSON to CSV (flatten and normalize ProjectV2 fields)
         run: |
-          echo "Converting JSON to CSV..."
-          jq -r '
-            .[] | [
+          echo "Converting JSON to CSV with consistent columns..."
+          # Define the field names you want to extract from projectV2 fields
+          FIELDS="Sprint Team Priority Status"
+          HEADER='id,content_id,number,title,state,createdAt,updatedAt,url,author,closedAt,milestone_title,milestone_number,milestone_state,issueType,labels,assignees,parent_title,parent_number,parent_url,parent_id,parent_issueType,repository'
+          for FIELD in $FIELDS; do
+            HEADER="$HEADER,${FIELD,,}"  # Lowercase field name for header
+          done
+          echo "$HEADER" > project-issues.csv
+
+          jq -r --argjson fields '["Sprint","Team","Priority","Status"]' '
+            .[] |
+            # Build a map of field names to array of their values (join if multi-valued, blank if missing)
+            ( .fieldValues.nodes // [] | group_by(.field.name) | map({ (.[0].field.name): [ .[] | (.name // .title // .text // .date // .number // "" ) ] }) | add ) as $fields_map |
+            [
               .id,
               .content.id,
               .content.number,
@@ -166,15 +167,17 @@ jobs:
               (.content.parent.url // ""),
               (.content.parent.id // ""),
               (.content.parent.issueType.name // ""),
-              .content.repository.nameWithOwner,
-              (.fieldValues.nodes[] | select(.field.name == "Sprint").title // ""),
-              (.fieldValues.nodes[] | select(.field.name == "Team").name // ""),
-              (.fieldValues.nodes[] | select(.field.name == "Priority").name // ""),
-              (.fieldValues.nodes[] | select(.field.name == "Status").name // "")
-            ] | @csv
-          ' project-issues.json > project-issues.csv
-          sed -i '1iid,id,number,title,state,createdAt,updatedAt,url,author,closedAt,milestone.title,milestone.number,milestone.state,issueType,labels,assignees,parent.title,parent.number,parent.url,parent.id,parent.issueType,repository,sprint,team,priority,status' project-issues.csv
-          echo "CSV conversion completed."
+              .content.repository.nameWithOwner
+            ]
+            + (
+                $fields
+                | map(
+                    ($fields_map[.] // [""]) | join(";")
+                  )
+              )
+            | @csv
+          ' project-issues.json >> project-issues.csv
+          echo "CSV conversion completed. All rows have consistent column counts."
 
       - name: Move CSV to agilereporting directory
         run: |
