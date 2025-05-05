@@ -104,7 +104,7 @@ jobs:
                 }
               }
             }
-          EOF
+EOF
             )
             PAYLOAD=$(jq -n --arg query "$QUERY" --argjson vars "{\"afterCursor\":$AFTER_CURSOR}" '{query: $query, variables: $vars}')
             RESPONSE=$(curl -s -w "%{http_code}" \
@@ -130,21 +130,24 @@ jobs:
           done
           echo "All project issues fetched successfully! Saved to $OUTPUT_FILE."
 
-      - name: Convert JSON to CSV (flatten and normalize ProjectV2 fields)
+      - name: Convert JSON to CSV (flatten and normalize ProjectV2 fields, robust)
         run: |
           echo "Converting JSON to CSV with consistent columns..."
-          # Define the field names you want to extract from projectV2 fields
           FIELDS="Sprint Team Priority Status"
           HEADER='id,content_id,number,title,state,createdAt,updatedAt,url,author,closedAt,milestone_title,milestone_number,milestone_state,issueType,labels,assignees,parent_title,parent_number,parent_url,parent_id,parent_issueType,repository'
           for FIELD in $FIELDS; do
-            HEADER="$HEADER,${FIELD,,}"  # Lowercase field name for header
+            HEADER="$HEADER,${FIELD,,}"
           done
           echo "$HEADER" > project-issues.csv
 
           jq -r --argjson fields '["Sprint","Team","Priority","Status"]' '
             .[] |
-            # Build a map of field names to array of their values (join if multi-valued, blank if missing)
-            ( .fieldValues.nodes // [] | group_by(.field.name) | map({ (.[0].field.name): [ .[] | (.name // .title // .text // .date // .number // "" ) ] }) | add ) as $fields_map |
+            # Filter only valid fields with a non-null name
+            ( [.fieldValues.nodes[]? | select(.field and .field.name)] 
+              | group_by(.field.name) 
+              | map({ (.[0].field.name): [ .[] | (.name // .title // .text // .date // .number // "" ) ] }) 
+              | add // {}
+            ) as $fields_map |
             [
               .id,
               .content.id,
