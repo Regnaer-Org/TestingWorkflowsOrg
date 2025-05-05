@@ -1,9 +1,9 @@
-name: Daily Agile Snapshot csv
+name: Daily Agile Snapshot CSV
 
 on:
   workflow_dispatch:
   schedule:
-    # 5:00 PM Central = 22:00 UTC
+    # 5:00 PM Central = 22:00 UTC (not 8:00 PM/01:00 UTC!)
     - cron: '0 22 * * *'
 
 permissions:
@@ -22,14 +22,14 @@ jobs:
         with:
           node-version: '20.x'
 
-      - name: Set snapshot filename (YYYY.MM.DD)
+      - name: Set snapshot filename (Central Time, YYYY.MM.DD)
         id: setvars
         run: |
-          SNAPSHOT_DATE=$(date +'%Y.%m.%d')
+          SNAPSHOT_DATE=$(TZ='America/Chicago' date +'%Y.%m.%d')
           echo "SNAPSHOT_DATE=$SNAPSHOT_DATE" >> $GITHUB_ENV
           echo "SNAPSHOT_FILENAME=project.issues_${SNAPSHOT_DATE}.csv" >> $GITHUB_ENV
 
-      - name: Fetch Issues (with proper ProjectV2 field handling)
+      - name: Fetch Issues (using updated ProjectV2 GraphQL query)
         id: fetch_issues
         run: |
           set -ex
@@ -40,11 +40,14 @@ jobs:
           OUTPUT_FILE="project-issues.json"
           echo "[]" > $OUTPUT_FILE
           while [ "$HAS_NEXT_PAGE" = "true" ]; do
-            echo "Fetching next set of issues..."
+            echo "Starting a new iteration of fetching issues..."
             QUERY=$(cat <<EOF
             query GetProjectV2Items(\$afterCursor: String) {
               node(id: "$PROJECT_ID") {
                 ... on ProjectV2 {
+                  id
+                  title
+                  number
                   items(first: 100, after: \$afterCursor) {
                     nodes {
                       id
@@ -52,6 +55,14 @@ jobs:
                         nodes {
                           ... on ProjectV2ItemFieldTextValue {
                             text
+                            field { name }
+                          }
+                          ... on ProjectV2ItemFieldDateValue {
+                            date
+                            field { name }
+                          }
+                          ... on ProjectV2ItemFieldNumberValue {
+                            number
                             field { name }
                           }
                           ... on ProjectV2ItemFieldSingleSelectValue {
@@ -98,13 +109,14 @@ jobs:
             )
             PAYLOAD=$(jq -n --arg query "$QUERY" --argjson vars "{\"afterCursor\":$AFTER_CURSOR}" '{query: $query, variables: $vars}')
             RESPONSE=$(curl -s -w "%{http_code}" \
-              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Authorization: Bearer ${{ secrets.MILESTONE_SYNC }}" \
               -H "Content-Type: application/json" \
               -d "$PAYLOAD" \
               https://api.github.com/graphql)
             HTTP_STATUS="${RESPONSE: -3}"
             RESPONSE_BODY="${RESPONSE::-3}"
             echo "HTTP Status: $HTTP_STATUS"
+            echo "Response Body: $RESPONSE_BODY"
             if [ "$HTTP_STATUS" -ne 200 ]; then
               echo "Error: Failed to fetch project issues. HTTP Status: $HTTP_STATUS"
               echo "Response: $RESPONSE_BODY"
@@ -155,12 +167,17 @@ jobs:
           sed -i '1iid,id,number,title,state,createdAt,updatedAt,url,author,closedAt,milestone.title,milestone.number,milestone.state,issueType,labels,assignees,parent.title,parent.number,parent.url,parent.id,parent.issueType,repository,sprint,team,priority,status' project-issues.csv
           echo "CSV conversion completed."
 
-      - name: Commit and Push CSV
+      - name: Move CSV to agilereporting directory
+        run: |
+          mkdir -p agilereporting
+          mv project-issues.csv "agilereporting/${SNAPSHOT_FILENAME}"
+
+      - name: Commit and push snapshot to repo
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add "project-issues.csv"
-          git commit -m "Daily Agile Snapshot: $SNAPSHOT_DATE" || echo "Nothing to commit"
+          git add "agilereporting/${SNAPSHOT_FILENAME}"
+          git commit -m "Agile snapshot for $SNAPSHOT_DATE" || echo "Nothing to commit"
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
