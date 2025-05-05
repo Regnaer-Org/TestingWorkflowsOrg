@@ -3,8 +3,8 @@ name: Daily Agile Snapshot
 on:
   workflow_dispatch:
   schedule:
-    # 8:00 PM Central = 01:00 UTC (next day)
-    - cron: '0 1 * * *'
+    # 5:00 PM Central = 22:00 UTC
+    - cron: '0 22 * * *'
 
 permissions:
   contents: write
@@ -160,11 +160,14 @@ jobs:
               (.content.parent.url // ""),
               (.content.parent.id // ""),
               (.content.parent.issueType.name // ""),
-              .content.repository.nameWithOwner
+              .content.repository.nameWithOwner,
+              (.fieldValues.nodes[] | select(.field.name == "Sprint").text // ""),
+              (.fieldValues.nodes[] | select(.field.name == "Team").text // ""),
+              (.fieldValues.nodes[] | select(.field.name == "Priority").text // ""),
+              (.fieldValues.nodes[] | select(.field.name == "Status").text // "")
             ] | @csv
           ' project-issues.json > project-issues.csv
-
-          sed -i '1iid,content.id,content.number,content.title,content.state,content.createdAt,content.updatedAt,content.url,content.author.login,content.closedAt,content.milestone.title,content.milestone.number,content.milestone.state,content.issueType.name,content.labels.nodes,content.assignees.nodes,content.parent.title,content.parent.number,content.parent.url,content.parent.id,content.parent.issueType.name,content.repository.nameWithOwner' project-issues.csv
+          sed -i '1iid,id,number,title,state,createdAt,updatedAt,url,author,closedAt,milestone.title,milestone.number,milestone.state,issueType,labels,assignees,parent.title,parent.number,parent.url,parent.id,parent.issueType,repository,sprint,team,priority,status' project-issues.csv
 
       - name: Move CSV to agilereporting directory
         run: |
