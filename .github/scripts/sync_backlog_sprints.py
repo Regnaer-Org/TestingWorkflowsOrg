@@ -37,7 +37,7 @@ if not REPO_NAME:
 # Query to search for open issues and get necessary fields
 SEARCH_ISSUES_QUERY = """
 query SearchOpenIssues($searchQuery: String!, $cursor: String) {
-  search(query: $searchQuery, type: ISSUE, first: 50, after: $cursor) {
+  search(query: $searchQuery, type: ISSUE, first: 50, after: $cursor) { # Fetch parents in batches of 50
     pageInfo {
       hasNextPage
       endCursor
@@ -50,12 +50,12 @@ query SearchOpenIssues($searchQuery: String!, $cursor: String) {
         state
         issueType { name }
         # Get project items to find the sprint field value for the target project
-        projectItems(first: 10) {
+        projectItems(first: 10) { # Assume parent issue is in < 10 projects
           nodes {
             id # Project item ID
             project { id }
             # Get iteration field value (Sprint)
-            fieldValues(first: 20) {
+            fieldValues(first: 20) { # Assume < 20 fields per project item
               nodes {
                 ... on ProjectV2ItemFieldIterationValue {
                   iterationId
@@ -72,7 +72,7 @@ query SearchOpenIssues($searchQuery: String!, $cursor: String) {
           }
         }
         # Get sub-issues
-        subIssues(first: 50) {
+        subIssues(first: 50) { # Fetch up to 50 sub-issues (sufficient based on user info)
           nodes {
             id # Sub-issue Node ID
             number
@@ -153,6 +153,7 @@ cleared_sub_issues = 0
 skipped_sub_issues = 0
 
 print(f"Starting Sprint sync for project {PROJECT_ID} in repo {REPO_OWNER}/{REPO_NAME}")
+print(f"Run initiated by user: {os.environ.get('GITHUB_ACTOR', 'Unknown')}") # Log who triggered it
 print("Fetching open issues...")
 
 has_next_page = True
@@ -183,9 +184,9 @@ while has_next_page:
         issue_type = issue.get("issueType", {}).get("name")
         issue_state = issue.get("state") # Should always be OPEN due to search query
 
-        # --- Filter 1: Parent Issue Type and State (redundant state check) ---
+        # --- Filter 1: Parent Issue Type and State (efficient filtering) ---
         if issue_state != "OPEN" or issue_type not in ["Bug", "Story"]:
-            # print(f"Skipping issue #{issue_number} (Type: {issue_type}, State: {issue_state})")
+            # This check happens before more complex processing
             continue
 
         print(f"\nProcessing Parent Issue #{issue_number} (Type: {issue_type}, ID: {issue_node_id})")
@@ -222,24 +223,31 @@ while has_next_page:
 
         # --- Get Open Sub-issues ---
         sub_issues = issue.get("subIssues", {}).get("nodes", [])
-        open_sub_issue_ids = [sub["id"] for sub in sub_issues if sub and sub.get("state") == "OPEN"]
+        # Filter for open sub-issues using Python list comprehension
+        open_sub_issues_data = [
+             {"id": sub["id"], "number": sub.get("number", "N/A")}
+             for sub in sub_issues if sub and sub.get("state") == "OPEN"
+        ]
 
-        if not open_sub_issue_ids:
+
+        if not open_sub_issues_data:
             print("  No open sub-issues found.")
             continue
 
-        print(f"  Found {len(open_sub_issue_ids)} open sub-issue(s). Processing...")
+        print(f"  Found {len(open_sub_issues_data)} open sub-issue(s). Processing...")
 
         # --- Process Each Open Sub-issue ---
-        for sub_issue_node_id in open_sub_issue_ids:
-            print(f"    Processing sub-issue Node ID: {sub_issue_node_id}")
+        for sub_data in open_sub_issues_data:
+            sub_issue_node_id = sub_data["id"]
+            sub_issue_number = sub_data["number"]
+            print(f"    Processing sub-issue #{sub_issue_number} (Node ID: {sub_issue_node_id})")
 
             # 1. Ensure sub-issue is in the project, get its Item ID
             add_vars = {"projectId": PROJECT_ID, "contentId": sub_issue_node_id}
             add_data = graphql_request(ADD_TO_PROJECT_MUTATION, add_vars)
 
             if not add_data or not add_data.get("addProjectV2ItemById", {}).get("item"):
-                print(f"    ERROR: Failed to add/find sub-issue {sub_issue_node_id} in project {PROJECT_ID}. Skipping.")
+                print(f"    ERROR: Failed to add/find sub-issue #{sub_issue_number} in project {PROJECT_ID}. Skipping.")
                 skipped_sub_issues += 1
                 continue
 
@@ -280,15 +288,16 @@ while has_next_page:
                     skipped_sub_issues += 1
 
             # Optional short delay to avoid secondary rate limits if processing many sub-issues rapidly
-            time.sleep(0.1)
+            time.sleep(0.1) # 100ms delay between processing each sub-issue
 
     if has_next_page:
         print(f"Fetching next page of issues (cursor: {cursor})...")
-        time.sleep(1) # Delay between fetching pages
+        time.sleep(1) # 1 second delay between fetching pages of parent issues
     else:
         print("All pages processed.")
 
 print("\n--- Sync Summary ---")
+print(f"Run initiated by user: {os.environ.get('GITHUB_ACTOR', 'Unknown')}")
 print(f"Processed Parent Issues (Open Bug/Story): {processed_parents}")
 print(f"Sub-issues Updated: {updated_sub_issues}")
 print(f"Sub-issues Cleared: {cleared_sub_issues}")
