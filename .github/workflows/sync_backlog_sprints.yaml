@@ -6,7 +6,6 @@ on:
 permissions:
   issues: write # Needed by script to potentially add items to projects via addProjectV2ItemById
   contents: read # To checkout code
-  projects: write # Recommended to ensure mutations on project items succeed reliably
 
 jobs:
   sync_backlog:
