@@ -4,8 +4,9 @@ on:
   issues:
     types:
       - milestoned
-      - unmilestoned
-      # Add 'edited' to catch cases where removing a milestone triggers edit
+      # Use the correct event type for removal
+      - demilestoned
+      # Keep 'edited' as a fallback, though demilestoned should be primary
       - edited
 
 permissions:
@@ -18,11 +19,11 @@ jobs:
     # --- MODIFIED JOB CONDITION ---
     # Run if:
     # 1. The action is specifically 'milestoned' OR
-    # 2. The action is specifically 'unmilestoned' OR
+    # 2. The action is specifically 'demilestoned' OR  <-- Added this check
     # 3. The action is 'edited' AND the 'milestone' field was part of the change
     if: |
       github.event.action == 'milestoned' ||
-      github.event.action == 'unmilestoned' ||
+      github.event.action == 'demilestoned' ||
       (github.event.action == 'edited' && github.event.changes.milestone)
     steps:
       - name: Checkout Repository
@@ -42,7 +43,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.milestone_sync }}
           # Get data from the event payload
           PARENT_ISSUE_NODE_ID: ${{ github.event.issue.node_id }}
-          # This correctly passes the number if milestoned, or empty string if unmilestoned/edited-to-remove
+          # This correctly passes the number if milestoned, or empty string if demilestoned/edited-to-remove
           PARENT_MILESTONE_NUMBER: ${{ github.event.issue.milestone.number }}
           PROJECT_ID: "PVT_kwDODH0FwM4A3yi4" # Your specific ProjectV2 Node ID
           REPO_OWNER: ${{ github.repository_owner }}
