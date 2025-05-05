@@ -42,8 +42,6 @@ jobs:
       #
       # Field names are case-sensitive and must match exactly as they appear in GitHub Projects.
       # The CSV column header will be the field name, lowercased.
-      #
-      # If you want to extract ALL custom fields automatically, ask an admin to update this workflow for dynamic field extraction.
       # -------------------------------------------------------------
 
       - name: Fetch Issues (with correct ProjectV2 field fragments)
@@ -199,120 +197,68 @@ jobs:
           done
           echo "All project issues fetched successfully! Saved to $OUTPUT_FILE and project-metadata.json."
 
-      - name: Convert JSON to CSV (main issue table with sprint metadata columns)
+      - name: Convert JSON to CSV (flatten and normalize ProjectV2 fields)
         run: |
-          echo "Converting JSON to CSV with sprint metadata columns..."
+          echo "Converting JSON to CSV with consistent columns..."
           FIELDS="Sprint Team Priority Status"
           HEADER='id,content_id,number,title,state,createdAt,updatedAt,url,author,closedAt,milestone_title,milestone_number,milestone_state,issueType,labels,assignees,parent_title,parent_number,parent_url,parent_id,parent_issueType,repository'
-          # Sprint metadata columns
-          HEADER="$HEADER,sprint_title,sprint_start,sprint_end,sprint_duration"
-          # Remaining projectv2 fields as columns (not their metadata)
           for FIELD in $FIELDS; do
             HEADER="$HEADER,${FIELD,,}"
           done
           echo "$HEADER" > project-issues.csv
 
           jq_filter=$(cat <<'EOF'
-            .[] as $item |
-            ( [$item.fieldValues.nodes[]? | select(.field and .field.name)]
+            .[] |
+            ( [.fieldValues.nodes[]? | select(.field and .field.name)]
                 | group_by(.field.name)
                 | map({ (.[0].field.name): [ .[] | (.name // .title // .text // .date // .number // "" ) ] })
                 | add // {}
-            ) as $fields_map
-            |
-            ($fields_map.Sprint // [""]) as $sprint_titles
-            |
+            ) as $fields_map |
             [
-              $item.id,
-              $item.content.id,
-              $item.content.number,
-              $item.content.title,
-              $item.content.state,
-              $item.content.createdAt,
-              $item.content.updatedAt,
-              $item.content.url,
-              $item.content.author.login,
-              $item.content.closedAt,
-              ($item.content.milestone.title // ""),
-              ($item.content.milestone.number // ""),
-              ($item.content.milestone.state // ""),
-              ($item.content.issueType.name // ""),
-              ([ $item.content.labels.nodes[].name ] | join(";")),
-              ([ $item.content.assignees.nodes[].login ] | join(";")),
-              ($item.content.parent.title // ""),
-              ($item.content.parent.number // ""),
-              ($item.content.parent.url // ""),
-              ($item.content.parent.id // ""),
-              ($item.content.parent.issueType.name // ""),
-              $item.content.repository.nameWithOwner,
-              # Sprint metadata columns (filled below)
-              ($sprint_titles[0] // ""), "", "", "",
-              ($fields_map.Team // [""] | join(";")),
-              ($fields_map.Priority // [""] | join(";")),
-              ($fields_map.Status // [""] | join(";"))
+              .id,
+              .content.id,
+              .content.number,
+              .content.title,
+              .content.state,
+              .content.createdAt,
+              .content.updatedAt,
+              .content.url,
+              .content.author.login,
+              .content.closedAt,
+              (.content.milestone.title // ""),
+              (.content.milestone.number // ""),
+              (.content.milestone.state // ""),
+              (.content.issueType.name // ""),
+              ([.content.labels.nodes[].name] | join(";")),
+              ([.content.assignees.nodes[].login] | join(";")),
+              (.content.parent.title // ""),
+              (.content.parent.number // ""),
+              (.content.parent.url // ""),
+              (.content.parent.id // ""),
+              (.content.parent.issueType.name // ""),
+              .content.repository.nameWithOwner
             ]
+            + (
+                $fields
+                | map(
+                    ($fields_map[.] // [""]) | join(";")
+                  )
+              )
             | @csv
           EOF
           )
 
-          jq -r "$jq_filter" project-issues.json >> project-issues.csv
-          echo "Main CSV conversion (with sprint metadata columns placeholder) completed."
+          jq -r --argjson fields '["Sprint","Team","Priority","Status"]' "$jq_filter" project-issues.json >> project-issues.csv
+          echo "CSV conversion completed. All rows have consistent column counts."
 
-      - name: Insert Sprint Metadata into Main Table (post-process)
-        run: |
           mkdir -p agilereporting
-          mkdir -p agilereportingmetadata
-
-          # Extract all Sprint metadata from project-metadata.json (iterations in Sprint field)
-          jq -r '
-            .fields.nodes[]
-            | select(.name == "Sprint" and .configuration.iterations)
-            | .configuration.iterations[]
-            | [.title, .startDate, .endDate, .duration]
-            | @csv
-          ' project-metadata.json > agilereportingmetadata/Sprint.csv
-
-          # Build a Sprint metadata map for use in jq
-          jq -r '
-            .fields.nodes[]
-            | select(.name == "Sprint" and .configuration.iterations)
-            | .configuration.iterations[]
-            | { (.title): {start: .startDate, end: .endDate, duration: .duration} }
-          ' project-metadata.json | jq -s add > sprintmap.json
-
-          # Fill in the main CSV with sprint metadata
-          python3 - <<EOF
-          import os
-          import csv
-          import json
-          
-          with open("project-issues.csv", newline="", encoding="utf-8") as f:
-              rows = list(csv.reader(f))
-          
-          with open("sprintmap.json", encoding="utf-8") as f:
-              sprintmap = json.load(f)
-          
-          header = rows[0]
-          outrows = [header]
-          for row in rows[1:]:
-              sprint = row[22]
-              sprintmeta = sprintmap.get(sprint, {}) if sprint else {}
-              # sprint_title,sprint_start,sprint_end,sprint_duration are columns 23,24,25,26 (0-based: 22,23,24,25)
-              row[23] = sprintmeta.get("start", "")
-              row[24] = sprintmeta.get("end", "")
-              row[25] = str(sprintmeta.get("duration", "")) if sprintmeta.get("duration") is not None else ""
-              outrows.append(row)
-          with open(f"agilereporting/{os.environ['SNAPSHOT_FILENAME']}", "w", newline="", encoding="utf-8") as f:
-              csv.writer(f).writerows(outrows)
-          EOF
-
-          rm sprintmap.json
-          echo "Sprint metadata inserted and main CSV moved to agilereporting/."
+          mv project-issues.csv "agilereporting/${SNAPSHOT_FILENAME}"
 
       - name: Create/overwrite metadata tables for each field
         run: |
           mkdir -p agilereportingmetadata
-          # For each ProjectV2 field, write out a CSV of all possible values/metadata
+
+          # Sprint (Iteration) metadata
           jq -r '
             .fields.nodes[]
             | select(.name == "Sprint" and .configuration.iterations)
@@ -321,6 +267,7 @@ jobs:
             | @csv
           ' project-metadata.json > agilereportingmetadata/Sprint.csv
 
+          # Team, Priority, Status (Single Select) metadata
           jq -r '
             .fields.nodes[]
             | select(.name == "Team" and .options)
