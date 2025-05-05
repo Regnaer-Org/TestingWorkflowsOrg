@@ -32,16 +32,18 @@ jobs:
       # -------------------------------------------------------------
       # INSTRUCTIONS FOR MAINTAINERS:
       #
-      # To ADD a new ProjectV2 field (e.g. "Risk") as a CSV column and metadata:
+      # To ADD a new ProjectV2 field (e.g. "Risk") as a CSV column:
       #   1. Add the field name to the FIELDS variable (e.g. FIELDS="Sprint Team Priority Status Risk")
       #   2. Add the field name to the jq --argjson fields array (e.g. --argjson fields '["Sprint","Team","Priority","Status","Risk"]')
-      #   3. That's it! The workflow will create a new column (e.g. "risk") in your CSV, and a metadata CSV.
+      #   3. That's it! The workflow will create a new column (e.g. "risk") in your CSV.
       #
       # To REMOVE a ProjectV2 field:
       #   1. Remove the field name from both the FIELDS variable and the jq --argjson fields array above.
       #
       # Field names are case-sensitive and must match exactly as they appear in GitHub Projects.
       # The CSV column header will be the field name, lowercased.
+      #
+      # If you want to extract ALL custom fields automatically, ask an admin to update this workflow for dynamic field extraction.
       # -------------------------------------------------------------
 
       - name: Fetch Issues (with correct ProjectV2 field fragments)
@@ -81,20 +83,11 @@ jobs:
                           }
                           ... on ProjectV2ItemFieldSingleSelectValue {
                             name
-                            field { ... on ProjectV2SingleSelectField { name options { id name description color } } }
+                            field { ... on ProjectV2SingleSelectField { name } }
                           }
                           ... on ProjectV2ItemFieldIterationValue {
                             title
-                            field { 
-                              ... on ProjectV2IterationField {
-                                name
-                                configuration {
-                                  iterations {
-                                    id title startDate duration endDate
-                                  }
-                                }
-                              }
-                            }
+                            field { ... on ProjectV2IterationField { name } }
                           }
                         }
                       }
@@ -125,43 +118,6 @@ jobs:
                       hasNextPage
                     }
                   }
-                  # Fetch project-level field metadata for separate tables
-                  fields(first: 50) {
-                    nodes {
-                      ... on ProjectV2FieldCommon {
-                        id
-                        name
-                        dataType
-                        createdAt
-                        updatedAt
-                        settings
-                      }
-                      ... on ProjectV2SingleSelectField {
-                        id
-                        name
-                        dataType
-                        createdAt
-                        updatedAt
-                        options { id name description color }
-                      }
-                      ... on ProjectV2IterationField {
-                        id
-                        name
-                        dataType
-                        createdAt
-                        updatedAt
-                        configuration {
-                          iterations {
-                            id
-                            title
-                            startDate
-                            duration
-                            endDate
-                          }
-                        }
-                      }
-                    }
-                  }
                 }
               }
             }
@@ -176,30 +132,29 @@ jobs:
             HTTP_STATUS="${RESPONSE: -3}"
             RESPONSE_BODY="${RESPONSE::-3}"
             echo "HTTP Status: $HTTP_STATUS"
+            echo "Response Body: $RESPONSE_BODY"
             if [ "$HTTP_STATUS" -ne 200 ]; then
               echo "Error: Failed to fetch project issues. HTTP Status: $HTTP_STATUS"
               echo "Response: $RESPONSE_BODY"
               exit 1
             fi
-            # Only update OUTPUT_FILE on the first page, otherwise append nodes
-            if [ "$AFTER_CURSOR" = null ]; then
-              # Overwrite with first page
-              echo "$RESPONSE_BODY" | jq '.data.node' > project-metadata.json
-              echo "$RESPONSE_BODY" | jq '.data.node.items.nodes' > $OUTPUT_FILE
-            else
-              # Append subsequent pages
-              ITEMS=$(echo "$RESPONSE_BODY" | jq '.data.node.items.nodes')
-              jq -c --argjson newItems "$ITEMS" '. + $newItems' $OUTPUT_FILE > temp.json && mv temp.json $OUTPUT_FILE
-            fi
+            ITEMS=$(echo "$RESPONSE_BODY" | jq '.data.node.items.nodes')
             END_CURSOR=$(echo "$RESPONSE_BODY" | jq -r '.data.node.items.pageInfo.endCursor')
             HAS_NEXT_PAGE=$(echo "$RESPONSE_BODY" | jq -r '.data.node.items.pageInfo.hasNextPage')
+            jq -c --argjson newItems "$ITEMS" '. + $newItems' $OUTPUT_FILE > temp.json && mv temp.json $OUTPUT_FILE
+            echo "Fetched 100 items. Next cursor: $END_CURSOR"
             AFTER_CURSOR="\"$END_CURSOR\""
           done
-          echo "All project issues fetched successfully! Saved to $OUTPUT_FILE and project-metadata.json."
+          echo "All project issues fetched successfully! Saved to $OUTPUT_FILE."
 
-      - name: Convert JSON to CSV (flatten and normalize ProjectV2 fields)
+      - name: Convert JSON to CSV (flatten and normalize ProjectV2 fields, robust)
         run: |
           echo "Converting JSON to CSV with consistent columns..."
+          # ------------- MAINTAINER INSTRUCTIONS: -------------
+          # To ADD a new ProjectV2 field, add it in BOTH FIELDS below and in the jq --argjson fields array.
+          # To REMOVE a ProjectV2 field, remove it from BOTH places.
+          # Field names must match your Project field names exactly (case-sensitive).
+          # -----------------------------------------------------
           FIELDS="Sprint Team Priority Status"
           HEADER='id,content_id,number,title,state,createdAt,updatedAt,url,author,closedAt,milestone_title,milestone_number,milestone_state,issueType,labels,assignees,parent_title,parent_number,parent_url,parent_id,parent_issueType,repository'
           for FIELD in $FIELDS; do
@@ -207,12 +162,12 @@ jobs:
           done
           echo "$HEADER" > project-issues.csv
 
-          jq_filter=$(cat <<'EOF'
+          jq -r --argjson fields '["Sprint","Team","Priority","Status"]' '
             .[] |
-            ( [.fieldValues.nodes[]? | select(.field and .field.name)]
-                | group_by(.field.name)
-                | map({ (.[0].field.name): [ .[] | (.name // .title // .text // .date // .number // "" ) ] })
-                | add // {}
+            ( [.fieldValues.nodes[]? | select(.field and .field.name)] 
+              | group_by(.field.name) 
+              | map({ (.[0].field.name): [ .[] | (.name // .title // .text // .date // .number // "" ) ] }) 
+              | add // {}
             ) as $fields_map |
             [
               .id,
@@ -245,63 +200,20 @@ jobs:
                   )
               )
             | @csv
-          EOF
-          )
-
-          jq -r --argjson fields '["Sprint","Team","Priority","Status"]' "$jq_filter" project-issues.json >> project-issues.csv
+          ' project-issues.json >> project-issues.csv
           echo "CSV conversion completed. All rows have consistent column counts."
 
+      - name: Move CSV to agilereporting directory
+        run: |
           mkdir -p agilereporting
           mv project-issues.csv "agilereporting/${SNAPSHOT_FILENAME}"
 
-      - name: Create/overwrite metadata tables for each field
-        run: |
-          mkdir -p agilereportingmetadata
-
-          # Sprint (Iteration) metadata
-          jq -r '
-            .fields.nodes[]
-            | select(.name == "Sprint" and .configuration.iterations)
-            | .configuration.iterations[]
-            | [.id, .title, .startDate, .endDate, .duration]
-            | @csv
-          ' project-metadata.json > agilereportingmetadata/Sprint.csv
-
-          # Team, Priority, Status (Single Select) metadata
-          jq -r '
-            .fields.nodes[]
-            | select(.name == "Team" and .options)
-            | .options[]
-            | [.id, .name, .description, .color]
-            | @csv
-          ' project-metadata.json > agilereportingmetadata/Team.csv
-
-          jq -r '
-            .fields.nodes[]
-            | select(.name == "Priority" and .options)
-            | .options[]
-            | [.id, .name, .description, .color]
-            | @csv
-          ' project-metadata.json > agilereportingmetadata/Priority.csv
-
-          jq -r '
-            .fields.nodes[]
-            | select(.name == "Status" and .options)
-            | .options[]
-            | [.id, .name, .description, .color]
-            | @csv
-          ' project-metadata.json > agilereportingmetadata/Status.csv
-
-      - name: Commit and push snapshot and metadata to repo
+      - name: Commit and push snapshot to repo
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add agilereporting/project.issues_${SNAPSHOT_DATE}.csv
-          git add agilereportingmetadata/Sprint.csv
-          git add agilereportingmetadata/Team.csv
-          git add agilereportingmetadata/Priority.csv
-          git add agilereportingmetadata/Status.csv
-          git commit -m "Agile snapshot and metadata for $SNAPSHOT_DATE" || echo "Nothing to commit"
+          git add "agilereporting/${SNAPSHOT_FILENAME}"
+          git commit -m "Agile snapshot for $SNAPSHOT_DATE" || echo "Nothing to commit"
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
