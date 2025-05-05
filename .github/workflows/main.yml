@@ -1,4 +1,4 @@
-name: Daily Agile Snapshot with Debugging and Refinements
+name: Daily Agile Snapshot with Debugging
 
 on:
   workflow_dispatch:
@@ -42,6 +42,7 @@ jobs:
           echo "[]" > $OUTPUT_FILE
           echo "[]" > $DEBUG_FILE
           while [ "$HAS_NEXT_PAGE" = "true" ]; do
+            echo "Starting a new iteration of fetching issues..."
             QUERY=$(cat <<EOF
             query GetProjectV2Items(\$afterCursor: String) {
               node(id: "$PROJECT_ID") {
@@ -56,27 +57,23 @@ jobs:
                         nodes {
                           ... on ProjectV2ItemFieldTextValue {
                             text
-                            field { ... on ProjectV2FieldCommon { name id } }
+                            field { name id }
                           }
                           ... on ProjectV2ItemFieldDateValue {
                             date
-                            field { ... on ProjectV2FieldCommon { name id } }
+                            field { name id }
                           }
                           ... on ProjectV2ItemFieldNumberValue {
                             number
-                            field { ... on ProjectV2FieldCommon { name id } }
+                            field { name id }
                           }
                           ... on ProjectV2ItemFieldSingleSelectValue {
                             name
-                            optionId
-                            field { ... on ProjectV2SingleSelectField { name id } }
+                            field { name id }
                           }
                           ... on ProjectV2ItemFieldIterationValue {
                             title
-                            startDate
-                            duration
-                            iterationId
-                            field { ... on ProjectV2IterationField { name id } }
+                            field { name id }
                           }
                         }
                       }
@@ -138,42 +135,53 @@ jobs:
 
       - name: Debug Field Values Before CSV Conversion
         run: |
-          echo "Logging project fields for debugging..."
-          jq -r '
-            .[] | {
-              title: (.fieldValues.nodes[] | select(.field.name == "Title") | .text // ""),
-              team: (.fieldValues.nodes[] | select(.field.name == "Team") | .name // ""),
-              sprint: (.fieldValues.nodes[] | select(.field.name == "Sprint") | .title // ""),
-              sprint_start_date: (.fieldValues.nodes[] | select(.field.name == "Sprint") | .startDate // ""),
-              sprint_duration_days: (.fieldValues.nodes[] | select(.field.name == "Sprint") | .duration // "")
-            }
-          ' project-issues.json > debug_field_values.json
-          echo "Extracted field values saved to debug_field_values.json"
-          cat debug_field_values.json
+          echo "Logging raw JSON data for debugging..."
+          jq '.' project-issues.json > debug_project_issues.json
+          echo "Raw JSON saved to debug_project_issues.json"
 
-      - name: Convert JSON to CSV (refined)
+      - name: Convert JSON to CSV (with simplified ProjectV2 fields)
         run: |
+          echo "Converting JSON to CSV with detailed logging..."
           jq -r '
             .[] | [
-              (.fieldValues.nodes[] | select(.field.name == "Title") | .text // ""),
-              (.fieldValues.nodes[] | select(.field.name == "Team") | .name // ""),
-              (.fieldValues.nodes[] | select(.field.name == "Sprint") | .title // ""),
-              (.fieldValues.nodes[] | select(.field.name == "Sprint") | .startDate // ""),
-              (.fieldValues.nodes[] | select(.field.name == "Sprint") | .duration // "")
+              .id,
+              .content.id,
+              .content.number,
+              .content.title,
+              .content.state,
+              .content.createdAt,
+              .content.updatedAt,
+              .content.url,
+              .content.author.login,
+              .content.closedAt,
+              (.content.milestone.title // ""),
+              (.content.milestone.number // ""),
+              (.content.milestone.state // ""),
+              (.content.issueType.name // ""),
+              ([.content.labels.nodes[].name] | join(";")),
+              ([.content.assignees.nodes[].login] | join(";")),
+              (.content.parent.title // ""),
+              (.content.parent.number // ""),
+              (.content.parent.url // ""),
+              (.content.parent.id // ""),
+              (.content.parent.issueType.name // ""),
+              .content.repository.nameWithOwner,
+              (.fieldValues.nodes[] | select(.field.name == "Sprint").title // ""),
+              (.fieldValues.nodes[] | select(.field.name == "Team").name // "")
             ] | @csv
           ' project-issues.json > project-issues.csv
-          sed -i '1iTitle,Team,Sprint,Sprint Start Date,Sprint Duration (days)' project-issues.csv
+          sed -i '1iid,id,number,title,state,createdAt,updatedAt,url,author,closedAt,milestone.title,milestone.number,milestone.state,issueType,labels,assignees,parent.title,parent.number,parent.url,parent.id,parent.issueType,repository,sprint,team' project-issues.csv
           echo "CSV Conversion completed. Logging CSV content for debugging..."
           cat project-issues.csv
 
-      - name: Move Outputs to Directory
+      - name: Move CSV and Debug Files to agilereporting Directory
         run: |
           mkdir -p agilereporting/debug
           mv project-issues.csv "agilereporting/${SNAPSHOT_FILENAME}"
           mv debug_raw_response.json agilereporting/debug/
-          mv debug_field_values.json agilereporting/debug/
+          mv debug_project_issues.json agilereporting/debug/
 
-      - name: Commit and Push Outputs
+      - name: Commit and Push Debug Files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
