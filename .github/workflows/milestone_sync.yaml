@@ -10,7 +10,6 @@ permissions:
   # These permissions might still be useful if the PAT doesn't cover everything,
   # but the PAT's permissions will likely take precedence for the script's actions.
   issues: write
-  projects: write
   contents: read
 
 jobs:
