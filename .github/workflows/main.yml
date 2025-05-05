@@ -3,7 +3,7 @@ name: Daily Agile Snapshot CSV
 on:
   workflow_dispatch:
   schedule:
-    # 5:00 PM Central = 22:00 UTC (not 8:00 PM/01:00 UTC!)
+    # 5:00 PM Central = 22:00 UTC
     - cron: '0 22 * * *'
 
 permissions:
@@ -29,7 +29,7 @@ jobs:
           echo "SNAPSHOT_DATE=$SNAPSHOT_DATE" >> $GITHUB_ENV
           echo "SNAPSHOT_FILENAME=project.issues_${SNAPSHOT_DATE}.csv" >> $GITHUB_ENV
 
-      - name: Fetch Issues (using updated ProjectV2 GraphQL query)
+      - name: Fetch Issues (with correct ProjectV2 field fragments)
         id: fetch_issues
         run: |
           set -ex
@@ -40,7 +40,6 @@ jobs:
           OUTPUT_FILE="project-issues.json"
           echo "[]" > $OUTPUT_FILE
           while [ "$HAS_NEXT_PAGE" = "true" ]; do
-            echo "Starting a new iteration of fetching issues..."
             QUERY=$(cat <<EOF
             query GetProjectV2Items(\$afterCursor: String) {
               node(id: "$PROJECT_ID") {
@@ -55,23 +54,33 @@ jobs:
                         nodes {
                           ... on ProjectV2ItemFieldTextValue {
                             text
-                            field { name }
+                            field {
+                              ... on ProjectV2FieldCommon { name }
+                            }
                           }
                           ... on ProjectV2ItemFieldDateValue {
                             date
-                            field { name }
+                            field {
+                              ... on ProjectV2FieldCommon { name }
+                            }
                           }
                           ... on ProjectV2ItemFieldNumberValue {
                             number
-                            field { name }
+                            field {
+                              ... on ProjectV2FieldCommon { name }
+                            }
                           }
                           ... on ProjectV2ItemFieldSingleSelectValue {
                             name
-                            field { name }
+                            field {
+                              ... on ProjectV2SingleSelectField { name }
+                            }
                           }
                           ... on ProjectV2ItemFieldIterationValue {
                             title
-                            field { name }
+                            field {
+                              ... on ProjectV2IterationField { name }
+                            }
                           }
                         }
                       }
@@ -105,7 +114,7 @@ jobs:
                 }
               }
             }
-          EOF
+EOF
             )
             PAYLOAD=$(jq -n --arg query "$QUERY" --argjson vars "{\"afterCursor\":$AFTER_CURSOR}" '{query: $query, variables: $vars}')
             RESPONSE=$(curl -s -w "%{http_code}" \
