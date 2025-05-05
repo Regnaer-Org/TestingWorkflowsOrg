@@ -2,7 +2,6 @@ import argparse
 import requests
 import csv
 import sys
-from collections import OrderedDict
 
 def get_all_project_fields(project_id, token):
     query = '''
@@ -48,7 +47,19 @@ def get_all_project_fields(project_id, token):
             json={"query": query, "variables": variables},
             headers={"Authorization": f"Bearer {token}"}
         )
-        data = resp.json()
+        try:
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception as e:
+            print("HTTP or JSON decode error:", e, file=sys.stderr)
+            print("Raw response:", resp.text, file=sys.stderr)
+            sys.exit(1)
+        if "errors" in data:
+            print("GraphQL API error:", data["errors"], file=sys.stderr)
+            sys.exit(1)
+        if "data" not in data or data["data"]["node"] is None:
+            print("GraphQL response error:", data, file=sys.stderr)
+            sys.exit(1)
         nodes = data["data"]["node"]["fields"]["nodes"]
         fields.extend(nodes)
         page_info = data["data"]["node"]["fields"]["pageInfo"]
@@ -126,7 +137,19 @@ def get_all_project_items(project_id, token):
             json={"query": query, "variables": variables},
             headers={"Authorization": f"Bearer {token}"}
         )
-        data = resp.json()
+        try:
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception as e:
+            print("HTTP or JSON decode error:", e, file=sys.stderr)
+            print("Raw response:", resp.text, file=sys.stderr)
+            sys.exit(1)
+        if "errors" in data:
+            print("GraphQL API error:", data["errors"], file=sys.stderr)
+            sys.exit(1)
+        if "data" not in data or data["data"]["node"] is None:
+            print("GraphQL response error:", data, file=sys.stderr)
+            sys.exit(1)
         nodes = data["data"]["node"]["items"]["nodes"]
         items.extend(nodes)
         page_info = data["data"]["node"]["items"]["pageInfo"]
@@ -156,7 +179,7 @@ def main():
     ]
 
     # Prepare dynamic custom fields (in order as shown in ProjectV2)
-    custom_fields = [f["name"] for f in fields if f["name"] not in ("Title", "Status")] # Exclude default fields if you wish
+    custom_fields = [f["name"] for f in fields if f["name"] not in ("Title", "Status")]
 
     # Compose CSV header
     csv_header = standard_fields + custom_fields
