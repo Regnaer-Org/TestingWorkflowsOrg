@@ -4,18 +4,26 @@ on:
   issues:
     types:
       - milestoned
-      - unmilestoned # Also trigger when milestone is removed
+      - unmilestoned
+      # Add 'edited' to catch cases where removing a milestone triggers edit
+      - edited
 
 permissions:
-  # These permissions might still be useful if the PAT doesn't cover everything,
-  # but the PAT's permissions will likely take precedence for the script's actions.
   issues: write
   contents: read
 
 jobs:
   sync_milestone:
     runs-on: ubuntu-latest
-    if: github.event.action == 'milestoned' || github.event.action == 'unmilestoned'
+    # --- MODIFIED JOB CONDITION ---
+    # Run if:
+    # 1. The action is specifically 'milestoned' OR
+    # 2. The action is specifically 'unmilestoned' OR
+    # 3. The action is 'edited' AND the 'milestone' field was part of the change
+    if: |
+      github.event.action == 'milestoned' ||
+      github.event.action == 'unmilestoned' ||
+      (github.event.action == 'edited' && github.event.changes.milestone)
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -30,12 +38,11 @@ jobs:
 
       - name: Run Milestone Sync Script
         env:
-          # *** CHANGE THIS LINE ***
-          # Use the PAT stored in the secret instead of the default token
+          # Use the PAT stored in the secret
           GITHUB_TOKEN: ${{ secrets.milestone_sync }}
           # Get data from the event payload
           PARENT_ISSUE_NODE_ID: ${{ github.event.issue.node_id }}
-          # Pass milestone number, will be empty string if unmilestoned
+          # This correctly passes the number if milestoned, or empty string if unmilestoned/edited-to-remove
           PARENT_MILESTONE_NUMBER: ${{ github.event.issue.milestone.number }}
           PROJECT_ID: "PVT_kwDODH0FwM4A3yi4" # Your specific ProjectV2 Node ID
           REPO_OWNER: ${{ github.repository_owner }}
