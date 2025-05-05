@@ -35,7 +35,7 @@ jobs:
       # To ADD a new ProjectV2 field (e.g. "Risk") as a CSV column:
       #   1. Add the field name to the FIELDS variable (e.g. FIELDS="Sprint Team Priority Status Risk")
       #   2. Add the field name to the jq --argjson fields array (e.g. --argjson fields '["Sprint","Team","Priority","Status","Risk"]')
-      #   3. That's it! The workflow will create a new column (e.g. "risk") in your CSV.
+      #   3. That's it! The workflow will create a new column (e.g. "risk") in your CSV, and a metadata CSV.
       #
       # To REMOVE a ProjectV2 field:
       #   1. Remove the field name from both the FIELDS variable and the jq --argjson fields array above.
@@ -83,11 +83,20 @@ jobs:
                           }
                           ... on ProjectV2ItemFieldSingleSelectValue {
                             name
-                            field { ... on ProjectV2SingleSelectField { name } }
+                            field { ... on ProjectV2SingleSelectField { name options { id name description color } } }
                           }
                           ... on ProjectV2ItemFieldIterationValue {
                             title
-                            field { ... on ProjectV2IterationField { name } }
+                            field { 
+                              ... on ProjectV2IterationField {
+                                name
+                                configuration {
+                                  iterations {
+                                    id title startDate duration endDate
+                                  }
+                                }
+                              }
+                            }
                           }
                         }
                       }
@@ -118,6 +127,43 @@ jobs:
                       hasNextPage
                     }
                   }
+                  # Fetch project-level field metadata for separate tables
+                  fields(first: 50) {
+                    nodes {
+                      ... on ProjectV2FieldCommon {
+                        id
+                        name
+                        dataType
+                        createdAt
+                        updatedAt
+                        settings
+                      }
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        dataType
+                        createdAt
+                        updatedAt
+                        options { id name description color }
+                      }
+                      ... on ProjectV2IterationField {
+                        id
+                        name
+                        dataType
+                        createdAt
+                        updatedAt
+                        configuration {
+                          iterations {
+                            id
+                            title
+                            startDate
+                            duration
+                            endDate
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -132,88 +178,190 @@ jobs:
             HTTP_STATUS="${RESPONSE: -3}"
             RESPONSE_BODY="${RESPONSE::-3}"
             echo "HTTP Status: $HTTP_STATUS"
-            echo "Response Body: $RESPONSE_BODY"
             if [ "$HTTP_STATUS" -ne 200 ]; then
               echo "Error: Failed to fetch project issues. HTTP Status: $HTTP_STATUS"
               echo "Response: $RESPONSE_BODY"
               exit 1
             fi
-            ITEMS=$(echo "$RESPONSE_BODY" | jq '.data.node.items.nodes')
+            # Only update OUTPUT_FILE on the first page, otherwise append nodes
+            if [ "$AFTER_CURSOR" = null ]; then
+              # Overwrite with first page
+              echo "$RESPONSE_BODY" | jq '.data.node' > project-metadata.json
+              echo "$RESPONSE_BODY" | jq '.data.node.items.nodes' > $OUTPUT_FILE
+            else
+              # Append subsequent pages
+              ITEMS=$(echo "$RESPONSE_BODY" | jq '.data.node.items.nodes')
+              jq -c --argjson newItems "$ITEMS" '. + $newItems' $OUTPUT_FILE > temp.json && mv temp.json $OUTPUT_FILE
+            fi
             END_CURSOR=$(echo "$RESPONSE_BODY" | jq -r '.data.node.items.pageInfo.endCursor')
             HAS_NEXT_PAGE=$(echo "$RESPONSE_BODY" | jq -r '.data.node.items.pageInfo.hasNextPage')
-            jq -c --argjson newItems "$ITEMS" '. + $newItems' $OUTPUT_FILE > temp.json && mv temp.json $OUTPUT_FILE
-            echo "Fetched 100 items. Next cursor: $END_CURSOR"
             AFTER_CURSOR="\"$END_CURSOR\""
           done
-          echo "All project issues fetched successfully! Saved to $OUTPUT_FILE."
+          echo "All project issues fetched successfully! Saved to $OUTPUT_FILE and project-metadata.json."
 
-      - name: Convert JSON to CSV (flatten and normalize ProjectV2 fields, robust)
+      - name: Convert JSON to CSV (main issue table with sprint metadata columns)
         run: |
-          echo "Converting JSON to CSV with consistent columns..."
-          # ------------- MAINTAINER INSTRUCTIONS: -------------
-          # To ADD a new ProjectV2 field, add it in BOTH FIELDS below and in the jq --argjson fields array.
-          # To REMOVE a ProjectV2 field, remove it from BOTH places.
-          # Field names must match your Project field names exactly (case-sensitive).
-          # -----------------------------------------------------
+          echo "Converting JSON to CSV with sprint metadata columns..."
+          # Only Sprint metadata will be added as extra columns in the main table
           FIELDS="Sprint Team Priority Status"
+          SPRINT_FIELDS="Sprint"
           HEADER='id,content_id,number,title,state,createdAt,updatedAt,url,author,closedAt,milestone_title,milestone_number,milestone_state,issueType,labels,assignees,parent_title,parent_number,parent_url,parent_id,parent_issueType,repository'
+          # Sprint metadata columns
+          HEADER="$HEADER,sprint_title,sprint_start,sprint_end,sprint_duration"
+          # Remaining projectv2 fields as columns (not their metadata)
           for FIELD in $FIELDS; do
             HEADER="$HEADER,${FIELD,,}"
           done
           echo "$HEADER" > project-issues.csv
 
           jq -r --argjson fields '["Sprint","Team","Priority","Status"]' '
-            .[] |
-            ( [.fieldValues.nodes[]? | select(.field and .field.name)] 
-              | group_by(.field.name) 
-              | map({ (.[0].field.name): [ .[] | (.name // .title // .text // .date // .number // "" ) ] }) 
-              | add // {}
-            ) as $fields_map |
+            .[] as $item |
+            # Build map for ProjectV2 fields (flatten, group by name, skip blanks)
+            ( [$item.fieldValues.nodes[]? | select(.field and .field.name)]
+                | group_by(.field.name)
+                | map({ (.[0].field.name): [ .[] | (.name // .title // .text // .date // .number // "" ) ] })
+                | add // {}
+            ) as $fields_map
+            |
+            # Sprint values
+            ($fields_map.Sprint // [""]) as $sprint_titles
+            |
+            # Sprint metadata (from the field definition in project-metadata.json)
+            # We'll load metadata in a later step, use blank for now.
             [
-              .id,
-              .content.id,
-              .content.number,
-              .content.title,
-              .content.state,
-              .content.createdAt,
-              .content.updatedAt,
-              .content.url,
-              .content.author.login,
-              .content.closedAt,
-              (.content.milestone.title // ""),
-              (.content.milestone.number // ""),
-              (.content.milestone.state // ""),
-              (.content.issueType.name // ""),
-              ([.content.labels.nodes[].name] | join(";")),
-              ([.content.assignees.nodes[].login] | join(";")),
-              (.content.parent.title // ""),
-              (.content.parent.number // ""),
-              (.content.parent.url // ""),
-              (.content.parent.id // ""),
-              (.content.parent.issueType.name // ""),
-              .content.repository.nameWithOwner
+              $item.id,
+              $item.content.id,
+              $item.content.number,
+              $item.content.title,
+              $item.content.state,
+              $item.content.createdAt,
+              $item.content.updatedAt,
+              $item.content.url,
+              $item.content.author.login,
+              $item.content.closedAt,
+              ($item.content.milestone.title // ""),
+              ($item.content.milestone.number // ""),
+              ($item.content.milestone.state // ""),
+              ($item.content.issueType.name // ""),
+              ([ $item.content.labels.nodes[].name ] | join(";")),
+              ([ $item.content.assignees.nodes[].login ] | join(";")),
+              ($item.content.parent.title // ""),
+              ($item.content.parent.number // ""),
+              ($item.content.parent.url // ""),
+              ($item.content.parent.id // ""),
+              ($item.content.parent.issueType.name // ""),
+              $item.content.repository.nameWithOwner,
+              # Sprint metadata columns (filled below)
+              ($sprint_titles[0] // ""), "", "", "",
+              # Remaining PV2 fields as columns (one cell per field, join with ;)
+              ($fields_map.Team // [""] | join(";")),
+              ($fields_map.Priority // [""] | join(";")),
+              ($fields_map.Status // [""] | join(";"))
             ]
-            + (
-                $fields
-                | map(
-                    ($fields_map[.] // [""]) | join(";")
-                  )
-              )
             | @csv
           ' project-issues.json >> project-issues.csv
-          echo "CSV conversion completed. All rows have consistent column counts."
+          echo "Main CSV conversion (with sprint metadata columns placeholder) completed."
 
-      - name: Move CSV to agilereporting directory
+      - name: Insert Sprint Metadata into Main Table (post-process)
         run: |
-          mkdir -p agilereporting
-          mv project-issues.csv "agilereporting/${SNAPSHOT_FILENAME}"
+          mkdir -p agilereportingmetadata
 
-      - name: Commit and push snapshot to repo
+          # Extract all Sprint metadata from project-metadata.json (iterations in Sprint field)
+          jq -r '
+            .fields.nodes[]
+            | select(.name == "Sprint" and .configuration.iterations)
+            | .configuration.iterations[]
+            | [.title, .startDate, .endDate, .duration]
+            | @csv
+          ' project-metadata.json > agilereportingmetadata/Sprint.csv
+
+          # Build a Sprint metadata map for use in jq
+          jq -r '
+            .fields.nodes[]
+            | select(.name == "Sprint" and .configuration.iterations)
+            | .configuration.iterations[]
+            | { (.title): {start: .startDate, end: .endDate, duration: .duration} }
+          ' project-metadata.json | jq -s add > sprintmap.json
+
+          # Fill in the main CSV with sprint metadata
+          awk -F, 'NR==1{print $0; next} {
+            sprint=$23
+            sprint_meta=""
+            if (sprint != "") {
+              cmd="jq -r --arg t \"" sprint "\" \".[\\"\\\"\\"+sprint+\\"\\\"] // {}\" sprintmap.json"
+              cmd | getline result
+              close(cmd)
+              if(result != "{}") {
+                # result is JSON like {"start":"2025-05-01","end":"2025-05-14","duration":14}
+                gsub(/"/,"",result)
+                split(result, a, /[:,}]/)
+                sprint_meta=a[2]","a[4]","a[6]
+              } else {
+                sprint_meta=",,"
+              }
+            } else {
+              sprint_meta=",,"
+            }
+            # Insert metadata back into columns 24,25,26 (1-based: sprint_title,sprint_start,sprint_end,sprint_duration)
+            OFS=","
+            for(i=1;i<=NF;i++) {
+              printf "%s", $i
+              if(i==23) {
+                printf "%s%s", OFS, sprint_meta
+              }
+              if(i<NF) printf OFS
+            }
+            print ""
+          }' project-issues.csv > project-issues-final.csv
+          mv project-issues-final.csv agilereporting/project.issues_${SNAPSHOT_DATE}.csv
+          rm sprintmap.json
+
+      - name: Create/overwrite metadata tables for each field
+        run: |
+          mkdir -p agilereportingmetadata
+          # For each ProjectV2 field, write out a CSV of all possible values/metadata
+          jq -r '
+            .fields.nodes[]
+            | select(.name == "Sprint" and .configuration.iterations)
+            | .configuration.iterations[]
+            | [.id, .title, .startDate, .endDate, .duration]
+            | @csv
+          ' project-metadata.json > agilereportingmetadata/Sprint.csv
+
+          jq -r '
+            .fields.nodes[]
+            | select(.name == "Team" and .options)
+            | .options[]
+            | [.id, .name, .description, .color]
+            | @csv
+          ' project-metadata.json > agilereportingmetadata/Team.csv
+
+          jq -r '
+            .fields.nodes[]
+            | select(.name == "Priority" and .options)
+            | .options[]
+            | [.id, .name, .description, .color]
+            | @csv
+          ' project-metadata.json > agilereportingmetadata/Priority.csv
+
+          jq -r '
+            .fields.nodes[]
+            | select(.name == "Status" and .options)
+            | .options[]
+            | [.id, .name, .description, .color]
+            | @csv
+          ' project-metadata.json > agilereportingmetadata/Status.csv
+
+      - name: Commit and push snapshot and metadata to repo
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add "agilereporting/${SNAPSHOT_FILENAME}"
-          git commit -m "Agile snapshot for $SNAPSHOT_DATE" || echo "Nothing to commit"
+          git add agilereporting/project.issues_${SNAPSHOT_DATE}.csv
+          git add agilereportingmetadata/Sprint.csv
+          git add agilereportingmetadata/Team.csv
+          git add agilereportingmetadata/Priority.csv
+          git add agilereportingmetadata/Status.csv
+          git commit -m "Agile snapshot and metadata for $SNAPSHOT_DATE" || echo "Nothing to commit"
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
