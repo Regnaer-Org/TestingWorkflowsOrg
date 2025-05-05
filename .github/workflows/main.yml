@@ -29,6 +29,23 @@ jobs:
           echo "SNAPSHOT_DATE=$SNAPSHOT_DATE" >> $GITHUB_ENV
           echo "SNAPSHOT_FILENAME=project.issues_${SNAPSHOT_DATE}.csv" >> $GITHUB_ENV
 
+      # -------------------------------------------------------------
+      # INSTRUCTIONS FOR MAINTAINERS:
+      #
+      # To ADD a new ProjectV2 field (e.g. "Risk") as a CSV column:
+      #   1. Add the field name to the FIELDS variable (e.g. FIELDS="Sprint Team Priority Status Risk")
+      #   2. Add the field name to the jq --argjson fields array (e.g. --argjson fields '["Sprint","Team","Priority","Status","Risk"]')
+      #   3. That's it! The workflow will create a new column (e.g. "risk") in your CSV.
+      #
+      # To REMOVE a ProjectV2 field:
+      #   1. Remove the field name from both the FIELDS variable and the jq --argjson fields array above.
+      #
+      # Field names are case-sensitive and must match exactly as they appear in GitHub Projects.
+      # The CSV column header will be the field name, lowercased.
+      #
+      # If you want to extract ALL custom fields automatically, ask an admin to update this workflow for dynamic field extraction.
+      # -------------------------------------------------------------
+
       - name: Fetch Issues (with correct ProjectV2 field fragments)
         id: fetch_issues
         run: |
@@ -133,6 +150,11 @@ jobs:
       - name: Convert JSON to CSV (flatten and normalize ProjectV2 fields, robust)
         run: |
           echo "Converting JSON to CSV with consistent columns..."
+          # ------------- MAINTAINER INSTRUCTIONS: -------------
+          # To ADD a new ProjectV2 field, add it in BOTH FIELDS below and in the jq --argjson fields array.
+          # To REMOVE a ProjectV2 field, remove it from BOTH places.
+          # Field names must match your Project field names exactly (case-sensitive).
+          # -----------------------------------------------------
           FIELDS="Sprint Team Priority Status"
           HEADER='id,content_id,number,title,state,createdAt,updatedAt,url,author,closedAt,milestone_title,milestone_number,milestone_state,issueType,labels,assignees,parent_title,parent_number,parent_url,parent_id,parent_issueType,repository'
           for FIELD in $FIELDS; do
@@ -142,7 +164,6 @@ jobs:
 
           jq -r --argjson fields '["Sprint","Team","Priority","Status"]' '
             .[] |
-            # Filter only valid fields with a non-null name
             ( [.fieldValues.nodes[]? | select(.field and .field.name)] 
               | group_by(.field.name) 
               | map({ (.[0].field.name): [ .[] | (.name // .title // .text // .date // .number // "" ) ] }) 
