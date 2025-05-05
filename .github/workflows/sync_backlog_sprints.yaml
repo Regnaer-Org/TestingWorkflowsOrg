@@ -6,7 +6,7 @@ on:
 permissions:
   issues: write # Needed by script to potentially add items to projects via addProjectV2ItemById
   contents: read # To checkout code
-  # projects: write # Might be needed depending on token scope, add if mutations fail due to permissions
+  projects: write # Recommended to ensure mutations on project items succeed reliably
 
 jobs:
   sync_backlog:
@@ -18,7 +18,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.11' # Specify a modern Python version
 
       - name: Install Python Dependencies
         run: pip install requests
@@ -30,4 +30,5 @@ jobs:
           PROJECT_ID: "PVT_kwDODH0FwM4A3yi4" # Your ProjectV2 Node ID
           REPO_OWNER: ${{ github.repository_owner }}
           REPO_NAME: ${{ github.event.repository.name }}
+          # GITHUB_ACTOR is automatically available for logging who triggered the run
         run: python .github/scripts/sync_backlog_sprints.py
