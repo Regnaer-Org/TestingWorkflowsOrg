@@ -32,7 +32,7 @@ jobs:
       # -------------------------------------------------------------
       # INSTRUCTIONS FOR MAINTAINERS:
       #
-      # To ADD a new ProjectV2 field (e.g. "Risk") as a CSV column:
+      # To ADD a new ProjectV2 field (e.g. "Risk") as a CSV column and metadata:
       #   1. Add the field name to the FIELDS variable (e.g. FIELDS="Sprint Team Priority Status Risk")
       #   2. Add the field name to the jq --argjson fields array (e.g. --argjson fields '["Sprint","Team","Priority","Status","Risk"]')
       #   3. That's it! The workflow will create a new column (e.g. "risk") in your CSV, and a metadata CSV.
@@ -202,9 +202,7 @@ jobs:
       - name: Convert JSON to CSV (main issue table with sprint metadata columns)
         run: |
           echo "Converting JSON to CSV with sprint metadata columns..."
-          # Only Sprint metadata will be added as extra columns in the main table
           FIELDS="Sprint Team Priority Status"
-          SPRINT_FIELDS="Sprint"
           HEADER='id,content_id,number,title,state,createdAt,updatedAt,url,author,closedAt,milestone_title,milestone_number,milestone_state,issueType,labels,assignees,parent_title,parent_number,parent_url,parent_id,parent_issueType,repository'
           # Sprint metadata columns
           HEADER="$HEADER,sprint_title,sprint_start,sprint_end,sprint_duration"
@@ -214,20 +212,16 @@ jobs:
           done
           echo "$HEADER" > project-issues.csv
 
-          jq -r --argjson fields '["Sprint","Team","Priority","Status"]' '
+          jq_filter=$(cat <<'EOF'
             .[] as $item |
-            # Build map for ProjectV2 fields (flatten, group by name, skip blanks)
             ( [$item.fieldValues.nodes[]? | select(.field and .field.name)]
                 | group_by(.field.name)
                 | map({ (.[0].field.name): [ .[] | (.name // .title // .text // .date // .number // "" ) ] })
                 | add // {}
             ) as $fields_map
             |
-            # Sprint values
             ($fields_map.Sprint // [""]) as $sprint_titles
             |
-            # Sprint metadata (from the field definition in project-metadata.json)
-            # We'll load metadata in a later step, use blank for now.
             [
               $item.id,
               $item.content.id,
@@ -253,17 +247,20 @@ jobs:
               $item.content.repository.nameWithOwner,
               # Sprint metadata columns (filled below)
               ($sprint_titles[0] // ""), "", "", "",
-              # Remaining PV2 fields as columns (one cell per field, join with ;)
               ($fields_map.Team // [""] | join(";")),
               ($fields_map.Priority // [""] | join(";")),
               ($fields_map.Status // [""] | join(";"))
             ]
             | @csv
-          ' project-issues.json >> project-issues.csv
+          EOF
+          )
+
+          jq -r "$jq_filter" project-issues.json >> project-issues.csv
           echo "Main CSV conversion (with sprint metadata columns placeholder) completed."
 
       - name: Insert Sprint Metadata into Main Table (post-process)
         run: |
+          mkdir -p agilereporting
           mkdir -p agilereportingmetadata
 
           # Extract all Sprint metadata from project-metadata.json (iterations in Sprint field)
@@ -284,37 +281,33 @@ jobs:
           ' project-metadata.json | jq -s add > sprintmap.json
 
           # Fill in the main CSV with sprint metadata
-          awk -F, 'NR==1{print $0; next} {
-            sprint=$23
-            sprint_meta=""
-            if (sprint != "") {
-              cmd="jq -r --arg t \"" sprint "\" \".[\\"\\\"\\"+sprint+\\"\\\"] // {}\" sprintmap.json"
-              cmd | getline result
-              close(cmd)
-              if(result != "{}") {
-                # result is JSON like {"start":"2025-05-01","end":"2025-05-14","duration":14}
-                gsub(/"/,"",result)
-                split(result, a, /[:,}]/)
-                sprint_meta=a[2]","a[4]","a[6]
-              } else {
-                sprint_meta=",,"
-              }
-            } else {
-              sprint_meta=",,"
-            }
-            # Insert metadata back into columns 24,25,26 (1-based: sprint_title,sprint_start,sprint_end,sprint_duration)
-            OFS=","
-            for(i=1;i<=NF;i++) {
-              printf "%s", $i
-              if(i==23) {
-                printf "%s%s", OFS, sprint_meta
-              }
-              if(i<NF) printf OFS
-            }
-            print ""
-          }' project-issues.csv > project-issues-final.csv
-          mv project-issues-final.csv agilereporting/project.issues_${SNAPSHOT_DATE}.csv
+          python3 - <<EOF
+          import os
+          import csv
+          import json
+          
+          with open("project-issues.csv", newline="", encoding="utf-8") as f:
+              rows = list(csv.reader(f))
+          
+          with open("sprintmap.json", encoding="utf-8") as f:
+              sprintmap = json.load(f)
+          
+          header = rows[0]
+          outrows = [header]
+          for row in rows[1:]:
+              sprint = row[22]
+              sprintmeta = sprintmap.get(sprint, {}) if sprint else {}
+              # sprint_title,sprint_start,sprint_end,sprint_duration are columns 23,24,25,26 (0-based: 22,23,24,25)
+              row[23] = sprintmeta.get("start", "")
+              row[24] = sprintmeta.get("end", "")
+              row[25] = str(sprintmeta.get("duration", "")) if sprintmeta.get("duration") is not None else ""
+              outrows.append(row)
+          with open(f"agilereporting/{os.environ['SNAPSHOT_FILENAME']}", "w", newline="", encoding="utf-8") as f:
+              csv.writer(f).writerows(outrows)
+          EOF
+
           rm sprintmap.json
+          echo "Sprint metadata inserted and main CSV moved to agilereporting/."
 
       - name: Create/overwrite metadata tables for each field
         run: |
