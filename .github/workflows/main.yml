@@ -1,4 +1,4 @@
-name: Daily Agile Snapshot with Debugging
+name: Daily Agile Snapshot csv
 
 on:
   workflow_dispatch:
@@ -29,7 +29,7 @@ jobs:
           echo "SNAPSHOT_DATE=$SNAPSHOT_DATE" >> $GITHUB_ENV
           echo "SNAPSHOT_FILENAME=project.issues_${SNAPSHOT_DATE}.csv" >> $GITHUB_ENV
 
-      - name: Fetch Issues (with debugging)
+      - name: Fetch Issues (with proper ProjectV2 field handling)
         id: fetch_issues
         run: |
           set -ex
@@ -38,18 +38,13 @@ jobs:
           AFTER_CURSOR=null
           HAS_NEXT_PAGE=true
           OUTPUT_FILE="project-issues.json"
-          DEBUG_FILE="debug_raw_response.json"
           echo "[]" > $OUTPUT_FILE
-          echo "[]" > $DEBUG_FILE
           while [ "$HAS_NEXT_PAGE" = "true" ]; do
-            echo "Starting a new iteration of fetching issues..."
+            echo "Fetching next set of issues..."
             QUERY=$(cat <<EOF
             query GetProjectV2Items(\$afterCursor: String) {
               node(id: "$PROJECT_ID") {
                 ... on ProjectV2 {
-                  id
-                  title
-                  number
                   items(first: 100, after: \$afterCursor) {
                     nodes {
                       id
@@ -57,23 +52,15 @@ jobs:
                         nodes {
                           ... on ProjectV2ItemFieldTextValue {
                             text
-                            field { name id }
-                          }
-                          ... on ProjectV2ItemFieldDateValue {
-                            date
-                            field { name id }
-                          }
-                          ... on ProjectV2ItemFieldNumberValue {
-                            number
-                            field { name id }
+                            field { name }
                           }
                           ... on ProjectV2ItemFieldSingleSelectValue {
                             name
-                            field { name id }
+                            field { name }
                           }
                           ... on ProjectV2ItemFieldIterationValue {
                             title
-                            field { name id }
+                            field { name }
                           }
                         }
                       }
@@ -107,18 +94,17 @@ jobs:
                 }
               }
             }
-          EOF
+EOF
             )
             PAYLOAD=$(jq -n --arg query "$QUERY" --argjson vars "{\"afterCursor\":$AFTER_CURSOR}" '{query: $query, variables: $vars}')
             RESPONSE=$(curl -s -w "%{http_code}" \
-              -H "Authorization: Bearer ${{ secrets.MILESTONE_SYNC }}" \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
               -H "Content-Type: application/json" \
               -d "$PAYLOAD" \
               https://api.github.com/graphql)
             HTTP_STATUS="${RESPONSE: -3}"
             RESPONSE_BODY="${RESPONSE::-3}"
             echo "HTTP Status: $HTTP_STATUS"
-            echo "Response Body: $RESPONSE_BODY" >> $DEBUG_FILE
             if [ "$HTTP_STATUS" -ne 200 ]; then
               echo "Error: Failed to fetch project issues. HTTP Status: $HTTP_STATUS"
               echo "Response: $RESPONSE_BODY"
@@ -133,15 +119,9 @@ jobs:
           done
           echo "All project issues fetched successfully! Saved to $OUTPUT_FILE."
 
-      - name: Debug Field Values Before CSV Conversion
+      - name: Convert JSON to CSV (flatten ProjectV2 fields)
         run: |
-          echo "Logging raw JSON data for debugging..."
-          jq '.' project-issues.json > debug_project_issues.json
-          echo "Raw JSON saved to debug_project_issues.json"
-
-      - name: Convert JSON to CSV (with simplified ProjectV2 fields)
-        run: |
-          echo "Converting JSON to CSV with detailed logging..."
+          echo "Converting JSON to CSV..."
           jq -r '
             .[] | [
               .id,
@@ -167,26 +147,20 @@ jobs:
               (.content.parent.issueType.name // ""),
               .content.repository.nameWithOwner,
               (.fieldValues.nodes[] | select(.field.name == "Sprint").title // ""),
-              (.fieldValues.nodes[] | select(.field.name == "Team").name // "")
+              (.fieldValues.nodes[] | select(.field.name == "Team").name // ""),
+              (.fieldValues.nodes[] | select(.field.name == "Priority").name // ""),
+              (.fieldValues.nodes[] | select(.field.name == "Status").name // "")
             ] | @csv
           ' project-issues.json > project-issues.csv
-          sed -i '1iid,id,number,title,state,createdAt,updatedAt,url,author,closedAt,milestone.title,milestone.number,milestone.state,issueType,labels,assignees,parent.title,parent.number,parent.url,parent.id,parent.issueType,repository,sprint,team' project-issues.csv
-          echo "CSV Conversion completed. Logging CSV content for debugging..."
-          cat project-issues.csv
+          sed -i '1iid,id,number,title,state,createdAt,updatedAt,url,author,closedAt,milestone.title,milestone.number,milestone.state,issueType,labels,assignees,parent.title,parent.number,parent.url,parent.id,parent.issueType,repository,sprint,team,priority,status' project-issues.csv
+          echo "CSV conversion completed."
 
-      - name: Move CSV and Debug Files to agilereporting Directory
-        run: |
-          mkdir -p agilereporting/debug
-          mv project-issues.csv "agilereporting/${SNAPSHOT_FILENAME}"
-          mv debug_raw_response.json agilereporting/debug/
-          mv debug_project_issues.json agilereporting/debug/
-
-      - name: Commit and Push Debug Files
+      - name: Commit and Push CSV
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add "agilereporting/${SNAPSHOT_FILENAME}" "agilereporting/debug/"
-          git commit -m "Agile snapshot for $SNAPSHOT_DATE with debugging artifacts" || echo "Nothing to commit"
+          git add "project-issues.csv"
+          git commit -m "Daily Agile Snapshot: $SNAPSHOT_DATE" || echo "Nothing to commit"
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
