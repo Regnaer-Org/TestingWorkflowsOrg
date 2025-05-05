@@ -1,78 +1,63 @@
 name: Daily Sprint Metadata CSV
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Allows manual triggering
   schedule:
-    # 5:05 PM Central = 22:05 UTC (run after the main snapshot)
+    # Run daily at 22:05 UTC (adjust cron as needed)
     - cron: '5 22 * * *'
 
+# Permissions needed:
+# - contents: write (to commit the CSV file back to the repo)
+# - id-token: write (Only if needed for other auth purposes, e.g., OIDC. Can likely be removed if not used elsewhere)
 permissions:
   contents: write
-  id-token: write
+  # id-token: write # Remove if not explicitly needed
 
 jobs:
   fetch-sprint-metadata:
     runs-on: ubuntu-latest
     steps:
+      # Step 1: Check out the repository code
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Fetch Sprint Metadata (ProjectV2 Iteration Field)
-        run: |
-          set -ex
-          # Set your ProjectV2 ID here
-          PROJECT_ID="PVT_kwDODH0FwM4A3yi4"
-          QUERY=$(cat <<EOF
-          query {
-            node(id: "$PROJECT_ID") {
-              ... on ProjectV2 {
-                fields(first: 50) {
-                  nodes {
-                    ... on ProjectV2IterationField {
-                      name
-                      configuration {
-                        iterations {
-                          id
-                          title
-                          startDate
-                          endDate
-                          duration
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-          EOF
-          )
-          PAYLOAD=$(jq -n --arg query "$QUERY" '{query: $query}')
-          RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.MILESTONE_SYNC }}" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD" \
-            https://api.github.com/graphql)
-          echo "$RESPONSE" | jq '.' > sprint-metadata-raw.json
-          # Extract Sprint/Iteration metadata
-          jq '
-            .data.node.fields.nodes[]
-            | select(.name == "Sprint" and .configuration.iterations)
-            | .configuration.iterations[]
-            | [.id, .title, .startDate, .endDate, .duration]
-            | @csv
-          ' sprint-metadata-raw.json > SprintMetaData.csv
+      # Step 2: Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11' # Specify a recent Python version
+          cache: 'pip' # Cache dependencies to speed up subsequent runs
 
-      - name: Move SprintMetaData.csv to agilereportingmetadata directory
-        run: |
-          mkdir -p agilereportingmetadata
-          mv SprintMetaData.csv agilereportingmetadata/SprintMetaData.csv
+      # Step 3: Install required Python packages
+      - name: Install Python Dependencies
+        run: pip install requests # Only 'requests' is needed for the script
 
+      # Step 4: Execute the Python script to fetch and process data
+      - name: Run Sprint Processing Script
+        run: python .github/scripts/process_sprints.py
+        env:
+          # Pass the GitHub token needed for the GraphQL API call
+          # Ensure this secret exists in your repository or organization settings
+          MILESTONE_SYNC_TOKEN: ${{ secrets.MILESTONE_SYNC }}
+
+      # Step 5: Commit the generated CSV file back to the repository
       - name: Commit and push SprintMetaData.csv to repo
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com" # Standard email for the bot
           git add agilereportingmetadata/SprintMetaData.csv
-          git commit -m "Sprint metadata snapshot" || echo "Nothing to commit"
-          git push
+
+          # Check if the file was actually modified or created before committing
+          if git diff --staged --quiet; then
+            echo "SprintMetaData.csv is up-to-date. Nothing to commit."
+          else
+            echo "Committing updated SprintMetaData.csv..."
+            git commit -m "Update Sprint metadata snapshot (automated)"
+            echo "Pushing changes..."
+            git push
+          fi
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITHUB_TOKEN is automatically available and has permissions defined
+          # in the 'permissions:' block at the top level of the job/workflow.
+          # No need to explicitly pass secrets.GITHUB_TOKEN here if using default token.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Use default token for commit
