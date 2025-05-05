@@ -39,8 +39,6 @@ SNAPSHOT_FILENAME = f"project.issues_{snapshot_date}.csv"
 OUTPUT_PATH = os.path.join(OUTPUT_DIR, SNAPSHOT_FILENAME)
 
 # --- GraphQL Query (Corrected) ---
-# Fix 1: Changed DraftIssue author alias to use correct field 'creator'
-# Fix 2: Applied the ProjectV2FieldCommon fragment where field name/id is needed
 graphql_query = """
 query GetProjectV2Items($projectId: ID!, $cursor: String) {
   node(id: $projectId) {
@@ -156,7 +154,6 @@ def get_value(data, keys, default=""):
     return str(current) if current is not None else default
 
 # --- Fetch All Items via Pagination ---
-# (Rest of the script remains the same...)
 all_items = []
 has_next_page = True
 cursor = None
@@ -355,5 +352,23 @@ except Exception as e:
     sys.exit(1)
 
 print("CSV file written successfully.")
-# --- Set output for workflow ---
-print(f"::set-output name=snapshot_filename::{OUTPUT_PATH}")
+
+# --- Set output for workflow using environment file --- ## MODIFIED SECTION ##
+# Get the path to the GitHub output file from the environment variables
+output_env_file = os.environ.get("GITHUB_OUTPUT")
+
+if output_env_file:
+    print(f"Setting output 'snapshot_filename' in {output_env_file}")
+    try:
+        # Open the file in append mode ('a') as recommended
+        with open(output_env_file, "a") as f:
+            # Write the output in the format 'key=value' on a new line
+            f.write(f"snapshot_filename={OUTPUT_PATH}\n")
+        print("Output set successfully.")
+    except Exception as e:
+        print(f"Error writing to GITHUB_OUTPUT file '{output_env_file}': {e}", file=sys.stderr)
+        # Optionally exit if setting output is critical
+        # sys.exit(1)
+else:
+    # This should not happen in a standard GitHub Actions environment, but good to check
+    print("Warning: GITHUB_OUTPUT environment variable not set. Cannot pass output to subsequent steps.", file=sys.stderr)
