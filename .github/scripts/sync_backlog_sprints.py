@@ -19,6 +19,7 @@ HEADERS = {
 }
 
 # --- Validate Environment Variables ---
+# (No changes needed here)
 if not TOKEN:
     print("Error: MILESTONE_SYNC_TOKEN environment variable not set.", file=sys.stderr)
     sys.exit(1)
@@ -33,8 +34,7 @@ if not REPO_NAME:
     sys.exit(1)
 
 # --- GraphQL Queries and Mutations ---
-
-# Query to search for open issues and get necessary fields
+# (No changes needed here)
 SEARCH_ISSUES_QUERY = """
 query SearchOpenIssues($searchQuery: String!, $cursor: String) {
   search(query: $searchQuery, type: ISSUE, first: 50, after: $cursor) { # Fetch parents in batches of 50
@@ -84,8 +84,6 @@ query SearchOpenIssues($searchQuery: String!, $cursor: String) {
   }
 }
 """
-
-# Mutation to add an issue to a project
 ADD_TO_PROJECT_MUTATION = """
 mutation AddItemToProject($projectId: ID!, $contentId: ID!) {
   addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
@@ -95,8 +93,6 @@ mutation AddItemToProject($projectId: ID!, $contentId: ID!) {
   }
 }
 """
-
-# Mutation to update the iteration (Sprint) field
 UPDATE_SPRINT_MUTATION = """
 mutation UpdateSprint($projectId: ID!, $itemId: ID!, $fieldId: ID!, $iterationId: String!) {
   updateProjectV2ItemFieldValue(input: {
@@ -109,8 +105,6 @@ mutation UpdateSprint($projectId: ID!, $itemId: ID!, $fieldId: ID!, $iterationId
   }
 }
 """
-
-# Mutation to clear the iteration (Sprint) field
 CLEAR_SPRINT_MUTATION = """
 mutation ClearSprint($projectId: ID!, $itemId: ID!, $fieldId: ID!) {
   clearProjectV2ItemFieldValue(input: {
@@ -124,6 +118,7 @@ mutation ClearSprint($projectId: ID!, $itemId: ID!, $fieldId: ID!) {
 """
 
 # --- Helper Function for GraphQL Requests ---
+# (No changes needed here)
 def graphql_request(query, variables=None):
     """Makes a GraphQL request and handles basic error checking."""
     try:
@@ -132,8 +127,6 @@ def graphql_request(query, variables=None):
         data = response.json()
         if "errors" in data:
             print(f"GraphQL Error: {json.dumps(data['errors'])}", file=sys.stderr)
-            # Decide if error is fatal or can be skipped
-            # For now, return None to indicate potential failure
             return None
         return data.get("data")
     except requests.exceptions.RequestException as e:
@@ -151,14 +144,16 @@ processed_parents = 0
 updated_sub_issues = 0
 cleared_sub_issues = 0
 skipped_sub_issues = 0
+# ** NEW: Variable to store the discovered Sprint Field ID **
+discovered_sprint_field_id = None
 
 print(f"Starting Sprint sync for project {PROJECT_ID} in repo {REPO_OWNER}/{REPO_NAME}")
-print(f"Run initiated by user: {os.environ.get('GITHUB_ACTOR', 'Unknown')}") # Log who triggered it
+print(f"Run initiated by user: {os.environ.get('GITHUB_ACTOR', 'Unknown')}")
 print("Fetching open issues...")
 
 has_next_page = True
 cursor = None
-search_query = f"repo:{REPO_OWNER}/{REPO_NAME} is:open is:issue" # Search all open issues
+search_query = f"repo:{REPO_OWNER}/{REPO_NAME} is:open is:issue"
 
 while has_next_page:
     variables = {"searchQuery": search_query, "cursor": cursor}
@@ -166,7 +161,7 @@ while has_next_page:
 
     if not data or not data.get("search"):
         print("Error fetching issues or empty search result. Aborting.", file=sys.stderr)
-        break # Exit loop on fetch error
+        break
 
     search_result = data["search"]
     issues = search_result.get("nodes", [])
@@ -177,16 +172,14 @@ while has_next_page:
     print(f"Processing batch of {len(issues)} issues...")
 
     for issue in issues:
-        if not issue: continue # Skip if node is null
+        if not issue: continue
 
         issue_number = issue.get("number")
         issue_node_id = issue.get("id")
         issue_type = issue.get("issueType", {}).get("name")
-        issue_state = issue.get("state") # Should always be OPEN due to search query
+        issue_state = issue.get("state")
 
-        # --- Filter 1: Parent Issue Type and State (efficient filtering) ---
         if issue_state != "OPEN" or issue_type not in ["Bug", "Story"]:
-            # This check happens before more complex processing
             continue
 
         print(f"\nProcessing Parent Issue #{issue_number} (Type: {issue_type}, ID: {issue_node_id})")
@@ -195,46 +188,71 @@ while has_next_page:
         # --- Find Parent's Sprint in the target Project ---
         parent_sprint_id = None
         parent_sprint_name = None
-        sprint_field_id = None
-        parent_project_item_node_id = None # Project Item ID of the parent issue itself
+        # ** MODIFIED: Use a local variable first **
+        current_sprint_field_id = None
+        parent_project_item_node_id = None
+        sprint_value_node_found = False # Flag to check if we found the specific value node
 
         project_items = issue.get("projectItems", {}).get("nodes", [])
         for item in project_items:
             if item and item.get("project", {}).get("id") == PROJECT_ID:
-                parent_project_item_node_id = item.get("id") # Found parent's item ID
+                parent_project_item_node_id = item.get("id")
                 field_values = item.get("fieldValues", {}).get("nodes", [])
                 for fv in field_values:
-                    # Check if it's the iteration field value
                     if fv and "iterationId" in fv and fv.get("field"):
-                        parent_sprint_id = fv.get("iterationId") # Can be None if cleared
+                        # Found the Sprint Iteration Value node
+                        sprint_value_node_found = True
+                        parent_sprint_id = fv.get("iterationId") # Might be null if set then cleared, but node exists
                         parent_sprint_name = fv.get("title")
-                        sprint_field_id = fv.get("field", {}).get("id")
-                        print(f"  Parent Sprint Found: '{parent_sprint_name}' (ID: {parent_sprint_id}, FieldID: {sprint_field_id})")
-                        break # Found the Sprint field for this project item
-                break # Found the correct project item for the parent
+                        current_sprint_field_id = fv.get("field", {}).get("id")
 
-        if not parent_project_item_node_id:
-             print(f"  WARNING: Parent issue #{issue_number} not found in project {PROJECT_ID}. Skipping sub-issue sync for this parent.")
-             continue # Cannot sync if parent isn't in the project
+                        # ** NEW: Learn the Sprint Field ID if we haven't already **
+                        if discovered_sprint_field_id is None and current_sprint_field_id:
+                            discovered_sprint_field_id = current_sprint_field_id
+                            print(f"  Discovered Sprint Field ID: {discovered_sprint_field_id}")
 
-        if not sprint_field_id:
-             print(f"  WARNING: Could not find the 'Sprint' (Iteration) field for parent issue #{issue_number} in project {PROJECT_ID}. Ensure the field exists and the token has permissions.")
-             continue # Cannot sync without the field ID
+                        print(f"  Parent Sprint Value Found: '{parent_sprint_name}' (ID: {parent_sprint_id}, FieldID: {current_sprint_field_id})")
+                        break # Found the Sprint value node, no need to check other fields
+                # ** MODIFIED: Only break outer loop if we found the value node **
+                if sprint_value_node_found:
+                    break # Found the value node in the correct project item
+
+        # --- Determine Sprint status and required Field ID ---
+        # ** NEW: Logic to handle cases where the value node wasn't found **
+        final_sprint_field_id_to_use = None
+        if parent_project_item_node_id:
+            if sprint_value_node_found:
+                # We found the value node, use the ID from it
+                final_sprint_field_id_to_use = current_sprint_field_id
+            else:
+                # Parent is in project, but value node wasn't found. Assume Sprint is empty.
+                print(f"  Parent Sprint Value Node not found (likely empty). Assuming Sprint is empty.")
+                parent_sprint_id = None # Ensure it's None
+                parent_sprint_name = None
+                # Use the globally discovered ID if available
+                final_sprint_field_id_to_use = discovered_sprint_field_id
+        else:
+            # Parent issue is not in the target project at all
+             print(f"  WARNING: Parent issue #{issue_number} not found in project {PROJECT_ID}. Skipping sub-issue sync.")
+             continue # Skip to next parent issue
+
+        # ** NEW: Check if we have a Field ID to work with **
+        if not final_sprint_field_id_to_use:
+            print(f"  WARNING: Could not determine the Sprint Field ID for project {PROJECT_ID} needed for issue #{issue_number}. Ensure at least one item in the project has had its Sprint field set at some point, or manually provide the Field ID.")
+            continue # Skip processing sub-issues for this parent
 
         # --- Get Open Sub-issues ---
         sub_issues = issue.get("subIssues", {}).get("nodes", [])
-        # Filter for open sub-issues using Python list comprehension
         open_sub_issues_data = [
              {"id": sub["id"], "number": sub.get("number", "N/A")}
              for sub in sub_issues if sub and sub.get("state") == "OPEN"
         ]
 
-
         if not open_sub_issues_data:
             print("  No open sub-issues found.")
             continue
 
-        print(f"  Found {len(open_sub_issues_data)} open sub-issue(s). Processing...")
+        print(f"  Found {len(open_sub_issues_data)} open sub-issue(s). Processing using Field ID: {final_sprint_field_id_to_use}")
 
         # --- Process Each Open Sub-issue ---
         for sub_data in open_sub_issues_data:
@@ -261,7 +279,7 @@ while has_next_page:
                 update_vars = {
                     "projectId": PROJECT_ID,
                     "itemId": sub_project_item_id,
-                    "fieldId": sprint_field_id,
+                    "fieldId": final_sprint_field_id_to_use, # Use the determined ID
                     "iterationId": parent_sprint_id
                 }
                 update_result = graphql_request(UPDATE_SPRINT_MUTATION, update_vars)
@@ -277,7 +295,7 @@ while has_next_page:
                 clear_vars = {
                     "projectId": PROJECT_ID,
                     "itemId": sub_project_item_id,
-                    "fieldId": sprint_field_id
+                    "fieldId": final_sprint_field_id_to_use # Use the determined ID
                 }
                 clear_result = graphql_request(CLEAR_SPRINT_MUTATION, clear_vars)
                 if clear_result:
@@ -287,7 +305,6 @@ while has_next_page:
                     print("        ERROR: Clear failed.")
                     skipped_sub_issues += 1
 
-            # Optional short delay to avoid secondary rate limits if processing many sub-issues rapidly
             time.sleep(0.1) # 100ms delay between processing each sub-issue
 
     if has_next_page:
@@ -296,6 +313,8 @@ while has_next_page:
     else:
         print("All pages processed.")
 
+# --- Print Summary ---
+# (No changes needed here)
 print("\n--- Sync Summary ---")
 print(f"Run initiated by user: {os.environ.get('GITHUB_ACTOR', 'Unknown')}")
 print(f"Processed Parent Issues (Open Bug/Story): {processed_parents}")
