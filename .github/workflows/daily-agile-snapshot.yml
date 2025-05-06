@@ -1,4 +1,4 @@
-name: Daily Agile Snapshot CSV (v3 - Python) # Updated name for clarity
+name: Daily Agile Snapshot CSV # Updated name for clarity
 
 on:
   workflow_dispatch: # Manual trigger
