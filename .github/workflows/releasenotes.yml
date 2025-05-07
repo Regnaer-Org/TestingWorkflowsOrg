@@ -1,189 +1,68 @@
-# Sample Issues for Catastrophe Modeling Software Suite
+name: Generate Release Notes
 
-This document contains a set of sample features and user stories, each with a description, additional notes, and acceptance criteria. Stories are grouped under the feature they support, suitable for an agile feature team.
+on:
+  workflow_dispatch:
+    inputs:
+      milestone:
+        description: 'Milestone title (exact name)'
+        required: true
+        type: string
 
----
+jobs:
+  generate-release-notes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-## Feature: Real-Time Catastrophe Risk Visualization
+      - name: Fetch issues for milestone
+        id: fetch_issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const milestoneTitle = '${{ github.event.inputs.milestone }}';
+            const milestones = await github.rest.issues.listMilestones({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "all"
+            });
+            const milestone = milestones.data.find(m => m.title === milestoneTitle);
+            if (!milestone) throw new Error("Milestone not found: " + milestoneTitle);
+            const issues = await github.paginate(
+              github.rest.issues.listForRepo,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                milestone: milestone.number,
+                state: "all"
+              }
+            );
+            if (!issues.length) throw new Error("No issues found for milestone: " + milestoneTitle);
+            const prompt = issues.map(i => `### ${i.title}\n${i.body || ''}`).join('\n\n');
+            fs.writeFileSync('issues_for_prompt.md', prompt);
 
-**Description:**  
-Develop an interactive map-based module that provides real-time visualization of multiple catastrophe risks, such as hurricanes, earthquakes, and floods. Users should be able to see current threats and potential impacts on locations of interest.
+      - name: List files for debugging
+        run: ls -l
 
-**Additional Notes:**  
-- Integrate reliable external data feeds (e.g., NOAA for hurricanes, USGS for earthquakes).
-- Ensure performance for large datasets and smooth user experience.
-- Collaborate with UX/UI for intuitive controls and visual clarity.
-- Prioritize accessibility (color choices, screen-reader support).
+      - name: Summarize with AI
+        id: ai_inference
+        uses: actions/ai-inference@v1
+        with:
+          prompt-file: issues_for_prompt.md
+          system-prompt: |
+            You are an expert technical writer. Read the following list of GitHub issues (each with a title and body) that are all assigned to the same milestone. Write a clear, concise, non-repetitive Markdown release note summary that explains what is being delivered in this milestone. Focus on outcomes and key points for users and contributors. Do not simply list the issues—synthesize the information and avoid repetition. Output only the Markdown summary.
+          model: openai/gpt-4o
+          endpoint: https://models.github.ai/inference
+          max-tokens: 2000
+          token: ${{ secrets.AI_INFERENCE_TOKEN }}
 
-**Acceptance Criteria:**  
-- Map displays live overlays for hurricanes, earthquakes, and floods.
-- Users can toggle each catastrophe type layer on/off.
-- Map supports zoom, pan, and region selection.
-- Data refreshes at least every 30 minutes.
-- Visual legend and accessible color palette implemented.
+      - name: Write release notes to file
+        run: |
+          echo "${{ steps.ai_inference.outputs.output }}" > release-notes.md
 
-### Stories under this Feature
-
-#### Story: Display live hurricane tracks and projected paths
-
-**Description:**  
-Integrate live hurricane data to show current tracks and forecasted paths directly on the catastrophe risk map.
-
-**Additional Notes:**  
-- Use trusted data source (e.g., NOAA NHC).
-- Include hurricane metadata (name, category, speed).
-- Handle multiple simultaneous storms.
-
-**Acceptance Criteria:**  
-- Hurricane tracks and forecast cones appear on the map.
-- Data updates at least every 30 minutes.
-- Clicking a hurricane reveals its details.
-- Works with other map overlays enabled.
-
----
-
-#### Story: Layer earthquake risk zones on the map
-
-**Description:**  
-Add earthquake risk zones as a toggleable overlay, differentiated by region and risk severity.
-
-**Additional Notes:**  
-- Use up-to-date seismic hazard data.
-- Colorblind-friendly palette required.
-- Overlay should be performant at all zoom levels.
-
-**Acceptance Criteria:**  
-- Earthquake risk zones are shown with distinct shading.
-- User can toggle this layer independently.
-- Legend explains risk levels.
-- Map performance unaffected.
-
----
-
-#### Story: Show flood risk overlays by region
-
-**Description:**  
-Overlay flood risk zones on the map, allowing users to filter by region for focused analysis.
-
-**Additional Notes:**  
-- Integrate with external flood risk datasets.
-- Provide region-based filtering UI.
-- Ensure overlays have clear legends.
-
-**Acceptance Criteria:**  
-- Flood risk zones are accurately displayed for selected regions.
-- Users can filter overlays by region.
-- Legends and color keys are present.
-- Overlay rendering is efficient.
-
----
-
-#### Story: Enable interactive zoom and pan on catastrophe map
-
-**Description:**  
-Implement smooth zooming and panning on the risk map, ensuring overlays and property markers remain accurate and responsive.
-
-**Additional Notes:**  
-- Keyboard shortcuts for accessibility.
-- “Reset to home view” button.
-- Test on desktop and mobile browsers.
-
-**Acceptance Criteria:**  
-- Users can zoom and pan seamlessly.
-- All overlays/markers stay aligned during interaction.
-- Map resets to default view on command.
-- No significant lag at max zoom.
-
----
-
-#### Story: Highlight high-risk assets on the map
-
-**Description:**  
-Visually distinguish properties with the highest risk scores on the catastrophe risk map.
-
-**Additional Notes:**  
-- Define clear risk thresholds for highlighting.
-- Use icons/colors that are accessible.
-- Tooltips or popovers should provide more detail.
-
-**Acceptance Criteria:**  
-- High-risk properties are clearly highlighted.
-- Hover/click shows risk breakdown.
-- Highlighting updates in real-time as data changes.
-- Visuals meet accessibility standards.
-
----
-
-## Feature: Automated Portfolio Risk Assessment
-
-**Description:**  
-Implement a system where users (portfolio managers) can upload property portfolios and receive automated, detailed catastrophe risk assessments per asset, with overall portfolio summaries and downloadable reports.
-
-**Additional Notes:**  
-- Must validate CSV input and provide clear error feedback.
-- Risk scoring logic should be transparent and documented.
-- Reports should be available in Markdown, PDF, and CSV.
-- Consider GDPR and PII handling for uploaded data.
-
-**Acceptance Criteria:**  
-- User can upload a portfolio in standard CSV format.
-- System analyzes and scores each property for multiple peril types.
-- Results include both per-property details and portfolio summaries.
-- Downloadable report (PDF/CSV) is generated.
-- High-risk assets are visually highlighted if viewed on the map.
-
-### Stories under this Feature
-
-#### Story: Upload property portfolio via CSV
-
-**Description:**  
-Enable users to upload a CSV containing their property portfolio for risk analysis.
-
-**Additional Notes:**  
-- Validate column headers and data types.
-- Provide sample CSV template for download.
-- Handle large file uploads gracefully.
-
-**Acceptance Criteria:**  
-- CSV upload is available via UI.
-- System validates format and provides clear errors.
-- Properties are queued for risk analysis on upload.
-- Upload supports at least 5,000 properties per file.
-
----
-
-#### Story: Automated risk scoring for each property
-
-**Description:**  
-Generate risk scores for each uploaded property, covering all supported catastrophe types.
-
-**Additional Notes:**  
-- Risk scoring model should be transparent and documented.
-- Cover edge cases (e.g., missing data, unknown locations).
-- Scores should be explainable to end-users.
-
-**Acceptance Criteria:**  
-- Each property receives per-peril risk scores.
-- Scores are included in both UI and downloadable reports.
-- Model deals gracefully with incomplete data.
-- Documentation for scoring is linked from results.
-
----
-
-#### Story: Download portfolio risk assessment report
-
-**Description:**  
-Allow users to download a comprehensive risk assessment report after analysis, summarizing portfolio and per-property results.
-
-**Additional Notes:**  
-- Include summary statistics and highlights.
-- Offer reports in Markdown, PDF, and CSV formats.
-- Ensure reports are styled for readability.
-
-**Acceptance Criteria:**  
-- Users can download reports in at least PDF and CSV.
-- Reports include per-property scores and portfolio summary.
-- High-risk properties are flagged in the report.
-- Reports pass accessibility checks.
-
----
+      - name: Upload release notes artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes.md
