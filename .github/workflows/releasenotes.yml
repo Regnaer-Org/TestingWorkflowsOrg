@@ -45,11 +45,18 @@ jobs:
       - name: List files for debugging
         run: ls -l
 
+      - name: Read prompt from file
+        id: read_prompt
+        run: |
+          echo "PROMPT<<EOF" >> $GITHUB_ENV
+          cat issues_for_prompt.md >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
       - name: Summarize with AI
         id: ai_inference
         uses: actions/ai-inference@v1
         with:
-          prompt-file: issues_for_prompt.md
+          prompt: ${{ env.PROMPT }}
           system-prompt: |
             You are an expert technical writer. Read the following list of GitHub issues (each with a title and body) that are all assigned to the same milestone. Write a clear, concise, non-repetitive Markdown release note summary that explains what is being delivered in this milestone. Focus on outcomes and key points for users and contributors. Do not simply list the issues—synthesize the information and avoid repetition. Output only the Markdown summary.
           model: openai/gpt-4o
