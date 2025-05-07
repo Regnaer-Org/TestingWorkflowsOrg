@@ -1,11 +1,7 @@
-import requests
-import csv
 import os
 import sys
-
-# Replace this with your Personal Access Token
-GITHUB_PAT = "YOUR_PERSONAL_ACCESS_TOKEN"  # <-- Add your PAT here
-PROJECT_ID = "PVT_kwDODH0FwM4A3yi4"  # Replace with your Project ID
+import csv
+import requests
 
 # Output file paths
 desktop = os.path.join(os.path.expanduser("~"), "Desktop")
@@ -56,7 +52,8 @@ def fetch_project_fields(project_id, token):
         resp = requests.post(
             "https://api.github.com/graphql",
             json={"query": query, "variables": variables},
-            headers={"Authorization": f"Bearer {token}"}
+            headers={"Authorization": f"Bearer {token}"},
+            verify=False  # Disable SSL verification
         )
         resp.raise_for_status()
         data = resp.json()
@@ -128,6 +125,19 @@ def fetch_project_items(project_id, token):
                   }
                   repository { nameWithOwner }
                 }
+                ... on PullRequest {
+                  id
+                  title
+                  state
+                  createdAt
+                  updatedAt
+                  url
+                  author { login }
+                  mergedAt
+                  labels(first: 100) { nodes { name color } }
+                  assignees(first: 100) { nodes { login } }
+                  repository { nameWithOwner }
+                }
               }
             }
             pageInfo { endCursor hasNextPage }
@@ -143,7 +153,8 @@ def fetch_project_items(project_id, token):
         resp = requests.post(
             "https://api.github.com/graphql",
             json={"query": query, "variables": variables},
-            headers={"Authorization": f"Bearer {token}"}
+            headers={"Authorization": f"Bearer {token}"},
+            verify=False  # Disable SSL verification
         )
         resp.raise_for_status()
         data = resp.json()
@@ -163,6 +174,10 @@ def fetch_project_items(project_id, token):
 
 
 def main():
+    # Replace with your GitHub Project ID and Personal Access Token
+    PROJECT_ID = "YOUR_PROJECT_ID"
+    GITHUB_PAT = "YOUR_PERSONAL_ACCESS_TOKEN"
+
     # Fetch fields and items
     print("Fetching project fields...")
     fields = fetch_project_fields(PROJECT_ID, GITHUB_PAT)
