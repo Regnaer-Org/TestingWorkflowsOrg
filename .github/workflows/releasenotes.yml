@@ -45,25 +45,16 @@ jobs:
       - name: List files for debugging
         run: ls -l
 
-      - name: Read prompt from file as output (Python)
+      - name: Read prompt as output (Python, no indent issues)
         id: read_prompt
         run: |
-          python3 -c "
-import sys
-import urllib.parse
-with open('issues_for_prompt.md', 'r', encoding='utf-8') as f:
-    content = f.read()
-# GitHub Actions output must not contain unescaped newlines or special characters
-content_escaped = urllib.parse.quote_plus(content)
-print(f'prompt={content_escaped}', file=open(os.environ['GITHUB_OUTPUT'], 'a'))
-"
+          python3 -c "import urllib.parse, os; content = open('issues_for_prompt.md', encoding='utf-8').read(); print(f'prompt<<EOF\\n{content}\\nEOF', file=open(os.environ['GITHUB_OUTPUT'], 'a'))"
 
       - name: Summarize with AI
         id: ai_inference
         uses: actions/ai-inference@v1
         with:
-          # Decode the prompt on the fly using shell substitution
-          prompt: ${{ fromJson('"' + format('{0}', steps.read_prompt.outputs.prompt) + '"') }}
+          prompt: ${{ steps.read_prompt.outputs.prompt }}
           system-prompt: |
             You are an expert technical writer. Read the following list of GitHub issues (each with a title and body) that are all assigned to the same milestone. Write a clear, concise, non-repetitive Markdown release note summary that explains what is being delivered in this milestone. Focus on outcomes and key points for users and contributors. Do not simply list the issues—synthesize the information and avoid repetition. Output only the Markdown summary.
           model: openai/gpt-4o
