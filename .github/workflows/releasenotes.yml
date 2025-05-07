@@ -1,0 +1,61 @@
+name: Generate Release Notes
+
+on:
+  workflow_dispatch:
+    inputs:
+      milestone:
+        description: 'Milestone title (exact name)'
+        required: true
+        type: string
+
+jobs:
+  generate-release-notes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch issues for milestone
+        id: fetch_issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const milestoneTitle = '${{ github.event.inputs.milestone }}';
+            const milestones = await github.rest.issues.listMilestones({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "all"
+            });
+            const milestone = milestones.data.find(m => m.title === milestoneTitle);
+            if (!milestone) throw new Error("Milestone not found: " + milestoneTitle);
+            const issues = await github.paginate(
+              github.rest.issues.listForRepo,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                milestone: milestone.number,
+                state: "all"
+              }
+            );
+            if (!issues.length) throw new Error("No issues found for milestone: " + milestoneTitle);
+            const prompt = issues.map(i => `### ${i.title}\n${i.body || ''}`).join('\n\n');
+            fs.writeFileSync('issues_for_prompt.md', prompt);
+
+      - name: Summarize with AI
+        id: ai_inference
+        uses: actions/ai-inference@v1
+        with:
+          prompt-file: 'issues_for_prompt.md'
+          system-prompt: |
+            You are an expert technical writer. Read the following list of GitHub issues (each with a title and body) that are all assigned to the same milestone. Write a clear, concise, non-repetitive Markdown release note summary that explains what is being delivered in this milestone. Focus on outcomes and key points for users and contributors. Do not simply list the issues—synthesize the information and avoid repetition. Output only the Markdown summary.
+
+      - name: Write release notes to file
+        run: |
+          echo "${{ steps.ai_inference.outputs.output }}" > release-notes.md
+
+      - name: Upload release notes artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes.md
