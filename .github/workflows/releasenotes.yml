@@ -45,18 +45,25 @@ jobs:
       - name: List files for debugging
         run: ls -l
 
-      - name: Read prompt from file as output
+      - name: Read prompt file as base64
         id: read_prompt
         run: |
-          echo "prompt<<EOF" >> $GITHUB_OUTPUT
-          cat issues_for_prompt.md >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          PROMPT_B64=$(base64 -w 0 issues_for_prompt.md)
+          echo "prompt_b64=$PROMPT_B64" >> $GITHUB_OUTPUT
+
+      - name: Decode base64 prompt and set as env
+        id: decode_prompt
+        run: |
+          echo "${{ steps.read_prompt.outputs.prompt_b64 }}" | base64 -d > prompt.txt
+          echo "PROMPT<<EOF" >> $GITHUB_ENV
+          cat prompt.txt >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Summarize with AI
         id: ai_inference
         uses: actions/ai-inference@v1
         with:
-          prompt: ${{ steps.read_prompt.outputs.prompt }}
+          prompt: ${{ env.PROMPT }}
           system-prompt: |
             You are an expert technical writer. Read the following list of GitHub issues (each with a title and body) that are all assigned to the same milestone. Write a clear, concise, non-repetitive Markdown release note summary that explains what is being delivered in this milestone. Focus on outcomes and key points for users and contributors. Do not simply list the issues—synthesize the information and avoid repetition. Output only the Markdown summary.
           model: openai/gpt-4o
