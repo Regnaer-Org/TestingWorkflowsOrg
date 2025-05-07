@@ -1,0 +1,72 @@
+query = '''
+query($project: ID!, $cursor: String) {
+  node(id: $project) {
+    ... on ProjectV2 {
+      items(first: 100, after: $cursor) {
+        nodes {
+          id
+          fieldValues(first: 100) {
+            nodes {
+              ... on ProjectV2ItemFieldTextValue {
+                text
+                field { id name }
+              }
+              ... on ProjectV2ItemFieldDateValue {
+                date
+                field { id name }
+              }
+              ... on ProjectV2ItemFieldNumberValue {
+                number
+                field { id name }
+              }
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field { id name }
+              }
+              ... on ProjectV2ItemFieldIterationValue {
+                title
+                field { id name }
+              }
+            }
+          }
+          content {
+            ... on Issue {
+              id
+              number
+              title
+              state
+              createdAt
+              updatedAt
+              url
+              author { login }
+              closedAt
+              milestone { title number state }
+              issueType { name }
+              labels(first: 100) { nodes { name color } }
+              assignees(first: 100) { nodes { login } }
+              parent {
+                ... on Issue { title number url id issueType { name } }
+              }
+              repository { nameWithOwner }
+            }
+            ... on PullRequest {
+              id
+              title
+              state
+              createdAt
+              updatedAt
+              url
+              author { login }
+              mergedAt
+              labels(first: 100) { nodes { name color } }
+              assignees(first: 100) { nodes { login } }
+              repository { nameWithOwner }
+            }
+          }
+        }
+        pageInfo { endCursor hasNextPage }
+      }
+    }
+  }
+}
+'''
