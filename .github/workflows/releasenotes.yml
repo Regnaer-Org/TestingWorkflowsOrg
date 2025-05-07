@@ -45,11 +45,18 @@ jobs:
       - name: List files for debugging
         run: ls -l
 
-      - name: Read prompt from file
+      - name: Read prompt file as base64
         id: read_prompt
         run: |
+          PROMPT_B64=$(base64 -w 0 issues_for_prompt.md)
+          echo "prompt_b64=$PROMPT_B64" >> $GITHUB_OUTPUT
+
+      - name: Decode base64 and set PROMPT env
+        id: set_prompt
+        run: |
+          echo "${{ steps.read_prompt.outputs.prompt_b64 }}" | base64 -d > prompt.txt
           echo "PROMPT<<EOF" >> $GITHUB_ENV
-          cat issues_for_prompt.md >> $GITHUB_ENV
+          cat prompt.txt >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
       - name: Summarize with AI
