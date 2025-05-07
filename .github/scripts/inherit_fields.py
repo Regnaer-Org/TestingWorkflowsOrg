@@ -99,7 +99,11 @@ if not parent_data or not parent_data.get("node", {}).get("parent"):
     sys.exit(0)
 
 parent_info = parent_data["node"]["parent"]
-parent_milestone_number = parent_info.get("milestone", {}).get("number")
+
+# Safely get the milestone number
+parent_milestone = parent_info.get("milestone")
+parent_milestone_number = parent_milestone.get("number") if parent_milestone else None
+
 parent_labels = [label["name"] for label in parent_info.get("labels", {}).get("nodes", [])]
 
 # Inherit Milestone (REST)
