@@ -38,5 +38,5 @@ jobs:
           REPO_OWNER: ${{ github.repository_owner }}
           REPO_NAME: ${{ github.event.repository.name }}
           # Pass the target Project ID (using Repository Variable is recommended)
-          PROJECT_ID: ${{ vars.PROJECT_V2_NODE_ID || 'PVT_kwDODH0FwM4A3yi4' }} # Use variable or fallback
+          PROJECT_ID: ${{ secrets.PROJECT_ID }}
         run: python .github/scripts/inherit_fields.py
