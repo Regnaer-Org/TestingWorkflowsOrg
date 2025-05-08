@@ -1,19 +1,19 @@
 name: Daily Agile Snapshot
 
 on:
-  workflow_dispatch:
   schedule:
-    - cron: '5 22 * * *'
+    - cron: '0 3 * * *' # Runs every day at 03:00 UTC
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  fetch-backlog-snapshot:
+  agile-snapshot:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -21,20 +21,20 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install Python Dependencies
+      - name: Install Python dependencies
         run: pip install requests
 
-      - name: Run Project Issue Fetch Script
+      - name: Run agile snapshot script
         run: python .github/scripts/fetch_project_issues.py
         env:
           MILESTONE_SYNC_TOKEN: ${{ secrets.MILESTONE_SYNC }}
           PROJECT_ID: ${{ secrets.PROJECT_ID }}
 
-      - name: Commit and push Agile Snapshot CSV to repo
+      - name: Commit and push Agile snapshot
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add agilreporting/project.issues_*.csv agilreporting/latest_snapshot.csv
+          git add agilereporting/project.issues_*.csv agilereporting/latest_snapshot.csv 2>/dev/null || true
           if git diff --staged --quiet; then
             echo "Agile snapshot is up-to-date. Nothing to commit."
           else
