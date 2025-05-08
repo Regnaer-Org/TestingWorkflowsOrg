@@ -1,4 +1,4 @@
-name: Inherit Fields on Sub-Issue Creation
+name: Inherit Parent Fields on Sub-Issue Creation
 
 on:
   issues:
@@ -19,17 +19,12 @@ jobs:
       - name: Install Python dependencies
         run: pip install requests
 
-      # Create issue step here if you use one, e.g.:
-      # - id: create_issue
-      #   name: Create issue
-      #   run: echo "Simulated" # Replace with your actual issue creation
-
       - name: Run inherit fields script
         run: python .github/scripts/inherit_fields.py
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NEW_ISSUE_NODE_ID: ${{ steps.create_issue.outputs.node_id }}
-          NEW_ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
+          NEW_ISSUE_NODE_ID: ${{ github.event.issue.node_id }}
+          NEW_ISSUE_NUMBER: ${{ github.event.issue.number }}
           REPO_OWNER: ${{ github.repository_owner }}
           REPO_NAME: ${{ github.event.repository.name }}
           PROJECT_ID: ${{ secrets.PROJECT_ID }}
