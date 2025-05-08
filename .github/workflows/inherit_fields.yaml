@@ -5,15 +5,12 @@ on:
     types: [opened]
 
 permissions:
-  # Required for REST API calls to update issue labels/milestone
   issues: write
-  # Required for GraphQL API calls to read project fields and update item values
   contents: read
 
 jobs:
   inherit-fields:
     runs-on: ubuntu-latest
-    # The script exits gracefully if no parent is found, so no job condition needed here.
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -21,15 +18,14 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11' # Or your preferred version
+          python-version: '3.11'
 
       - name: Install Python Dependencies
-        # Only install Python libraries needed by the script
-        run: pip install requests # Add others via requirements.txt if needed
+        run: pip install requests
 
       - name: Run Field Inheritance Script
         env:
-          # Use the PAT with necessary repo/project scopes
+          # Use a custom PAT if needed, otherwise use GITHUB_TOKEN
           GITHUB_TOKEN: ${{ secrets.milestone_sync }}
           # Pass data about the newly opened issue
           NEW_ISSUE_NODE_ID: ${{ github.event.issue.node_id }}
@@ -37,6 +33,6 @@ jobs:
           # Pass repository context
           REPO_OWNER: ${{ github.repository_owner }}
           REPO_NAME: ${{ github.event.repository.name }}
-          # Pass the target Project ID (using Repository Variable is recommended)
-          PROJECT_ID: ${{ vars.PROJECT_V2_NODE_ID || 'PVT_kwDODH0FwM4A3yi4' }} # Use variable or fallback
+          # Use repository variable for the ProjectV2 Node ID (recommended, no hardcoded fallback)
+          PROJECT_ID: ${{ vars.PROJECT_V2_NODE_ID }}
         run: python .github/scripts/inherit_fields.py
