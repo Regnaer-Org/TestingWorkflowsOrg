@@ -1,81 +1,43 @@
-# Workflow name
-name: Daily Sprint Metadata CSV
+name: Sprint MetaData
 
-# Controls when the action will run.
 on:
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-  # Triggers the workflow on a schedule
-  schedule:
-    # Runs daily at 22:05 UTC (adjust cron timing as needed)
-    # Example: '5 22 * * *' is 5:05 PM US Central Time during Daylight Saving, adjust for your timezone/needs
-    - cron: '5 22 * * *'
-
-# Permissions needed by the workflow jobs
 permissions:
-  # Required to check out code and push the generated CSV file
   contents: write
-  # id-token: write # Only required if using OIDC for authentication elsewhere. Remove if not needed.
 
 jobs:
-  # Define the job that will fetch and process the sprint data
-  fetch-sprint-metadata:
-    # The type of runner that the job will run on
+  process-sprints:
     runs-on: ubuntu-latest
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Step 1: Check out the repository code so the workflow can access it
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Step 2: Set up Python environment
-      # No cache needed here as we install dependencies directly
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11' # Specify a recent Python version
+          python-version: '3.11'
 
-      # Step 3: Install required Python packages
-      # The script requires the 'requests' library to make HTTP calls
       - name: Install Python Dependencies
         run: pip install requests
 
-      # Step 4: Execute the Python script to fetch and process data
-      # The script uses the MILESTONE_SYNC_TOKEN secret to authenticate with the GitHub API
-      - name: Run Sprint Processing Script
+      - name: Run Sprint Metadata Script
         run: python .github/scripts/process_sprints.py
         env:
-          # Pass the GitHub token needed for the GraphQL API call
-          # Ensure this secret exists in your repository or organization settings
           MILESTONE_SYNC_TOKEN: ${{ secrets.MILESTONE_SYNC }}
+          PROJECT_ID: ${{ secrets.PROJECT_ID }}
 
-      # Step 5: Commit the generated CSV file back to the repository
-      - name: Commit and push SprintMetaData.csv to repo
+      - name: Commit and push SprintMetaData.csv
         run: |
-          # Configure git user for the commit
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com" # Standard email for the bot
-
-          # Add the generated file to the staging area
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add agilereportingmetadata/SprintMetaData.csv
-
-          # Check if the file was actually modified or created before committing
-          # Prevents empty commits if the data hasn't changed
           if git diff --staged --quiet; then
             echo "SprintMetaData.csv is up-to-date. Nothing to commit."
           else
-            echo "Committing updated SprintMetaData.csv..."
-            # Commit the changes with a descriptive message
-            git commit -m "Update Sprint metadata snapshot (automated)"
-
-            echo "Pushing changes..."
-            # Push the commit back to the repository's default branch
+            git commit -m "Update SprintMetaData.csv (automated)"
             git push
           fi
         env:
-          # GITHUB_TOKEN is automatically available and has permissions defined
-          # in the 'permissions:' block at the top level of the job/workflow.
-          # Use the default token provided by GitHub Actions for the commit.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
