@@ -6,15 +6,18 @@ from datetime import datetime, timedelta
 import sys
 
 # --- Configuration ---
-PROJECT_ID = "PVT_kwDODH0FwM4A3yi4" # Your ProjectV2 ID
+PROJECT_ID = os.environ.get("PROJECT_ID", "PVT_kwDODH0FwM4A3yi4") # Your ProjectV2 ID (override via env if desired)
 GRAPHQL_API_URL = "https://api.github.com/graphql"
 OUTPUT_DIR = "agilereportingmetadata"
 OUTPUT_FILE = os.path.join(OUTPUT_DIR, "SprintMetaData.csv")
 TOKEN = os.environ.get("MILESTONE_SYNC_TOKEN") # Get token from environment variable
 
-# --- Check for Token ---
+# --- Check for Token and Project ID ---
 if not TOKEN:
     print("Error: MILESTONE_SYNC_TOKEN environment variable not set.", file=sys.stderr)
+    sys.exit(1)
+if not PROJECT_ID or PROJECT_ID.strip() == "":
+    print("Error: PROJECT_ID variable is not set or is empty.", file=sys.stderr)
     sys.exit(1)
 
 # --- GraphQL Query ---
@@ -95,20 +98,19 @@ try:
         try:
             nodes = data.get("data", {}).get("node", {}).get("fields", {}).get("nodes", [])
             for field in nodes:
-                 # Check field is not None and safely access keys
-                 if field and field.get("name") == "Sprint":
-                     sprint_field = field
-                     iterations = field.get("configuration", {}).get("iterations", [])
-                     break # Found the Sprint field
+                # Check field is not None and safely access keys
+                if field and field.get("name") == "Sprint":
+                    sprint_field = field
+                    iterations = field.get("configuration", {}).get("iterations", [])
+                    break # Found the Sprint field
         except AttributeError as e:
-             print(f"Warning: Issue navigating GraphQL response structure: {e}", file=sys.stderr)
-             # Optionally print structure for debugging: print(json.dumps(data, indent=2), file=sys.stderr)
-
+            print(f"Warning: Issue navigating GraphQL response structure: {e}", file=sys.stderr)
+            # Optionally print structure for debugging: print(json.dumps(data, indent=2), file=sys.stderr)
 
         if not sprint_field:
-             print("Warning: Could not find 'Sprint' field in the GraphQL response.", file=sys.stderr)
+            print("Warning: Could not find 'Sprint' field in the GraphQL response.", file=sys.stderr)
         elif not iterations:
-             print("Warning: Found 'Sprint' field, but it contains no iterations.", file=sys.stderr)
+            print("Warning: Found 'Sprint' field, but it contains no iterations.", file=sys.stderr)
         else:
             print(f"Found {len(iterations)} iterations.")
             for iteration in iterations:
