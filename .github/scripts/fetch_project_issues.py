@@ -8,7 +8,7 @@ import sys
 import time
 
 # --- Configuration ---
-PROJECT_ID = os.environ.get("PROJECT_ID", "PVT_kwDODH0FwM4A3yi4") # Get from env var or use default
+PROJECT_ID = os.environ.get("PROJECT_ID")  # Must be set in environment/secrets
 GRAPHQL_API_URL = "https://api.github.com/graphql"
 OUTPUT_DIR = "agilereporting"
 TOKEN = os.environ.get("MILESTONE_SYNC_TOKEN")
@@ -16,7 +16,7 @@ TOKEN = os.environ.get("MILESTONE_SYNC_TOKEN")
 if not TOKEN:
     print("Error: MILESTONE_SYNC_TOKEN environment variable not set.", file=sys.stderr)
     sys.exit(1)
-if not PROJECT_ID:
+if not PROJECT_ID or PROJECT_ID.strip() == "":
     print("Error: PROJECT_ID environment variable not set.", file=sys.stderr)
     sys.exit(1)
 
@@ -29,55 +29,55 @@ LATEST_SNAPSHOT_FILENAME = "latest_snapshot.csv"
 LATEST_OUTPUT_PATH = os.path.join(OUTPUT_DIR, LATEST_SNAPSHOT_FILENAME)
 
 # --- GraphQL Query (Includes labels, assignees nodes, and issueType) ---
-graphql_query = """
-query GetProjectV2Items($projectId: ID!, $cursor: String) {
-  node(id: $projectId) {
-    ... on ProjectV2 {
+graphql_query = f"""
+query GetProjectV2Items($cursor: String) {{
+  node(id: "{PROJECT_ID}") {{
+    ... on ProjectV2 {{
       id
       title
       number
-      items(first: 100, after: $cursor, orderBy: {field: POSITION, direction: ASC}) {
+      items(first: 100, after: $cursor, orderBy: {{field: POSITION, direction: ASC}}) {{
         totalCount
-        nodes {
+        nodes {{
           id
           createdAt
           updatedAt
           isArchived
           type
-          fieldValues(first: 100) {
-            nodes {
-              ... on ProjectV2ItemFieldTextValue {
+          fieldValues(first: 100) {{
+            nodes {{
+              ... on ProjectV2ItemFieldTextValue {{
                 text
-                field { ...ProjectV2FieldCommon }
-              }
-              ... on ProjectV2ItemFieldDateValue {
+                field {{ ...ProjectV2FieldCommon }}
+              }}
+              ... on ProjectV2ItemFieldDateValue {{
                 date
-                field { ...ProjectV2FieldCommon }
-              }
-              ... on ProjectV2ItemFieldNumberValue {
+                field {{ ...ProjectV2FieldCommon }}
+              }}
+              ... on ProjectV2ItemFieldNumberValue {{
                 number
-                field { ...ProjectV2FieldCommon }
-              }
-              ... on ProjectV2ItemFieldSingleSelectValue {
+                field {{ ...ProjectV2FieldCommon }}
+              }}
+              ... on ProjectV2ItemFieldSingleSelectValue {{
                 name
-                field { ...ProjectV2FieldCommon }
-              }
-              ... on ProjectV2ItemFieldIterationValue {
+                field {{ ...ProjectV2FieldCommon }}
+              }}
+              ... on ProjectV2ItemFieldIterationValue {{
                 title
                 startDate
                 duration
-                field { ...ProjectV2FieldCommon }
-              }
-            }
-          }
-          content {
-            ... on DraftIssue {
+                field {{ ...ProjectV2FieldCommon }}
+              }}
+            }}
+          }}
+          content {{
+            ... on DraftIssue {{
               id
               title
               body
-              creator { login }
-            }
-            ... on PullRequest {
+              creator {{ login }}
+            }}
+            ... on PullRequest {{
               id
               number
               title
@@ -87,13 +87,13 @@ query GetProjectV2Items($projectId: ID!, $cursor: String) {
               updatedAt
               closedAt
               mergedAt
-              author { login }
-              repository { nameWithOwner owner { login } name }
-              assignees(first: 10) { nodes { login } }
-              labels(first: 20) { nodes { name } }
-              milestone { title number state }
-            }
-            ... on Issue {
+              author {{ login }}
+              repository {{ nameWithOwner owner {{ login }} name }}
+              assignees(first: 10) {{ nodes {{ login }} }}
+              labels(first: 20) {{ nodes {{ name }} }}
+              milestone {{ title number state }}
+            }}
+            ... on Issue {{
               id
               number
               title
@@ -102,32 +102,32 @@ query GetProjectV2Items($projectId: ID!, $cursor: String) {
               createdAt
               updatedAt
               closedAt
-              author { login }
-              repository { nameWithOwner owner { login } name }
-              assignees(first: 10) { nodes { login } }
-              labels(first: 20) { nodes { name } }
-              milestone { title number state }
-              issueType {         # -- CHANGED/ADDED for issueType --
+              author {{ login }}
+              repository {{ nameWithOwner owner {{ login }} name }}
+              assignees(first: 10) {{ nodes {{ login }} }}
+              labels(first: 20) {{ nodes {{ name }} }}
+              milestone {{ title number state }}
+              issueType {{
                 id
                 name
-              }
-            }
-          }
-        }
-        pageInfo {
+              }}
+            }}
+          }}
+        }}
+        pageInfo {{
           endCursor
           hasNextPage
-        }
-      }
-    }
-  }
-}
+        }}
+      }}
+    }}
+  }}
+}}
 
-fragment ProjectV2FieldCommon on ProjectV2FieldCommon {
-    ... on ProjectV2Field { name id }
-    ... on ProjectV2IterationField { name id }
-    ... on ProjectV2SingleSelectField { name id }
-}
+fragment ProjectV2FieldCommon on ProjectV2FieldCommon {{
+    ... on ProjectV2Field {{ name id }}
+    ... on ProjectV2IterationField {{ name id }}
+    ... on ProjectV2SingleSelectField {{ name id }}
+}}
 """
 
 def get_value(data, keys, default=""):
@@ -149,7 +149,7 @@ item_count = 0
 print(f"Fetching items for Project ID: {PROJECT_ID}...")
 
 while has_next_page:
-    variables = {"projectId": PROJECT_ID, "cursor": cursor}
+    variables = {"cursor": cursor}
     payload = {"query": graphql_query, "variables": variables}
     headers = {
         "Authorization": f"Bearer {TOKEN}",
