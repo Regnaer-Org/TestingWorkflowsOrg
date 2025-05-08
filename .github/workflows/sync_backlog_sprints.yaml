@@ -1,33 +1,31 @@
-name: Sync Backlog Sprints to Sub-issues
+name: Sync Backlog Sprints
 
 on:
-  workflow_dispatch: # Manual trigger only
+  workflow_dispatch:
 
 permissions:
-  issues: write # Needed by script to potentially add items to projects via addProjectV2ItemById
-  contents: read # To checkout code
+  contents: read
 
 jobs:
-  sync_backlog:
+  sync-backlog-sprints:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11' # Specify a modern Python version
+          python-version: '3.11'
 
-      - name: Install Python Dependencies
+      - name: Install Python dependencies
         run: pip install requests
 
-      - name: Run Sprint Sync Script
+      - name: Sync backlog sprints to sub-issues
+        run: python .github/scripts/sync_backlog_sprints.py
         env:
-          # Secrets and Configuration
-          MILESTONE_SYNC_TOKEN: ${{ secrets.MILESTONE_SYNC }} # Ensure this token has repo, project, issue read/write scope
-          PROJECT_ID: "PVT_kwDODH0FwM4A3yi4" # Your ProjectV2 Node ID
+          MILESTONE_SYNC_TOKEN: ${{ secrets.MILESTONE_SYNC }}
+          PROJECT_ID: ${{ secrets.PROJECT_ID }}
           REPO_OWNER: ${{ github.repository_owner }}
           REPO_NAME: ${{ github.event.repository.name }}
-          # GITHUB_ACTOR is automatically available for logging who triggered the run
-        run: python .github/scripts/sync_backlog_sprints.py
