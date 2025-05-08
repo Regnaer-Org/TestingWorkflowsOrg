@@ -24,8 +24,8 @@ jobs:
       - name: Install Python dependencies
         run: pip install requests
 
-      - name: Run daily milestone metadata script
-        run: python .github/scripts/process_sprints.py
+      - name: Run milestone metadata script
+        run: python .github/scripts/fetch_milestones.py
         env:
           MILESTONE_SYNC_TOKEN: ${{ secrets.MILESTONE_SYNC }}
           PROJECT_ID: ${{ secrets.PROJECT_ID }}
@@ -34,11 +34,12 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add agilereportingmetadata/SprintMetaData.csv
+          git add agilereportingmetadata/SprintMetaData.csv 2>/dev/null || true
           if git diff --staged --quiet; then
             echo "SprintMetaData.csv is up-to-date. Nothing to commit."
           else
             git commit -m "Update SprintMetaData.csv (automated daily run)"
             git push
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
