@@ -45,7 +45,7 @@ with open(input_file, newline='', encoding="utf-8") as infile, open(output_file,
             if issue_type == "Task" and parent_type == "null":
                 violation = "Task is missing a parent issue"
             else:
-                violation = "issue has an improper sub-issue issue_type"
+                violation = "issue has an improper parent"
 
         if violation:
             writer.writerow({
