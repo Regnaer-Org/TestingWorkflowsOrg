@@ -25,6 +25,14 @@ def normalize(val):
         return "null"
     return str(val).strip()
 
+def markdown_link(url, text=None):
+    if url is None or str(url).strip() == "" or url == "null":
+        return "null"
+    url = str(url).strip()
+    if not text:
+        text = url
+    return f"[{text}]({url})"
+
 with open(input_file, newline='', encoding="utf-8") as infile, open(output_file, "w", newline='', encoding="utf-8") as outfile:
     reader = csv.DictReader(infile)
     fieldnames = [
@@ -60,10 +68,12 @@ with open(input_file, newline='', encoding="utf-8") as infile, open(output_file,
                 violation = "issue has an improper parent"
 
         if violation:
+            content_url_val = row.get("content_url") or "null"
+            parent_url_val = row.get("parent_url") or "null"
             writer.writerow({
                 "content_number": row.get("content_number"),
                 "content_title": row.get("content_title"),
-                "content_url": row.get("content_url"),
+                "content_url": markdown_link(content_url_val, row.get("content_number")),
                 "issue_type_name": row.get("issue_type_name"),
                 "author": row.get("author") or "null",
                 "assignees": row.get("assignees") or "null",
@@ -71,6 +81,6 @@ with open(input_file, newline='', encoding="utf-8") as infile, open(output_file,
                 "project_item_type": row.get("project_item_type") or "null",
                 "parent_title": row.get("parent_title") or "null",
                 "parent_issue_type_name": row.get("parent_issue_type_name") or "null",
-                "parent_url": row.get("parent_url") or "null",
+                "parent_url": markdown_link(parent_url_val, row.get("parent_title") or "Parent"),
                 "violation_explanation": violation
             })
