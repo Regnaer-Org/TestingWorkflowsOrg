@@ -29,6 +29,7 @@ with open(input_file, newline='', encoding="utf-8") as infile, open(output_file,
     reader = csv.DictReader(infile)
     fieldnames = [
         "content_number", "content_title", "content_url", "issue_type_name",
+        "author", "assignees", "team",
         "parent_title", "parent_issue_type_name", "parent_url",
         "violation_explanation"
     ]
@@ -53,6 +54,9 @@ with open(input_file, newline='', encoding="utf-8") as infile, open(output_file,
                 "content_title": row.get("content_title"),
                 "content_url": row.get("content_url"),
                 "issue_type_name": row.get("issue_type_name"),
+                "author": row.get("author") or "null",
+                "assignees": row.get("assignees") or "null",
+                "team": row.get("team") or "null",
                 "parent_title": row.get("parent_title") or "null",
                 "parent_issue_type_name": row.get("parent_issue_type_name") or "null",
                 "parent_url": row.get("parent_url") or "null",
