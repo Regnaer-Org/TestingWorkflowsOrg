@@ -1,4 +1,4 @@
-name: Analyze Backlog Health
+name: Backlog Health Report
 
 on:
   workflow_dispatch:
@@ -6,16 +6,14 @@ on:
     paths:
       - 'agilereporting/latest_snapshot.csv'
       - '.github/scripts/analyze_hierarchy.py'
-
-permissions:
-  contents: write
+      - '.github/workflows/backloghealth.yml'
 
 jobs:
-  analyze-hierarchy:
+  backlog-health:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout Repo
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -23,16 +21,23 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Run hierarchy analysis script
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+
+      - name: Run Hierarchy Violation Analysis
         run: python .github/scripts/analyze_hierarchy.py
 
-      - name: Commit and push results
-        env:
-          GH_TOKEN: ${{ secrets.MILESTONE_SYNC }}
+      - name: Upload Backlog Health Reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: backloghealth
+          path: |
+            backloghealth/hierarchy_violations.csv
+            backloghealth/hierarchy_violations.md
+
+      - name: Display markdown report in workflow summary
+        if: always()
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}
-          git add backloghealth/hierarchy_violations.csv
-          git commit -m "Update hierarchy_violations.csv [bot]" || echo "No changes to commit"
-          git push origin HEAD:${GITHUB_REF#refs/heads/}
+          echo '### Backlog Health Hierarchy Violations' >> $GITHUB_STEP_SUMMARY
+          cat backloghealth/hierarchy_violations.md >> $GITHUB_STEP_SUMMARY
