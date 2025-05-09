@@ -30,6 +30,7 @@ with open(input_file, newline='', encoding="utf-8") as infile, open(output_file,
     fieldnames = [
         "content_number", "content_title", "content_url", "issue_type_name",
         "author", "assignees", "team",
+        "project_item_type",
         "parent_title", "parent_issue_type_name", "parent_url",
         "violation_explanation"
     ]
@@ -37,8 +38,18 @@ with open(input_file, newline='', encoding="utf-8") as infile, open(output_file,
     writer.writeheader()
 
     for row in reader:
+        project_item_type = normalize(row.get("project_item_type"))
         issue_type = normalize(row.get("issue_type_name"))
         parent_type = normalize(row.get("parent_issue_type_name"))
+
+        # Only include rows where project_item_type is 'ISSUE'
+        if project_item_type != "ISSUE":
+            continue
+
+        # Exclude issues of type 'Impediment' (case-insensitive)
+        if issue_type.lower() == "impediment":
+            continue
+
         violation = None
 
         # Check if valid
@@ -57,6 +68,7 @@ with open(input_file, newline='', encoding="utf-8") as infile, open(output_file,
                 "author": row.get("author") or "null",
                 "assignees": row.get("assignees") or "null",
                 "team": row.get("team") or "null",
+                "project_item_type": row.get("project_item_type") or "null",
                 "parent_title": row.get("parent_title") or "null",
                 "parent_issue_type_name": row.get("parent_issue_type_name") or "null",
                 "parent_url": row.get("parent_url") or "null",
