@@ -303,7 +303,9 @@ for item in all_items:
                 row['issue_type_id'] = issue_type.get('id', '')
                 row['issue_type_name'] = issue_type.get('name', '')
             # --- Extract parent issue fields if present ---
-            parent = content.get('parent', {}) if 'parent' in content else {}
+            parent = content.get('parent') if 'parent' in content else None
+            if parent is None or not isinstance(parent, dict):
+                parent = {}
             row['parent_id'] = parent.get('id', '')
             row['parent_number'] = parent.get('number', '')
             row['parent_title'] = parent.get('title', '')
