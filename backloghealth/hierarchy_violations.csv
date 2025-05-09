@@ -1,7 +1,7 @@
 content_number,content_title,content_url,issue_type_name,author,assignees,team,project_item_type,parent_title,parent_issue_type_name,parent_url,violation_explanation
-6,Story 2,[6](https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/6),Feature,regnaer,null,Team B,ISSUE,Feature 1,Feature,[Feature 1](https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/2),issue has an improper parent
-24,Story 2 Delivery,[24](https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/24),Task,regnaer,null,Team C,ISSUE,Story 2,Feature,[Story 2](https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/6),issue has an improper parent
-25,Story 2 Testing,[25](https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/25),Task,regnaer,null,Team C,ISSUE,Story 2,Feature,[Story 2](https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/6),issue has an improper parent
-43,this is a good task,[43](https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/43),Task,regnaer,null,null,ISSUE,Story 2,Feature,[Story 2](https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/6),issue has an improper parent
-44,this is a better task,[44](https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/44),Task,regnaer,null,Team B,ISSUE,Story 2,Feature,[Story 2](https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/6),issue has an improper parent
-45,this is a bad task,[45](https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/45),Task,regnaer,null,null,ISSUE,null,null,null,Task is missing a parent issue
+6,Story 2,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/6,Feature,regnaer,null,Team B,ISSUE,Feature 1,Feature,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/2,issue has an improper parent
+24,Story 2 Delivery,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/24,Task,regnaer,null,Team C,ISSUE,Story 2,Feature,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/6,issue has an improper parent
+25,Story 2 Testing,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/25,Task,regnaer,null,Team C,ISSUE,Story 2,Feature,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/6,issue has an improper parent
+43,this is a good task,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/43,Task,regnaer,null,null,ISSUE,Story 2,Feature,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/6,issue has an improper parent
+44,this is a better task,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/44,Task,regnaer,null,Team B,ISSUE,Story 2,Feature,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/6,issue has an improper parent
+45,this is a bad task,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/45,Task,regnaer,null,null,ISSUE,null,null,null,Task is missing a parent issue
