@@ -1,0 +1,32 @@
+name: Analyze Backlog Health
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'agilereporting/latest_snapshot.csv'
+      - '.github/scripts/analyze_hierarchy.py'
+
+jobs:
+  analyze-hierarchy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Run hierarchy analysis
+        run: python .github/scripts/analyze_hierarchy.py
+
+      - name: Commit results
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add backloghealth/hierarchy_violations.csv
+          git commit -m "Update hierarchy_violations.csv [bot]" || echo "No changes to commit"
+          git push
