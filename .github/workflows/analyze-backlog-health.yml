@@ -41,3 +41,10 @@ jobs:
         run: |
           echo '### Backlog Health Hierarchy Violations' >> $GITHUB_STEP_SUMMARY
           cat backloghealth/hierarchy_violations.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Commit and push Markdown report to repo
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update backloghealth hierarchy violations markdown report [automated]"
+          file_pattern: backloghealth/hierarchy_violations.md
+          branch: main
