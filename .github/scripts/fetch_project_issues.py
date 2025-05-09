@@ -32,7 +32,7 @@ OUTPUT_PATH = os.path.join(OUTPUT_DIR, SNAPSHOT_FILENAME)
 LATEST_SNAPSHOT_FILENAME = "latest_snapshot.csv"
 LATEST_OUTPUT_PATH = os.path.join(OUTPUT_DIR, LATEST_SNAPSHOT_FILENAME)
 
-# --- GraphQL Query (as in your current script, but with $projectId variable) ---
+# --- GraphQL Query (updated to include parent issue fields) ---
 graphql_query = """
 query GetProjectV2Items($projectId: ID!, $cursor: String) {
   node(id: $projectId) {
@@ -114,6 +114,9 @@ query GetProjectV2Items($projectId: ID!, $cursor: String) {
               issueType {
                 id
                 name
+              }
+              parent {
+                ... on Issue { id number title url issueType { id name } }
               }
             }
           }
@@ -223,7 +226,8 @@ core_headers = [
     'author', 'repository', 'repository_owner', 'repository_name',
     'assignees', 'labels',
     'milestone_title', 'milestone_number', 'milestone_state',
-    'issue_type_id', 'issue_type_name'
+    'issue_type_id', 'issue_type_name',
+    'parent_id', 'parent_number', 'parent_title', 'parent_url', 'parent_issue_type_id', 'parent_issue_type_name'
 ]
 for header in core_headers:
     all_field_names.add(header)
@@ -241,6 +245,13 @@ for item in all_items:
     content = item.get('content')
     row['issue_type_id'] = ''
     row['issue_type_name'] = ''
+    # Default parent fields to blank
+    row['parent_id'] = ''
+    row['parent_number'] = ''
+    row['parent_title'] = ''
+    row['parent_url'] = ''
+    row['parent_issue_type_id'] = ''
+    row['parent_issue_type_name'] = ''
 
     if content:
         if 'repository' in content:
@@ -291,11 +302,20 @@ for item in all_items:
             if issue_type:
                 row['issue_type_id'] = issue_type.get('id', '')
                 row['issue_type_name'] = issue_type.get('name', '')
+            # --- Extract parent issue fields if present ---
+            parent = content.get('parent', {}) if 'parent' in content else {}
+            row['parent_id'] = parent.get('id', '')
+            row['parent_number'] = parent.get('number', '')
+            row['parent_title'] = parent.get('title', '')
+            row['parent_url'] = parent.get('url', '')
+            parent_issue_type = parent.get('issueType', {}) if parent else {}
+            row['parent_issue_type_id'] = parent_issue_type.get('id', '')
+            row['parent_issue_type_name'] = parent_issue_type.get('name', '')
 
     else:
         row['content_type'] = 'No Content'
         for key in core_headers:
-            if key.startswith('content_') or key in ['author','repository','repository_owner','repository_name','assignees','labels','milestone_title','milestone_number','milestone_state','issue_type_id','issue_type_name']:
+            if key.startswith('content_') or key in ['author','repository','repository_owner','repository_name','assignees','labels','milestone_title','milestone_number','milestone_state','issue_type_id','issue_type_name','parent_id','parent_number','parent_title','parent_url','parent_issue_type_id','parent_issue_type_name']:
                 row[key] = ''
 
     field_values = item.get('fieldValues', {}).get('nodes', [])
