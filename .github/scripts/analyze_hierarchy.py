@@ -16,7 +16,8 @@ valid_pairs = {
     ("Bug", "null"),
     ("Bug", "Feature"),
     ("Task", "Story"),
-    ("Task", "Feature"),
+    ("Task", "Bug"),      # Added
+    # ("Task", "Feature"),  # Removed
 }
 
 def normalize(val):
