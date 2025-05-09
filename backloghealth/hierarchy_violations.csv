@@ -1,1 +1,5 @@
-parent_id,parent_title,parent_issue_type_name,parent_url,parent_team,child_id,child_title,child_issue_type_name,child_url,child_team,violation
+content_number,content_title,content_url,issue_type_name,parent_title,parent_issue_type_name,parent_url,violation_explanation
+22,fix bug F,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/22,Task,Story F,Bug,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/18,issue has an improper sub-issue issue_type
+23,Test Fix for Bug F,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/23,Task,Story F,Bug,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/18,issue has an improper sub-issue issue_type
+24,Story 2 Delivery,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/24,Task,Story 2,Bug,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/6,issue has an improper sub-issue issue_type
+25,Story 2 Testing,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/25,Task,Story 2,Bug,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/6,issue has an improper sub-issue issue_type
