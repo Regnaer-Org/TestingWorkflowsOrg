@@ -15,18 +15,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
-      - name: Run hierarchy analysis
+      - name: Run hierarchy analysis script
         run: python .github/scripts/analyze_hierarchy.py
 
-      - name: Commit results
+      - name: Commit and push results
         env:
           GH_TOKEN: ${{ secrets.MILESTONE_SYNC }}
         run: |
