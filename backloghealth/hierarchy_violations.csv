@@ -1,5 +1,5 @@
 content_number,content_title,content_url,issue_type_name,parent_title,parent_issue_type_name,parent_url,violation_explanation
+6,Story 2,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/6,Feature,Feature 1,Feature,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/2,issue has an improper sub-issue issue_type
 22,fix bug F,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/22,Task,Story F,Bug,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/18,issue has an improper sub-issue issue_type
 23,Test Fix for Bug F,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/23,Task,Story F,Bug,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/18,issue has an improper sub-issue issue_type
-24,Story 2 Delivery,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/24,Task,Story 2,Bug,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/6,issue has an improper sub-issue issue_type
-25,Story 2 Testing,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/25,Task,Story 2,Bug,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/6,issue has an improper sub-issue issue_type
+45,this is a bad task,https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/45,Task,null,null,null,Task is missing a parent issue
