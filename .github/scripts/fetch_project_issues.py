@@ -310,7 +310,9 @@ for item in all_items:
             row['parent_number'] = parent.get('number', '')
             row['parent_title'] = parent.get('title', '')
             row['parent_url'] = parent.get('url', '')
-            parent_issue_type = parent.get('issueType', {}) if parent else {}
+            parent_issue_type = parent.get('issueType') if parent else None
+            if not isinstance(parent_issue_type, dict) or parent_issue_type is None:
+                parent_issue_type = {}
             row['parent_issue_type_id'] = parent_issue_type.get('id', '')
             row['parent_issue_type_name'] = parent_issue_type.get('name', '')
 
