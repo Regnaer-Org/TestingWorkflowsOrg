@@ -1,0 +1,11 @@
+﻿2025-05-09T21:39:27.6688126Z ##[group]Run python .github/scripts/analyze_hierarchy.py
+2025-05-09T21:39:27.6689053Z [36;1mpython .github/scripts/analyze_hierarchy.py[0m
+2025-05-09T21:39:27.6720676Z shell: /usr/bin/bash -e {0}
+2025-05-09T21:39:27.6721197Z env:
+2025-05-09T21:39:27.6721687Z   pythonLocation: /opt/hostedtoolcache/Python/3.13.3/x64
+2025-05-09T21:39:27.6722359Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.13.3/x64/lib/pkgconfig
+2025-05-09T21:39:27.6723017Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.13.3/x64
+2025-05-09T21:39:27.6723629Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.13.3/x64
+2025-05-09T21:39:27.6724636Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.13.3/x64
+2025-05-09T21:39:27.6725257Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.13.3/x64/lib
+2025-05-09T21:39:27.6725757Z ##[endgroup]

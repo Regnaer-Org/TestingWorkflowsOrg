@@ -1,0 +1,34 @@
+﻿2025-05-09T21:39:25.8808791Z Current runner version: '2.323.0'
+2025-05-09T21:39:25.8842223Z ##[group]Operating System
+2025-05-09T21:39:25.8843041Z Ubuntu
+2025-05-09T21:39:25.8843621Z 24.04.2
+2025-05-09T21:39:25.8844868Z LTS
+2025-05-09T21:39:25.8845576Z ##[endgroup]
+2025-05-09T21:39:25.8846464Z ##[group]Runner Image
+2025-05-09T21:39:25.8847263Z Image: ubuntu-24.04
+2025-05-09T21:39:25.8847900Z Version: 20250504.1.0
+2025-05-09T21:39:25.8849009Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20250504.1/images/ubuntu/Ubuntu2404-Readme.md
+2025-05-09T21:39:25.8850357Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20250504.1
+2025-05-09T21:39:25.8851210Z ##[endgroup]
+2025-05-09T21:39:25.8851791Z ##[group]Runner Image Provisioner
+2025-05-09T21:39:25.8852382Z 2.0.422.1
+2025-05-09T21:39:25.8852860Z ##[endgroup]
+2025-05-09T21:39:25.8854139Z ##[group]GITHUB_TOKEN Permissions
+2025-05-09T21:39:25.8856368Z Contents: write
+2025-05-09T21:39:25.8857016Z Metadata: read
+2025-05-09T21:39:25.8857505Z ##[endgroup]
+2025-05-09T21:39:25.8859818Z Secret source: Actions
+2025-05-09T21:39:25.8860553Z Prepare workflow directory
+2025-05-09T21:39:25.9186492Z Prepare all required actions
+2025-05-09T21:39:25.9224223Z Getting action download info
+2025-05-09T21:39:26.3547132Z ##[group]Download immutable action package 'actions/checkout@v4'
+2025-05-09T21:39:26.3548234Z Version: 4.2.2
+2025-05-09T21:39:26.3549160Z Digest: sha256:ccb2698953eaebd21c7bf6268a94f9c26518a7e38e27e0b83c1fe1ad049819b1
+2025-05-09T21:39:26.3550326Z Source commit SHA: 11bd71901bbe5b1630ceea73d27597364c9af683
+2025-05-09T21:39:26.3551034Z ##[endgroup]
+2025-05-09T21:39:26.4461007Z ##[group]Download immutable action package 'actions/setup-python@v5'
+2025-05-09T21:39:26.4461848Z Version: 5.6.0
+2025-05-09T21:39:26.4462618Z Digest: sha256:0b35a0c11c97499e4e0576589036d450b9f5f9da74b7774225b3614b57324404
+2025-05-09T21:39:26.4463583Z Source commit SHA: a26af69be951a213d495a4c3e4e4022e16d87065
+2025-05-09T21:39:26.4464670Z ##[endgroup]
+2025-05-09T21:39:26.7917447Z Complete job name: analyze-hierarchy

@@ -1,0 +1,23 @@
+﻿2025-05-09T21:39:27.7317036Z ##[group]Run git config --global user.name "github-actions[bot]"
+2025-05-09T21:39:27.7317797Z [36;1mgit config --global user.name "github-actions[bot]"[0m
+2025-05-09T21:39:27.7318467Z [36;1mgit config --global user.email "github-actions[bot]@users.noreply.github.com"[0m
+2025-05-09T21:39:27.7319472Z [36;1mgit remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/Regnaer-Org/TestingWorkflowsOrg[0m
+2025-05-09T21:39:27.7320223Z [36;1mgit add backloghealth/hierarchy_violations.csv[0m
+2025-05-09T21:39:27.7320903Z [36;1mgit commit -m "Update hierarchy_violations.csv [bot]" || echo "No changes to commit"[0m
+2025-05-09T21:39:27.7321584Z [36;1mgit push origin HEAD:${GITHUB_REF#refs/heads/}[0m
+2025-05-09T21:39:27.7348224Z shell: /usr/bin/bash -e {0}
+2025-05-09T21:39:27.7348680Z env:
+2025-05-09T21:39:27.7349105Z   pythonLocation: /opt/hostedtoolcache/Python/3.13.3/x64
+2025-05-09T21:39:27.7349698Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.13.3/x64/lib/pkgconfig
+2025-05-09T21:39:27.7350309Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.13.3/x64
+2025-05-09T21:39:27.7350855Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.13.3/x64
+2025-05-09T21:39:27.7351395Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.13.3/x64
+2025-05-09T21:39:27.7351925Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.13.3/x64/lib
+2025-05-09T21:39:27.7352616Z   GH_TOKEN: ***
+2025-05-09T21:39:27.7352956Z ##[endgroup]
+2025-05-09T21:39:27.7537237Z On branch main
+2025-05-09T21:39:27.7537992Z Your branch is up to date with 'origin/main'.
+2025-05-09T21:39:27.7538345Z 
+2025-05-09T21:39:27.7538591Z nothing to commit, working tree clean
+2025-05-09T21:39:27.7539994Z No changes to commit
+2025-05-09T21:39:27.8707564Z Everything up-to-date
