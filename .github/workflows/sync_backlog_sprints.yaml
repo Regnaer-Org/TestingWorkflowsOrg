@@ -2,10 +2,15 @@ name: Sync Backlog Sprints
 
 on:
   workflow_dispatch:
+    inputs:
+      target_team:
+        description: "Enter the 'Team' name to target for sub-issue sprint sync. Type 'ALL' to sync for all teams (default)."
+        required: true
+        default: 'ALL'
 
 permissions:
   contents: read
-  issues: write    # Added: To allow adding issues to projects, potentially modifying issue fields if sprint were an issue field
+  issues: write
 
 jobs:
   sync-backlog-sprints:
@@ -18,7 +23,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11' # Sticking to your specified version
+          python-version: '3.11'
 
       - name: Install Python dependencies
         run: pip install requests
@@ -30,3 +35,6 @@ jobs:
           PROJECT_ID: ${{ secrets.PROJECT_ID }}
           REPO_OWNER: ${{ github.repository_owner }}
           REPO_NAME: ${{ github.event.repository.name }}
+          TARGET_TEAM: ${{ github.event.inputs.target_team }}
+          RUN_INITIATOR: ${{ github.actor }} # Added for better logging
+          RUN_TIMESTAMP_UTC: ${{ env.TIMESTAMP_UTC }} # Will be set in a previous step
