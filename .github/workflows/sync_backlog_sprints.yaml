@@ -36,5 +36,4 @@ jobs:
           REPO_OWNER: ${{ github.repository_owner }}
           REPO_NAME: ${{ github.event.repository.name }}
           TARGET_TEAM: ${{ github.event.inputs.target_team }}
-          RUN_INITIATOR: ${{ github.actor }} # Added for better logging
-          RUN_TIMESTAMP_UTC: ${{ env.TIMESTAMP_UTC }} # Will be set in a previous step
+          RUN_INITIATOR: ${{ github.actor }}
