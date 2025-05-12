@@ -5,6 +5,7 @@ on:
 
 permissions:
   contents: read
+  issues: write    # Added: To allow adding issues to projects, potentially modifying issue fields if sprint were an issue field
 
 jobs:
   sync-backlog-sprints:
@@ -17,7 +18,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.11' # Sticking to your specified version
 
       - name: Install Python dependencies
         run: pip install requests
