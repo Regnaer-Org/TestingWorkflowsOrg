@@ -1,3 +1,2 @@
 | content_number | content_title | content_url | issue_type_name | author | assignees | team | project_item_type | parent_title | parent_issue_type_name | parent_url | violation_explanation |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| 45 | this is a bad task | [45](https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/45) | Task | regnaer | null | null | ISSUE | null | null | null | Task is missing a parent issue |
