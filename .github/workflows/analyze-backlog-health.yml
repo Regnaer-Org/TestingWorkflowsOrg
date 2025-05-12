@@ -45,7 +45,7 @@ jobs:
           echo '### Backlog Health Hierarchy Violations' >> $GITHUB_STEP_SUMMARY
           cat backloghealth/hierarchy_violations.md >> $GITHUB_STEP_SUMMARY
 
-      - name: Commit and push Markdown report to repo
+      - name: Commit and push backlog health reports to repo
         env:
           GIT_AUTHOR_NAME: github-actions[bot]
           GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
@@ -55,10 +55,10 @@ jobs:
         run: |
           git config user.name "${GIT_AUTHOR_NAME}"
           git config user.email "${GIT_AUTHOR_EMAIL}"
-          git add backloghealth/hierarchy_violations.md
+          git add backloghealth/hierarchy_violations.md backloghealth/hierarchy_violations.csv # Ensures both files are added
           if git diff --cached --quiet; then
-            echo "No changes to commit."
+            echo "No changes to backloghealth reports to commit." # Updated message
             exit 0
           fi
-          git commit -m "Update backloghealth hierarchy violations markdown report [automated]"
+          git commit -m "Update backloghealth hierarchy violation reports (csv & md) [automated]" # Updated commit message
           git push https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git HEAD:main
