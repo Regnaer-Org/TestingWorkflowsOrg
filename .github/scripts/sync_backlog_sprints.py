@@ -39,7 +39,7 @@ if not REPO_NAME:
 # --- GraphQL Queries and Mutations ---
 SEARCH_ISSUES_QUERY = """
 query SearchOpenIssues($searchQuery: String!, $cursor: String) {
-  search(query: $searchQuery, type: ISSUE, first: 50, after: $cursor) {
+  search(query: $searchQuery, type: ISSUE, first: 50, after: $cursor) { # Number of parent issues per page
     pageInfo {
       hasNextPage
       endCursor
@@ -51,11 +51,11 @@ query SearchOpenIssues($searchQuery: String!, $cursor: String) {
         title
         state
         issueType { name }
-        projectItems(first: 10) { # For parent issue
+        projectItems(first: 5) { # Reduced from 10 - For parent issue's project items
           nodes {
             id
             project { id }
-            fieldValues(first: 20) {
+            fieldValues(first: 15) { # Reduced from 20 - For parent's sprint field
               nodes {
                 ... on ProjectV2ItemFieldIterationValue {
                   iterationId
@@ -71,27 +71,27 @@ query SearchOpenIssues($searchQuery: String!, $cursor: String) {
             }
           }
         }
-        subIssues(first: 50) {
+        subIssues(first: 25) { # Reduced from 50 - Number of sub-issues per parent
           nodes {
             ... on Issue {
               id
               number
               state
               issueType { name }
-              projectItems(first: 10) { # For sub-issue, to get its Team field
+              projectItems(first: 5) { # Reduced from 10 - For sub-issue's project items
                 nodes {
-                  id # ProjectV2Item ID for the sub-issue
-                  project { id } # Project this item is in
-                  fieldValues(first: 20) {
+                  id
+                  project { id }
+                  fieldValues(first: 15) { # Reduced from 20 - For sub-issue's team field
                     nodes {
                       __typename
                       ... on ProjectV2ItemFieldSingleSelectValue {
-                        name # This is the selected option's name, e.g., "Frontend Team"
-                        optionId # ID of the selected option
+                        name
+                        optionId
                         field {
                           ... on ProjectV2SingleSelectField {
-                            id # Field ID
-                            name # Field name, e.g., "Team"
+                            id
+                            name
                           }
                         }
                       }
@@ -173,7 +173,7 @@ updated_sub_issues = 0
 cleared_sub_issues = 0
 skipped_sub_issues_error = 0
 skipped_sub_issues_type = 0
-skipped_sub_issues_team_mismatch = 0 # New counter
+skipped_sub_issues_team_mismatch = 0
 discovered_sprint_field_id = None
 
 print(f"Starting Sprint sync for project {PROJECT_ID} in repo {REPO_OWNER}/{REPO_NAME}")
@@ -219,9 +219,9 @@ while has_next_page:
 
         parent_sprint_id = None
         parent_sprint_name = None
-        current_sprint_field_id = None # Sprint field ID from parent's project item
-        parent_project_item_node_id = None # Parent's item ID in the target project
-        sprint_value_node_found = False # If parent had a sprint value node (even if null)
+        current_sprint_field_id = None
+        parent_project_item_node_id = None
+        sprint_value_node_found = False
 
         project_items = issue.get("projectItems", {}).get("nodes", [])
         for item in project_items:
@@ -230,26 +230,25 @@ while has_next_page:
                 field_values = item.get("fieldValues", {}).get("nodes", [])
                 for fv in field_values:
                     if fv and fv.get("__typename") == "ProjectV2ItemFieldIterationValue" and fv.get("field"):
-                        sprint_value_node_found = True # A sprint field value exists for this item
-                        parent_sprint_id = fv.get("iterationId") # Could be null if sprint is cleared
-                        parent_sprint_name = fv.get("title")    # Could be null
+                        sprint_value_node_found = True
+                        parent_sprint_id = fv.get("iterationId")
+                        parent_sprint_name = fv.get("title")
                         current_sprint_field_id = fv.get("field", {}).get("id")
                         if discovered_sprint_field_id is None and current_sprint_field_id:
                             discovered_sprint_field_id = current_sprint_field_id
                             print(f"  Discovered Sprint Field ID from parent: {discovered_sprint_field_id}")
                         print(f"  Parent's Project Item ID: {parent_project_item_node_id}, Sprint: '{parent_sprint_name}' (ID: {parent_sprint_id}), FieldID: {current_sprint_field_id}")
-                        break # Found sprint value for this project item
-                if sprint_value_node_found: # Found the sprint value for the parent in the target project
+                        break
+                if sprint_value_node_found:
                     break
 
         final_sprint_field_id_to_use = None
-        if parent_project_item_node_id: # Parent is in the target project
+        if parent_project_item_node_id:
             if sprint_value_node_found and current_sprint_field_id:
                 final_sprint_field_id_to_use = current_sprint_field_id
-            else: # Parent in project, but no sprint value node or field ID found. Use discovered.
+            else:
                 print(f"  Parent issue #{issue_number} is in project {PROJECT_ID} but its specific Sprint field or value node was not found. Will use globally discovered Sprint Field ID if available.")
                 final_sprint_field_id_to_use = discovered_sprint_field_id
-                # parent_sprint_id and parent_sprint_name remain as they were (None if not found)
         else:
             print(f"  INFO: Parent issue #{issue_number} not found in project {PROJECT_ID}. Sub-issues cannot be synced to this project's sprints based on this parent.")
             continue
@@ -286,24 +285,21 @@ while has_next_page:
             
             print(f"    Processing OPEN 'Task' sub-issue #{sub_issue_number} (Node ID: {sub_issue_node_id})")
 
-            # --- Team Filtering Logic ---
             perform_update_based_on_team = False
             if TARGET_TEAM.upper() == "ALL":
                 perform_update_based_on_team = True
             else:
                 sub_issue_actual_team_name = None
-                # Find the "Team" field for the sub-issue within the target project
                 sub_project_items_nodes = sub_issue_data.get("projectItems", {}).get("nodes", [])
                 for item_node in sub_project_items_nodes:
-                    # Check if this project item is for the *target project*
                     if item_node and item_node.get("project", {}).get("id") == PROJECT_ID:
                         field_values_nodes = item_node.get("fieldValues", {}).get("nodes", [])
                         for fv_node in field_values_nodes:
                             if fv_node and fv_node.get("__typename") == "ProjectV2ItemFieldSingleSelectValue" and \
-                               fv_node.get("field", {}).get("name", "").lower() == "team": # Case-insensitive field name check
-                                sub_issue_actual_team_name = fv_node.get("name") # This is the selected team name
-                                break # Found Team field for this project item
-                        if sub_issue_actual_team_name: # If team found in this project item, no need to check others
+                               fv_node.get("field", {}).get("name", "").lower() == "team":
+                                sub_issue_actual_team_name = fv_node.get("name")
+                                break
+                        if sub_issue_actual_team_name:
                             break 
                 
                 if sub_issue_actual_team_name and sub_issue_actual_team_name.lower() == TARGET_TEAM.lower():
@@ -314,9 +310,8 @@ while has_next_page:
                     skipped_sub_issues_team_mismatch += 1
             
             if not perform_update_based_on_team:
-                continue # Skip to the next sub-issue
+                continue
 
-            # --- Add sub-issue to project (if not already there) and get its project item ID ---
             add_vars = {"projectId": PROJECT_ID, "contentId": sub_issue_node_id}
             add_data = graphql_request(ADD_TO_PROJECT_MUTATION, add_vars)
 
@@ -328,8 +323,7 @@ while has_next_page:
             sub_project_item_id = add_data["addProjectV2ItemById"]["item"]["id"]
             print(f"      Sub-issue Project Item ID: {sub_project_item_id}")
 
-            # --- Update or Clear Sprint based on parent ---
-            if parent_sprint_id: # Parent has a specific sprint set
+            if parent_sprint_id:
                 print(f"      Updating Sprint to '{parent_sprint_name}' (ID: {parent_sprint_id})")
                 update_vars = {
                     "projectId": PROJECT_ID,
@@ -344,7 +338,7 @@ while has_next_page:
                 else:
                     print("        ERROR: Update failed.")
                     skipped_sub_issues_error += 1
-            else: # Parent's sprint is not set (or parent not in project with sprint)
+            else:
                 print(f"      Parent Sprint for issue #{issue_number} is empty/not set. Clearing Sprint for sub-issue #{sub_issue_number}.")
                 clear_vars = {
                     "projectId": PROJECT_ID,
@@ -377,4 +371,3 @@ print(f"Sub-issues Skipped (Type Mismatch): {skipped_sub_issues_type}")
 print(f"Sub-issues Skipped (Team Mismatch): {skipped_sub_issues_team_mismatch}")
 print(f"Sub-issues Skipped (Errors during add/update): {skipped_sub_issues_error}")
 print("Sprint synchronization complete.")
-
