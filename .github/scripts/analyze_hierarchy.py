@@ -17,7 +17,6 @@ valid_pairs = {
     ("Bug", "Feature"),
     ("Task", "Story"),
     ("Task", "Bug"),
-    # ("Task", "Feature") removed
 }
 
 def normalize(val):
@@ -29,8 +28,8 @@ def markdown_link(url, text=None):
     if url is None or str(url).strip() == "" or url == "null":
         return "null"
     url = str(url).strip()
-    if not text:
-        text = url
+    if not text or str(text).strip() == "" or text == "null": # Ensure text for link is not null/empty
+        text = url # Default to URL if text is not meaningful
     return f"[{text}]({url})"
 
 # Define output columns
@@ -44,10 +43,22 @@ fieldnames = [
 
 violations = []
 
-# Read and filter violations first (so we can write both outputs easily)
+# Read and filter violations first
 with open(input_file, newline='', encoding="utf-8") as infile:
     reader = csv.DictReader(infile)
+    if not reader.fieldnames: # Check if file is empty or not a CSV
+        print(f"Warning: Input file {input_file} is empty or not a valid CSV.")
+    elif "project_item_is_archived" not in reader.fieldnames:
+        print(f"Warning: 'project_item_is_archived' column not found in {input_file}. Cannot filter archived items.")
+        # Decide if you want to proceed without filtering or stop
+        # For now, it will proceed and not filter if the column is missing.
+
     for row in reader:
+        # Skip archived items
+        project_item_is_archived = normalize(row.get("project_item_is_archived")).lower()
+        if project_item_is_archived == "true":
+            continue
+
         project_item_type = normalize(row.get("project_item_type"))
         issue_type = normalize(row.get("issue_type_name"))
         parent_type = normalize(row.get("parent_issue_type_name"))
@@ -98,18 +109,25 @@ with open(base_output_file + ".md", "w", encoding="utf-8") as mdfile:
     mdfile.write("| " + " | ".join(fieldnames) + " |\n")
     mdfile.write("|" + "|".join(["---"] * len(fieldnames)) + "|\n")
     for v in violations:
-        md_row = [
-            str(v["content_number"]),
-            str(v["content_title"]),
-            markdown_link(v["content_url"], v["content_number"]),
-            str(v["issue_type_name"]),
-            str(v["author"]),
-            str(v["assignees"]),
-            str(v["team"]),
-            str(v["project_item_type"]),
-            str(v["parent_title"]),
-            str(v["parent_issue_type_name"]),
-            markdown_link(v["parent_url"], v["parent_title"] if v["parent_title"] != "null" else "Parent"),
-            str(v["violation_explanation"])
-        ]
-        mdfile.write("| " + " | ".join(md_row) + " |\n")
+        parent_link_text = v["parent_title"]
+        if normalize(parent_link_text) == "null":
+            parent_link_text = "Parent" # Use "Parent" if title is null
+
+        md_row_data = {
+            "content_number": str(v["content_number"]),
+            "content_title": str(v["content_title"]),
+            "content_url": markdown_link(v["content_url"], v["content_number"]),
+            "issue_type_name": str(v["issue_type_name"]),
+            "author": str(v["author"]),
+            "assignees": str(v["assignees"]),
+            "team": str(v["team"]),
+            "project_item_type": str(v["project_item_type"]),
+            "parent_title": str(v["parent_title"]),
+            "parent_issue_type_name": str(v["parent_issue_type_name"]),
+            "parent_url": markdown_link(v["parent_url"], parent_link_text),
+            "violation_explanation": str(v["violation_explanation"])
+        }
+        md_row_values = [md_row_data[fieldname] for fieldname in fieldnames]
+        mdfile.write("| " + " | ".join(md_row_values) + " |\n")
+
+print(f"Processed {len(violations)} violations.")
