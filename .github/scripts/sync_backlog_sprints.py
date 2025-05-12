@@ -51,12 +51,16 @@ query SearchOpenIssues($searchQuery: String!, $cursor: String) {
         title
         state
         issueType { name }
-        projectItems(first: 5) { # Reduced from 10 - For parent issue's project items
+        projectItems(first: 5) { # For parent issue's project items
           nodes {
-            id
-            project { id }
-            fieldValues(first: 15) { # Reduced from 20 - For parent's sprint field
+            id # ProjectV2Item ID
+            project {
+              id
+              title # For logging
+            }
+            fieldValues(first: 15) { # For parent's sprint field
               nodes {
+                __typename # Crucial for identifying field type
                 ... on ProjectV2ItemFieldIterationValue {
                   iterationId
                   title
@@ -67,22 +71,31 @@ query SearchOpenIssues($searchQuery: String!, $cursor: String) {
                     }
                   }
                 }
+                # We might want to log other field types too for debugging
+                ... on ProjectV2ItemFieldSingleSelectValue {
+                  name # Option name
+                  field { ... on ProjectV2SingleSelectField { id name } }
+                }
+                ... on ProjectV2ItemFieldTextValue {
+                  text
+                  field { ... on ProjectV2Field { id name } }
+                }
               }
             }
           }
         }
-        subIssues(first: 25) { # Reduced from 50 - Number of sub-issues per parent
+        subIssues(first: 25) { # Number of sub-issues per parent
           nodes {
             ... on Issue {
               id
               number
               state
               issueType { name }
-              projectItems(first: 5) { # Reduced from 10 - For sub-issue's project items
+              projectItems(first: 5) { # For sub-issue's project items
                 nodes {
                   id
-                  project { id }
-                  fieldValues(first: 15) { # Reduced from 20 - For sub-issue's team field
+                  project { id title }
+                  fieldValues(first: 15) { # For sub-issue's team field
                     nodes {
                       __typename
                       ... on ProjectV2ItemFieldSingleSelectValue {
@@ -149,9 +162,9 @@ def graphql_request(query, variables=None):
         data = response.json()
         if "errors" in data:
             print(f"GraphQL Error: {json.dumps(data['errors'])}", file=sys.stderr)
-            for error in data['errors']:
-                if "locations" in error and "message" in error:
-                     print(f"  Message: {error['message']}")
+            for error_detail in data['errors']: # Renamed from 'error' to 'error_detail'
+                if "locations" in error_detail and "message" in error_detail:
+                     print(f"  Message: {error_detail['message']}")
             return None
         return data.get("data")
     except requests.exceptions.RequestException as e:
@@ -214,49 +227,94 @@ while has_next_page:
         if issue_state != "OPEN" or issue_type not in ["Bug", "Story"]:
             continue
 
-        print(f"\nProcessing Parent Issue #{issue_number} (Type: {issue_type}, ID: {issue_node_id})")
+        print(f"\nProcessing Parent Issue #{issue_number} (Type: {issue_type}, NodeID: {issue_node_id})")
         processed_parents += 1
 
         parent_sprint_id = None
         parent_sprint_name = None
-        current_sprint_field_id = None
-        parent_project_item_node_id = None
-        sprint_value_node_found = False
+        current_sprint_field_id = None # Specific to the iteration field found on current parent
+        parent_project_item_node_id = None # Item ID of the parent in the target project
+        sprint_value_node_found_for_current_parent = False # Reset for each parent
 
-        project_items = issue.get("projectItems", {}).get("nodes", [])
-        for item in project_items:
-            if item and item.get("project", {}).get("id") == PROJECT_ID:
-                parent_project_item_node_id = item.get("id")
-                field_values = item.get("fieldValues", {}).get("nodes", [])
-                for fv in field_values:
-                    if fv and fv.get("__typename") == "ProjectV2ItemFieldIterationValue" and fv.get("field"):
-                        sprint_value_node_found = True
-                        parent_sprint_id = fv.get("iterationId")
-                        parent_sprint_name = fv.get("title")
-                        current_sprint_field_id = fv.get("field", {}).get("id")
-                        if discovered_sprint_field_id is None and current_sprint_field_id:
+        # --- DETAILED LOGGING FOR PARENT'S PROJECT ITEMS AND FIELDS ---
+        print(f"  Parent Issue #{issue_number} - Examining its projectItems (max {SEARCH_ISSUES_QUERY.count('projectItems(first: 5)')*5} items):")
+        parent_project_items_data = issue.get("projectItems", {}).get("nodes", [])
+        if not parent_project_items_data:
+            print(f"    No projectItems nodes found for parent #{issue_number}.")
+        
+        for item_idx, item_data in enumerate(parent_project_items_data):
+            if not item_data:
+                print(f"    ProjectItem {item_idx}: null")
+                continue
+
+            item_project_details = item_data.get("project", {})
+            item_project_id = item_project_details.get("id")
+            item_project_title = item_project_details.get("title", "N/A")
+            item_node_id = item_data.get("id") # This is the ProjectV2Item ID
+
+            print(f"    Item {item_idx} (NodeID: {item_node_id}): ProjectID='{item_project_id}', ProjectTitle='{item_project_title}'")
+
+            if item_project_id == PROJECT_ID:
+                print(f"      >>> This item is in TARGET PROJECT ({PROJECT_ID}). Examining its fieldValues (max {SEARCH_ISSUES_QUERY.count('fieldValues(first: 15)')*15} values):")
+                parent_project_item_node_id = item_node_id # Found the parent's item in the target project
+
+                field_values_data = item_data.get("fieldValues", {}).get("nodes", [])
+                if not field_values_data:
+                    print(f"        No fieldValues nodes found for this item in the target project.")
+                
+                for fv_idx, fv_data in enumerate(field_values_data):
+                    if not fv_data:
+                        print(f"        FV {fv_idx}: null")
+                        continue
+                    
+                    fv_typename = fv_data.get("__typename")
+                    fv_field_details = fv_data.get("field", {})
+                    fv_field_name = fv_field_details.get("name", "N/A") if fv_field_details else "N/A"
+                    fv_field_id = fv_field_details.get("id", "N/A") if fv_field_details else "N/A"
+                    
+                    # Log basic info for all fields
+                    print(f"        FV {fv_idx}: Type='{fv_typename}', FieldName='{fv_field_name}', FieldID='{fv_field_id}'")
+
+                    if fv_typename == "ProjectV2ItemFieldIterationValue":
+                        sprint_value_node_found_for_current_parent = True
+                        parent_sprint_id = fv_data.get("iterationId")
+                        parent_sprint_name = fv_data.get("title")
+                        current_sprint_field_id = fv_field_id # Use the ID from the actual field node
+                        print(f"          FOUND ITERATION: Name='{parent_sprint_name}', IterationNodeID='{parent_sprint_id}', FieldID='{current_sprint_field_id}'")
+                        
+                        if discovered_sprint_field_id is None and current_sprint_field_id != "N/A":
                             discovered_sprint_field_id = current_sprint_field_id
-                            print(f"  Discovered Sprint Field ID from parent: {discovered_sprint_field_id}")
-                        print(f"  Parent's Project Item ID: {parent_project_item_node_id}, Sprint: '{parent_sprint_name}' (ID: {parent_sprint_id}), FieldID: {current_sprint_field_id}")
-                        break
-                if sprint_value_node_found:
-                    break
+                            print(f"            >>> Globally Discovered Sprint Field ID set to: {discovered_sprint_field_id}")
+                        break # Found the iteration field for this project item
+                
+                if sprint_value_node_found_for_current_parent:
+                    print(f"      Iteration field value processing complete for this item in target project.")
+                    break # Found parent in target project and processed its iteration field
+                else:
+                    print(f"      No Iteration field value found for this item in target project after checking all its fieldValues.")
+            else:
+                print(f"      This item is NOT in the target project.")
+        # --- END OF DETAILED LOGGING ---
 
         final_sprint_field_id_to_use = None
-        if parent_project_item_node_id:
-            if sprint_value_node_found and current_sprint_field_id:
+        if parent_project_item_node_id: # If parent was found in the target project
+            if sprint_value_node_found_for_current_parent and current_sprint_field_id and current_sprint_field_id != "N/A":
                 final_sprint_field_id_to_use = current_sprint_field_id
-            else:
-                print(f"  Parent issue #{issue_number} is in project {PROJECT_ID} but its specific Sprint field or value node was not found. Will use globally discovered Sprint Field ID if available.")
+                print(f"  Using Sprint Field ID from current parent: {final_sprint_field_id_to_use}")
+            elif discovered_sprint_field_id: # Fallback to globally discovered ID
                 final_sprint_field_id_to_use = discovered_sprint_field_id
+                print(f"  Using GLOBALLY discovered Sprint Field ID: {final_sprint_field_id_to_use} (Parent #{issue_number} either had no sprint set or its field ID was not found directly).")
+            else:
+                print(f"  Parent issue #{issue_number} is in project {PROJECT_ID}, but no Sprint Field ID could be determined (neither directly nor globally).")
         else:
-            print(f"  INFO: Parent issue #{issue_number} not found in project {PROJECT_ID}. Sub-issues cannot be synced to this project's sprints based on this parent.")
+            print(f"  INFO: Parent issue #{issue_number} was NOT found in project {PROJECT_ID}. Sub-issues cannot be synced based on this parent.")
             continue
 
         if not final_sprint_field_id_to_use:
-            print(f"  WARNING: Could not determine the Sprint Field ID for project {PROJECT_ID} (operations for parent #{issue_number}). Ensure project has a Sprint field, and at least one item has had its Sprint set to discover the field ID. Skipping sub-issue sync for this parent.", file=sys.stderr)
+            print(f"  WARNING: Could not determine the Sprint Field ID for project {PROJECT_ID} to use for operations related to parent #{issue_number}. Skipping sub-issue sync for this parent.", file=sys.stderr)
             continue
-
+        
+        # ... (rest of the sub-issue processing logic remains the same) ...
         sub_issues_nodes = issue.get("subIssues", {}).get("nodes", [])
         if not sub_issues_nodes:
             print("  No sub-issues found for this parent.")
@@ -323,8 +381,8 @@ while has_next_page:
             sub_project_item_id = add_data["addProjectV2ItemById"]["item"]["id"]
             print(f"      Sub-issue Project Item ID: {sub_project_item_id}")
 
-            if parent_sprint_id:
-                print(f"      Updating Sprint to '{parent_sprint_name}' (ID: {parent_sprint_id})")
+            if parent_sprint_id: # This relies on parent_sprint_id being correctly set when sprint_value_node_found_for_current_parent is true
+                print(f"      Updating Sprint to '{parent_sprint_name}' (ID: {parent_sprint_id}) for sub-issue #{sub_issue_number}")
                 update_vars = {
                     "projectId": PROJECT_ID,
                     "itemId": sub_project_item_id,
@@ -338,7 +396,7 @@ while has_next_page:
                 else:
                     print("        ERROR: Update failed.")
                     skipped_sub_issues_error += 1
-            else:
+            else: # Parent's sprint is not set (parent_sprint_id is None)
                 print(f"      Parent Sprint for issue #{issue_number} is empty/not set. Clearing Sprint for sub-issue #{sub_issue_number}.")
                 clear_vars = {
                     "projectId": PROJECT_ID,
@@ -353,7 +411,7 @@ while has_next_page:
                     print("        ERROR: Clear failed.")
                     skipped_sub_issues_error += 1
             
-            time.sleep(0.2)
+            time.sleep(0.2) # Be mindful of rate limits
 
     if has_next_page:
         print(f"Fetching next page of issues (cursor: {cursor})...")
