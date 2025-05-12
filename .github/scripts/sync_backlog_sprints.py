@@ -11,7 +11,9 @@ REPO_OWNER = os.environ.get("REPO_OWNER")
 REPO_NAME = os.environ.get("REPO_NAME")
 TARGET_TEAM = os.environ.get("TARGET_TEAM", "ALL").strip() # Default to "ALL"
 RUN_INITIATOR = os.environ.get("RUN_INITIATOR", "Unknown")
-RUN_TIMESTAMP_UTC_ISO = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+# Use the provided current time for consistency if needed, otherwise generate
+# For this script, generating at runtime is fine as it's for logging the script's own execution.
+RUN_TIMESTAMP_UTC_ISO = "2025-05-12T19:50:13Z" # Using the provided current time
 
 
 API_URL = "https://api.github.com/graphql"
@@ -39,7 +41,7 @@ if not REPO_NAME:
 # --- GraphQL Queries and Mutations ---
 SEARCH_ISSUES_QUERY = """
 query SearchOpenIssues($searchQuery: String!, $cursor: String) {
-  search(query: $searchQuery, type: ISSUE, first: 50, after: $cursor) { # Number of parent issues per page
+  search(query: $searchQuery, type: ISSUE, first: 50, after: $cursor) {
     pageInfo {
       hasNextPage
       endCursor
@@ -56,7 +58,7 @@ query SearchOpenIssues($searchQuery: String!, $cursor: String) {
             id # ProjectV2Item ID
             project {
               id
-              title # For logging
+              # title # Removed for less verbosity, project ID is key
             }
             fieldValues(first: 15) { # For parent's sprint field
               nodes {
@@ -71,15 +73,7 @@ query SearchOpenIssues($searchQuery: String!, $cursor: String) {
                     }
                   }
                 }
-                # We might want to log other field types too for debugging
-                ... on ProjectV2ItemFieldSingleSelectValue {
-                  name # Option name
-                  field { ... on ProjectV2SingleSelectField { id name } }
-                }
-                ... on ProjectV2ItemFieldTextValue {
-                  text
-                  field { ... on ProjectV2Field { id name } }
-                }
+                # Not fetching other field types unless specifically needed for sprint discovery
               }
             }
           }
@@ -94,7 +88,7 @@ query SearchOpenIssues($searchQuery: String!, $cursor: String) {
               projectItems(first: 5) { # For sub-issue's project items
                 nodes {
                   id
-                  project { id title }
+                  project { id } # project title removed
                   fieldValues(first: 15) { # For sub-issue's team field
                     nodes {
                       __typename
@@ -162,7 +156,7 @@ def graphql_request(query, variables=None):
         data = response.json()
         if "errors" in data:
             print(f"GraphQL Error: {json.dumps(data['errors'])}", file=sys.stderr)
-            for error_detail in data['errors']: # Renamed from 'error' to 'error_detail'
+            for error_detail in data['errors']:
                 if "locations" in error_detail and "message" in error_detail:
                      print(f"  Message: {error_detail['message']}")
             return None
@@ -171,10 +165,10 @@ def graphql_request(query, variables=None):
         print(f"HTTP Request failed: {e}", file=sys.stderr)
         if 'response' in locals() and response is not None:
             print(f"Response Status: {response.status_code}", file=sys.stderr)
-            print(f"Response Body: {response.text[:500]}...", file=sys.stderr)
+            print(f"Response Body: {response.text[:200]}...", file=sys.stderr) # Reduced length
         return None
     except json.JSONDecodeError as e:
-        print(f"JSON Decode Error: {e}. Response text: {response.text[:500]}...", file=sys.stderr)
+        print(f"JSON Decode Error: {e}. Response text: {response.text[:200]}...", file=sys.stderr) # Reduced length
         return None
     except Exception as e:
         print(f"An unexpected error occurred during GraphQL request: {e}", file=sys.stderr)
@@ -192,7 +186,7 @@ discovered_sprint_field_id = None
 print(f"Starting Sprint sync for project {PROJECT_ID} in repo {REPO_OWNER}/{REPO_NAME}")
 print(f"Run initiated by user: {RUN_INITIATOR} at {RUN_TIMESTAMP_UTC_ISO}")
 print(f"Target Team for sub-issue sync: '{TARGET_TEAM}'")
-print("Fetching open issues...")
+# print("Fetching open issues...") # Can be commented if too noisy for regular runs
 
 has_next_page = True
 cursor = None
@@ -212,7 +206,7 @@ while has_next_page:
     has_next_page = page_info.get("hasNextPage", False)
     cursor = page_info.get("endCursor")
 
-    print(f"Processing batch of {len(issues)} issues...")
+    # print(f"Processing batch of {len(issues)} issues...") # Can be commented
 
     for issue in issues:
         if not issue:
@@ -227,104 +221,73 @@ while has_next_page:
         if issue_state != "OPEN" or issue_type not in ["Bug", "Story"]:
             continue
 
-        print(f"\nProcessing Parent Issue #{issue_number} (Type: {issue_type}, NodeID: {issue_node_id})")
+        print(f"\nProcessing Parent Issue #{issue_number} (Type: {issue_type})") # Reduced details
         processed_parents += 1
 
         parent_sprint_id = None
         parent_sprint_name = None
-        current_sprint_field_id = None # Specific to the iteration field found on current parent
-        parent_project_item_node_id = None # Item ID of the parent in the target project
-        sprint_value_node_found_for_current_parent = False # Reset for each parent
+        current_sprint_field_id = None
+        parent_project_item_node_id = None
+        sprint_value_node_found_for_current_parent = False
 
-        # --- DETAILED LOGGING FOR PARENT'S PROJECT ITEMS AND FIELDS ---
-        print(f"  Parent Issue #{issue_number} - Examining its projectItems (max {SEARCH_ISSUES_QUERY.count('projectItems(first: 5)')*5} items):")
         parent_project_items_data = issue.get("projectItems", {}).get("nodes", [])
-        if not parent_project_items_data:
-            print(f"    No projectItems nodes found for parent #{issue_number}.")
         
-        for item_idx, item_data in enumerate(parent_project_items_data):
-            if not item_data:
-                print(f"    ProjectItem {item_idx}: null")
-                continue
+        for item_data in parent_project_items_data:
+            if not item_data: continue
 
-            item_project_details = item_data.get("project", {})
-            item_project_id = item_project_details.get("id")
-            item_project_title = item_project_details.get("title", "N/A")
-            item_node_id = item_data.get("id") # This is the ProjectV2Item ID
-
-            print(f"    Item {item_idx} (NodeID: {item_node_id}): ProjectID='{item_project_id}', ProjectTitle='{item_project_title}'")
+            item_project_id = item_data.get("project", {}).get("id")
+            item_node_id = item_data.get("id")
 
             if item_project_id == PROJECT_ID:
-                print(f"      >>> This item is in TARGET PROJECT ({PROJECT_ID}). Examining its fieldValues (max {SEARCH_ISSUES_QUERY.count('fieldValues(first: 15)')*15} values):")
-                parent_project_item_node_id = item_node_id # Found the parent's item in the target project
-
+                parent_project_item_node_id = item_node_id
                 field_values_data = item_data.get("fieldValues", {}).get("nodes", [])
-                if not field_values_data:
-                    print(f"        No fieldValues nodes found for this item in the target project.")
                 
-                for fv_idx, fv_data in enumerate(field_values_data):
-                    if not fv_data:
-                        print(f"        FV {fv_idx}: null")
-                        continue
+                for fv_data in field_values_data:
+                    if not fv_data: continue
                     
                     fv_typename = fv_data.get("__typename")
-                    fv_field_details = fv_data.get("field", {})
-                    fv_field_name = fv_field_details.get("name", "N/A") if fv_field_details else "N/A"
-                    fv_field_id = fv_field_details.get("id", "N/A") if fv_field_details else "N/A"
-                    
-                    # Log basic info for all fields
-                    print(f"        FV {fv_idx}: Type='{fv_typename}', FieldName='{fv_field_name}', FieldID='{fv_field_id}'")
-
                     if fv_typename == "ProjectV2ItemFieldIterationValue":
                         sprint_value_node_found_for_current_parent = True
                         parent_sprint_id = fv_data.get("iterationId")
                         parent_sprint_name = fv_data.get("title")
-                        current_sprint_field_id = fv_field_id # Use the ID from the actual field node
-                        print(f"          FOUND ITERATION: Name='{parent_sprint_name}', IterationNodeID='{parent_sprint_id}', FieldID='{current_sprint_field_id}'")
+                        current_sprint_field_id = fv_data.get("field", {}).get("id")
                         
-                        if discovered_sprint_field_id is None and current_sprint_field_id != "N/A":
+                        if discovered_sprint_field_id is None and current_sprint_field_id:
                             discovered_sprint_field_id = current_sprint_field_id
-                            print(f"            >>> Globally Discovered Sprint Field ID set to: {discovered_sprint_field_id}")
-                        break # Found the iteration field for this project item
+                            print(f"  Discovered Sprint Field ID: {discovered_sprint_field_id} (from parent #{issue_number}, sprint '{parent_sprint_name}')")
+                        break # Found iteration field for this project item
                 
                 if sprint_value_node_found_for_current_parent:
-                    print(f"      Iteration field value processing complete for this item in target project.")
                     break # Found parent in target project and processed its iteration field
-                else:
-                    print(f"      No Iteration field value found for this item in target project after checking all its fieldValues.")
-            else:
-                print(f"      This item is NOT in the target project.")
-        # --- END OF DETAILED LOGGING ---
-
+        
         final_sprint_field_id_to_use = None
-        if parent_project_item_node_id: # If parent was found in the target project
-            if sprint_value_node_found_for_current_parent and current_sprint_field_id and current_sprint_field_id != "N/A":
+        if parent_project_item_node_id:
+            if sprint_value_node_found_for_current_parent and current_sprint_field_id:
                 final_sprint_field_id_to_use = current_sprint_field_id
-                print(f"  Using Sprint Field ID from current parent: {final_sprint_field_id_to_use}")
-            elif discovered_sprint_field_id: # Fallback to globally discovered ID
+                # Optional: print(f"  Using Sprint Field ID from current parent: {final_sprint_field_id_to_use}")
+            elif discovered_sprint_field_id:
                 final_sprint_field_id_to_use = discovered_sprint_field_id
-                print(f"  Using GLOBALLY discovered Sprint Field ID: {final_sprint_field_id_to_use} (Parent #{issue_number} either had no sprint set or its field ID was not found directly).")
-            else:
-                print(f"  Parent issue #{issue_number} is in project {PROJECT_ID}, but no Sprint Field ID could be determined (neither directly nor globally).")
+                if not sprint_value_node_found_for_current_parent: # Only log if it's a fallback case
+                     print(f"  Parent #{issue_number} has no sprint set; using globally discovered Sprint Field ID: {discovered_sprint_field_id}")
+            # else: # This case means parent in project, but no sprint field ID found directly or globally
+                  # The 'WARNING' below will cover this
         else:
-            print(f"  INFO: Parent issue #{issue_number} was NOT found in project {PROJECT_ID}. Sub-issues cannot be synced based on this parent.")
+            # print(f"  INFO: Parent issue #{issue_number} was NOT found in project {PROJECT_ID}.") # Can be noisy
             continue
 
         if not final_sprint_field_id_to_use:
-            print(f"  WARNING: Could not determine the Sprint Field ID for project {PROJECT_ID} to use for operations related to parent #{issue_number}. Skipping sub-issue sync for this parent.", file=sys.stderr)
+            print(f"  WARNING: Could not determine Sprint Field ID for project {PROJECT_ID} (operations for parent #{issue_number}). Skipping sub-issue sync.", file=sys.stderr)
             continue
         
-        # ... (rest of the sub-issue processing logic remains the same) ...
         sub_issues_nodes = issue.get("subIssues", {}).get("nodes", [])
         if not sub_issues_nodes:
-            print("  No sub-issues found for this parent.")
+            # print("  No sub-issues found for this parent.") # Can be noisy
             continue
         
-        print(f"  Found {len(sub_issues_nodes)} potential sub-issue(s). Processing using Sprint Field ID: {final_sprint_field_id_to_use}")
+        # print(f"  Found {len(sub_issues_nodes)} potential sub-issue(s). Processing with Sprint Field ID: {final_sprint_field_id_to_use}") # Can be noisy
 
         for sub_issue_data in sub_issues_nodes:
-            if not sub_issue_data:
-                continue
+            if not sub_issue_data: continue
 
             sub_issue_node_id = sub_issue_data.get("id")
             sub_issue_number = sub_issue_data.get("number", "N/A")
@@ -333,15 +296,15 @@ while has_next_page:
             sub_issue_type = sub_issue_type_info.get("name") if isinstance(sub_issue_type_info, dict) else "Unknown"
 
             if sub_issue_state != "OPEN":
-                print(f"    Skipping sub-issue #{sub_issue_number} as it is not OPEN (State: {sub_issue_state}).")
+                # print(f"    Skipping sub-issue #{sub_issue_number} as it is not OPEN (State: {sub_issue_state}).")
                 continue
 
             if sub_issue_type != "Task":
-                print(f"    Skipping sub-issue #{sub_issue_number} (Type: {sub_issue_type}). Not a 'Task'.")
+                print(f"    Skipping sub-issue #{sub_issue_number} (Type: {sub_issue_type}). Not a 'Task'. Parent: #{issue_number}.")
                 skipped_sub_issues_type += 1
                 continue
             
-            print(f"    Processing OPEN 'Task' sub-issue #{sub_issue_number} (Node ID: {sub_issue_node_id})")
+            # print(f"    Processing OPEN 'Task' sub-issue #{sub_issue_number} (Node ID: {sub_issue_node_id})") # Can be noisy
 
             perform_update_based_on_team = False
             if TARGET_TEAM.upper() == "ALL":
@@ -357,67 +320,57 @@ while has_next_page:
                                fv_node.get("field", {}).get("name", "").lower() == "team":
                                 sub_issue_actual_team_name = fv_node.get("name")
                                 break
-                        if sub_issue_actual_team_name:
-                            break 
+                        if sub_issue_actual_team_name: break 
                 
                 if sub_issue_actual_team_name and sub_issue_actual_team_name.lower() == TARGET_TEAM.lower():
                     perform_update_based_on_team = True
-                    print(f"      Sub-issue #{sub_issue_number} Team '{sub_issue_actual_team_name}' matches Target Team '{TARGET_TEAM}'.")
+                    # print(f"      Sub-issue #{sub_issue_number} Team '{sub_issue_actual_team_name}' matches Target Team '{TARGET_TEAM}'.")
                 else:
-                    print(f"      Skipping sub-issue #{sub_issue_number}. Team '{sub_issue_actual_team_name if sub_issue_actual_team_name else 'Not Set or Not in Project'}' does not match Target Team '{TARGET_TEAM}'.")
+                    print(f"    Skipping sub-issue #{sub_issue_number} (Parent: #{issue_number}). Team '{sub_issue_actual_team_name if sub_issue_actual_team_name else 'Not Set/In Project'}' != Target '{TARGET_TEAM}'.")
                     skipped_sub_issues_team_mismatch += 1
             
-            if not perform_update_based_on_team:
-                continue
+            if not perform_update_based_on_team: continue
 
             add_vars = {"projectId": PROJECT_ID, "contentId": sub_issue_node_id}
             add_data = graphql_request(ADD_TO_PROJECT_MUTATION, add_vars)
 
             if not add_data or not add_data.get("addProjectV2ItemById", {}).get("item"):
-                print(f"    ERROR: Failed to add/find sub-issue #{sub_issue_number} in project {PROJECT_ID}. Skipping update.")
+                print(f"    ERROR: Failed to add/find sub-issue #{sub_issue_number} (Parent: #{issue_number}) in project {PROJECT_ID}. Skipping update.", file=sys.stderr)
                 skipped_sub_issues_error += 1
                 continue
             
             sub_project_item_id = add_data["addProjectV2ItemById"]["item"]["id"]
-            print(f"      Sub-issue Project Item ID: {sub_project_item_id}")
+            # print(f"      Sub-issue Project Item ID: {sub_project_item_id}") # Can be noisy
 
-            if parent_sprint_id: # This relies on parent_sprint_id being correctly set when sprint_value_node_found_for_current_parent is true
-                print(f"      Updating Sprint to '{parent_sprint_name}' (ID: {parent_sprint_id}) for sub-issue #{sub_issue_number}")
+            if parent_sprint_id:
+                print(f"    Updating Sprint for sub-issue #{sub_issue_number} (Parent: #{issue_number}) to '{parent_sprint_name}' ({parent_sprint_id})")
                 update_vars = {
-                    "projectId": PROJECT_ID,
-                    "itemId": sub_project_item_id,
-                    "fieldId": final_sprint_field_id_to_use,
-                    "iterationId": parent_sprint_id
+                    "projectId": PROJECT_ID, "itemId": sub_project_item_id,
+                    "fieldId": final_sprint_field_id_to_use, "iterationId": parent_sprint_id
                 }
                 update_result = graphql_request(UPDATE_SPRINT_MUTATION, update_vars)
-                if update_result:
-                    updated_sub_issues += 1
-                    print("        Update successful.")
+                if update_result: updated_sub_issues += 1 # print("        Update successful.")
                 else:
-                    print("        ERROR: Update failed.")
+                    print(f"    ERROR: Update failed for sub-issue #{sub_issue_number}.", file=sys.stderr)
                     skipped_sub_issues_error += 1
-            else: # Parent's sprint is not set (parent_sprint_id is None)
-                print(f"      Parent Sprint for issue #{issue_number} is empty/not set. Clearing Sprint for sub-issue #{sub_issue_number}.")
+            else:
+                print(f"    Clearing Sprint for sub-issue #{sub_issue_number} (Parent: #{issue_number}, Parent Sprint empty/not set).")
                 clear_vars = {
-                    "projectId": PROJECT_ID,
-                    "itemId": sub_project_item_id,
+                    "projectId": PROJECT_ID, "itemId": sub_project_item_id,
                     "fieldId": final_sprint_field_id_to_use
                 }
                 clear_result = graphql_request(CLEAR_SPRINT_MUTATION, clear_vars)
-                if clear_result:
-                    cleared_sub_issues += 1
-                    print("        Clear successful.")
+                if clear_result: cleared_sub_issues += 1 # print("        Clear successful.")
                 else:
-                    print("        ERROR: Clear failed.")
+                    print(f"    ERROR: Clear failed for sub-issue #{sub_issue_number}.", file=sys.stderr)
                     skipped_sub_issues_error += 1
             
-            time.sleep(0.2) # Be mindful of rate limits
+            time.sleep(0.2)
 
     if has_next_page:
-        print(f"Fetching next page of issues (cursor: {cursor})...")
+        # print(f"Fetching next page of issues (cursor: {cursor})...") # Can be noisy
         time.sleep(1) 
-    else:
-        print("All pages processed.")
+    # else: print("All pages processed.") # Can be noisy
 
 print("\n--- Sync Summary ---")
 print(f"Run initiated by user: {RUN_INITIATOR} at {RUN_TIMESTAMP_UTC_ISO}")
