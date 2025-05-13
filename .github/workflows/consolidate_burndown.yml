@@ -1,0 +1,34 @@
+name: Consolidate burndown facts
+
+on:
+  schedule:
+    - cron: '0 11 * * *'   # 11:00 UTC = 6:00 AM Central Time
+  workflow_dispatch:        # Allows manual run from Actions tab
+
+jobs:
+  consolidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install pandas
+        run: pip install pandas
+
+      - name: Run consolidation script
+        run: python consolidate_github_snapshots.py
+
+      - name: Commit and push results
+        env:
+          GITHUB_TOKEN: ${{ secrets.MILESTONE_SYNC }}
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add burndown_facts.csv
+          git commit -m "Update burndown facts [skip ci]" || echo "No changes to commit"
+          # Use a personal access token if pushing to a protected branch
+          git push https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git HEAD:${GITHUB_REF#refs/heads/}
