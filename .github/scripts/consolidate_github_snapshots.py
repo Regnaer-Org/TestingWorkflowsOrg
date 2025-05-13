@@ -6,7 +6,9 @@ import os
 # --- CONFIGURATION ---
 SNAPSHOT_FOLDER = "agilereporting"
 SNAPSHOT_PATTERN = os.path.join(SNAPSHOT_FOLDER, "project.issues_*.csv")
-OUTPUT_CSV = "burndown_facts.csv"
+OUTPUT_DIR = "agilereportingmetadata"
+os.makedirs(OUTPUT_DIR, exist_ok=True)  # Ensure output directory exists
+OUTPUT_CSV = os.path.join(OUTPUT_DIR, "burndown_facts.csv")
 
 # --- Step 1: Find all snapshot files ---
 all_files = glob.glob(SNAPSHOT_PATTERN)
