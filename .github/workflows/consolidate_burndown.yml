@@ -20,7 +20,7 @@ jobs:
         run: pip install pandas
 
       - name: Run consolidation script
-        run: python consolidate_github_snapshots.py
+        run: python .github/scripts/consolidate_github_snapshots.py
 
       - name: Commit and push results
         env:
