@@ -1,0 +1,44 @@
+name: Daily Issue Changelog Update
+
+on:
+  schedule:
+    # 10:00 PM Central = 03:00 UTC during daylight saving
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Run daily changelog update script
+        env:
+          MILESTONE_SYNC_TOKEN: ${{ secrets.MILESTONE_SYNC }}
+        run: python .github/scripts/daily_changelog_update.py
+
+      - name: Configure git for GitHub Actions
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Add and commit changelog if changed
+        run: |
+          git add agilereportingmetadata/issue_changelog.csv
+          git diff --cached --exit-code || git commit -m "Daily update: issue_changelog.csv"
+
+      - name: Push changes
+        env:
+          TOKEN: ${{ secrets.MILESTONE_SYNC }}
+        run: |
+          git remote set-url origin https://x-access-token:${TOKEN}@github.com/${{ github.repository }}
+          git push
