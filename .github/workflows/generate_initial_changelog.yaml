@@ -32,6 +32,7 @@ jobs:
 
       - name: Push changes
         env:
-          GITHUB_TOKEN: ${{ secrets.MILESTONE_SYNC }}
+          TOKEN: ${{ secrets.MILESTONE_SYNC }}
         run: |
+          git remote set-url origin https://x-access-token:${TOKEN}@github.com/${{ github.repository }}
           git push
