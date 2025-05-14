@@ -1,0 +1,37 @@
+name: Generate Initial Issue Changelog
+
+on:
+  workflow_dispatch:
+
+jobs:
+  generate-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Run initial changelog script
+        env:
+          MILESTONE_SYNC_TOKEN: ${{ secrets.MILESTONE_SYNC }}
+        run: python .github/scripts/generate_initial_issue_changelog.py
+
+      - name: Configure git for GitHub Actions
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Add and commit changelog
+        run: |
+          git add agilereportingmetadata/issue_changelog.csv
+          git diff --cached --exit-code || git commit -m "Generate initial issue_changelog.csv"
+
+      - name: Push changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.MILESTONE_SYNC }}
+        run: |
+          git push
