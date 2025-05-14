@@ -3,6 +3,9 @@ name: Generate Initial Issue Changelog
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write  # <-- Ensures the workflow can push changes to the repo
+
 jobs:
   generate-changelog:
     runs-on: ubuntu-latest
