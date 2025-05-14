@@ -18,7 +18,7 @@ jobs:
       - name: Run initial changelog script
         env:
           MILESTONE_SYNC_TOKEN: ${{ secrets.MILESTONE_SYNC }}
-        run: python .github/scripts/generate_initial_issue_changelog.py
+        run: python .github/scripts/initial_changelog_generation.py
 
       - name: Configure git for GitHub Actions
         run: |
