@@ -1,0 +1,432 @@
+date,issue_number,content_id,field,old_value,new_value,content_title,issue_type_name,team,status,sprint,parent_id,escalate,content_state,content_closed_at,milestone_title
+2025.05.05,2,I_kwDOOhN35c60WYJd,content_title,,Feature 1,Feature 1,,Team A,Refining,Sprint 1,,,OPEN,,Release 3
+2025.05.05,2,I_kwDOOhN35c60WYJd,content_state,,OPEN,Feature 1,,Team A,Refining,Sprint 1,,,OPEN,,Release 3
+2025.05.05,2,I_kwDOOhN35c60WYJd,milestone_title,,Release 3,Feature 1,,Team A,Refining,Sprint 1,,,OPEN,,Release 3
+2025.05.05,2,I_kwDOOhN35c60WYJd,sprint,,Sprint 1,Feature 1,,Team A,Refining,Sprint 1,,,OPEN,,Release 3
+2025.05.05,2,I_kwDOOhN35c60WYJd,status,,Refining,Feature 1,,Team A,Refining,Sprint 1,,,OPEN,,Release 3
+2025.05.05,2,I_kwDOOhN35c60WYJd,team,,Team A,Feature 1,,Team A,Refining,Sprint 1,,,OPEN,,Release 3
+2025.05.05,10,I_kwDOOhN35c60WY9g,content_title,,Task 2,Task 2,,,Done,Sprint 2,,,CLOSED,2025-05-05T20:12:20Z,Release 3
+2025.05.05,10,I_kwDOOhN35c60WY9g,content_state,,CLOSED,Task 2,,,Done,Sprint 2,,,CLOSED,2025-05-05T20:12:20Z,Release 3
+2025.05.05,10,I_kwDOOhN35c60WY9g,content_closed_at,,2025-05-05T20:12:20Z,Task 2,,,Done,Sprint 2,,,CLOSED,2025-05-05T20:12:20Z,Release 3
+2025.05.05,10,I_kwDOOhN35c60WY9g,milestone_title,,Release 3,Task 2,,,Done,Sprint 2,,,CLOSED,2025-05-05T20:12:20Z,Release 3
+2025.05.05,10,I_kwDOOhN35c60WY9g,sprint,,Sprint 2,Task 2,,,Done,Sprint 2,,,CLOSED,2025-05-05T20:12:20Z,Release 3
+2025.05.05,10,I_kwDOOhN35c60WY9g,status,,Done,Task 2,,,Done,Sprint 2,,,CLOSED,2025-05-05T20:12:20Z,Release 3
+2025.05.05,24,I_kwDOOhN35c61P-ee,content_title,,Story 2 Delivery,Story 2 Delivery,,Team C,,,,,OPEN,,Release 3
+2025.05.05,24,I_kwDOOhN35c61P-ee,content_state,,OPEN,Story 2 Delivery,,Team C,,,,,OPEN,,Release 3
+2025.05.05,24,I_kwDOOhN35c61P-ee,content_closed_at,,,Story 2 Delivery,,Team C,,,,,OPEN,,Release 3
+2025.05.05,24,I_kwDOOhN35c61P-ee,milestone_title,,Release 3,Story 2 Delivery,,Team C,,,,,OPEN,,Release 3
+2025.05.05,24,I_kwDOOhN35c61P-ee,issue_type_name,,,Story 2 Delivery,,Team C,,,,,OPEN,,Release 3
+2025.05.05,24,I_kwDOOhN35c61P-ee,parent_id,,,Story 2 Delivery,,Team C,,,,,OPEN,,Release 3
+2025.05.05,24,I_kwDOOhN35c61P-ee,escalate,,,Story 2 Delivery,,Team C,,,,,OPEN,,Release 3
+2025.05.05,24,I_kwDOOhN35c61P-ee,sprint,,,Story 2 Delivery,,Team C,,,,,OPEN,,Release 3
+2025.05.05,24,I_kwDOOhN35c61P-ee,status,,,Story 2 Delivery,,Team C,,,,,OPEN,,Release 3
+2025.05.05,24,I_kwDOOhN35c61P-ee,team,,Team C,Story 2 Delivery,,Team C,,,,,OPEN,,Release 3
+2025.05.05,12,I_kwDOOhN35c60Wj2K,content_title,,Epic 2,Epic 2,,,,,,,OPEN,,
+2025.05.05,12,I_kwDOOhN35c60Wj2K,content_state,,OPEN,Epic 2,,,,,,,OPEN,,
+2025.05.05,5,I_kwDOOhN35c60WYb2,content_title,,Story 1,Story 1,,,,Sprint 3,,,OPEN,,Release 3
+2025.05.05,5,I_kwDOOhN35c60WYb2,content_state,,OPEN,Story 1,,,,Sprint 3,,,OPEN,,Release 3
+2025.05.05,5,I_kwDOOhN35c60WYb2,milestone_title,,Release 3,Story 1,,,,Sprint 3,,,OPEN,,Release 3
+2025.05.05,5,I_kwDOOhN35c60WYb2,sprint,,Sprint 3,Story 1,,,,Sprint 3,,,OPEN,,Release 3
+2025.05.05,21,I_kwDOOhN35c60ZuJp,content_title,,Story R,Story R,,Team A,,Sprint 1,,,OPEN,,Release 3
+2025.05.05,21,I_kwDOOhN35c60ZuJp,content_state,,OPEN,Story R,,Team A,,Sprint 1,,,OPEN,,Release 3
+2025.05.05,21,I_kwDOOhN35c60ZuJp,milestone_title,,Release 3,Story R,,Team A,,Sprint 1,,,OPEN,,Release 3
+2025.05.05,21,I_kwDOOhN35c60ZuJp,sprint,,Sprint 1,Story R,,Team A,,Sprint 1,,,OPEN,,Release 3
+2025.05.05,21,I_kwDOOhN35c60ZuJp,team,,Team A,Story R,,Team A,,Sprint 1,,,OPEN,,Release 3
+2025.05.05,9,I_kwDOOhN35c60WY5W,content_title,,Task 1,Task 1,,,,Sprint 3,,,OPEN,,Release 3
+2025.05.05,9,I_kwDOOhN35c60WY5W,content_state,,OPEN,Task 1,,,,Sprint 3,,,OPEN,,Release 3
+2025.05.05,9,I_kwDOOhN35c60WY5W,milestone_title,,Release 3,Task 1,,,,Sprint 3,,,OPEN,,Release 3
+2025.05.05,9,I_kwDOOhN35c60WY5W,sprint,,Sprint 3,Task 1,,,,Sprint 3,,,OPEN,,Release 3
+2025.05.05,13,I_kwDOOhN35c60ZVz-,content_title,,Story A,Story A,,,,,,,OPEN,,Release 3
+2025.05.05,13,I_kwDOOhN35c60ZVz-,content_state,,OPEN,Story A,,,,,,,OPEN,,Release 3
+2025.05.05,13,I_kwDOOhN35c60ZVz-,milestone_title,,Release 3,Story A,,,,,,,OPEN,,Release 3
+2025.05.05,8,I_kwDOOhN35c60WYpR,content_title,,Story 4,Story 4,,,,,,,OPEN,,
+2025.05.05,8,I_kwDOOhN35c60WYpR,content_state,,OPEN,Story 4,,,,,,,OPEN,,
+2025.05.05,16,I_kwDOOhN35c60ZdI4,content_title,,Story D,Story D,,Team A,In Progress,Sprint 1,,,OPEN,,Release 3
+2025.05.05,16,I_kwDOOhN35c60ZdI4,content_state,,OPEN,Story D,,Team A,In Progress,Sprint 1,,,OPEN,,Release 3
+2025.05.05,16,I_kwDOOhN35c60ZdI4,milestone_title,,Release 3,Story D,,Team A,In Progress,Sprint 1,,,OPEN,,Release 3
+2025.05.05,16,I_kwDOOhN35c60ZdI4,sprint,,Sprint 1,Story D,,Team A,In Progress,Sprint 1,,,OPEN,,Release 3
+2025.05.05,16,I_kwDOOhN35c60ZdI4,status,,In Progress,Story D,,Team A,In Progress,Sprint 1,,,OPEN,,Release 3
+2025.05.05,16,I_kwDOOhN35c60ZdI4,team,,Team A,Story D,,Team A,In Progress,Sprint 1,,,OPEN,,Release 3
+2025.05.05,23,I_kwDOOhN35c61Paaj,content_title,,Test Fix for Bug F,Test Fix for Bug F,,Team B,,,,,OPEN,,Release 3
+2025.05.05,23,I_kwDOOhN35c61Paaj,content_state,,OPEN,Test Fix for Bug F,,Team B,,,,,OPEN,,Release 3
+2025.05.05,23,I_kwDOOhN35c61Paaj,content_closed_at,,,Test Fix for Bug F,,Team B,,,,,OPEN,,Release 3
+2025.05.05,23,I_kwDOOhN35c61Paaj,milestone_title,,Release 3,Test Fix for Bug F,,Team B,,,,,OPEN,,Release 3
+2025.05.05,23,I_kwDOOhN35c61Paaj,issue_type_name,,,Test Fix for Bug F,,Team B,,,,,OPEN,,Release 3
+2025.05.05,23,I_kwDOOhN35c61Paaj,parent_id,,,Test Fix for Bug F,,Team B,,,,,OPEN,,Release 3
+2025.05.05,23,I_kwDOOhN35c61Paaj,escalate,,,Test Fix for Bug F,,Team B,,,,,OPEN,,Release 3
+2025.05.05,23,I_kwDOOhN35c61Paaj,sprint,,,Test Fix for Bug F,,Team B,,,,,OPEN,,Release 3
+2025.05.05,23,I_kwDOOhN35c61Paaj,status,,,Test Fix for Bug F,,Team B,,,,,OPEN,,Release 3
+2025.05.05,23,I_kwDOOhN35c61Paaj,team,,Team B,Test Fix for Bug F,,Team B,,,,,OPEN,,Release 3
+2025.05.05,14,I_kwDOOhN35c60ZXs6,content_title,,Story B,Story B,,,,,,,OPEN,,Release 3
+2025.05.05,14,I_kwDOOhN35c60ZXs6,content_state,,OPEN,Story B,,,,,,,OPEN,,Release 3
+2025.05.05,14,I_kwDOOhN35c60ZXs6,milestone_title,,Release 3,Story B,,,,,,,OPEN,,Release 3
+2025.05.05,15,I_kwDOOhN35c60ZakU,content_title,,Story C,Story C,,,,,,,OPEN,,Release 3
+2025.05.05,15,I_kwDOOhN35c60ZakU,content_state,,OPEN,Story C,,,,,,,OPEN,,Release 3
+2025.05.05,15,I_kwDOOhN35c60ZakU,milestone_title,,Release 3,Story C,,,,,,,OPEN,,Release 3
+2025.05.05,4,I_kwDOOhN35c60WYRW,content_title,,Feature 3,Feature 3,,,,,,,OPEN,,
+2025.05.05,4,I_kwDOOhN35c60WYRW,content_state,,OPEN,Feature 3,,,,,,,OPEN,,
+2025.05.05,11,I_kwDOOhN35c60WZAt,content_title,,Task 3,Task 3,,,,Sprint 3,,,OPEN,,Release 3
+2025.05.05,11,I_kwDOOhN35c60WZAt,content_state,,OPEN,Task 3,,,,Sprint 3,,,OPEN,,Release 3
+2025.05.05,11,I_kwDOOhN35c60WZAt,milestone_title,,Release 3,Task 3,,,,Sprint 3,,,OPEN,,Release 3
+2025.05.05,11,I_kwDOOhN35c60WZAt,sprint,,Sprint 3,Task 3,,,,Sprint 3,,,OPEN,,Release 3
+2025.05.05,20,I_kwDOOhN35c60ZqXV,content_title,,Story Q,Story Q,,Team A,,Sprint 1,,,OPEN,,Release 3
+2025.05.05,20,I_kwDOOhN35c60ZqXV,content_state,,OPEN,Story Q,,Team A,,Sprint 1,,,OPEN,,Release 3
+2025.05.05,20,I_kwDOOhN35c60ZqXV,milestone_title,,Release 3,Story Q,,Team A,,Sprint 1,,,OPEN,,Release 3
+2025.05.05,20,I_kwDOOhN35c60ZqXV,sprint,,Sprint 1,Story Q,,Team A,,Sprint 1,,,OPEN,,Release 3
+2025.05.05,20,I_kwDOOhN35c60ZqXV,team,,Team A,Story Q,,Team A,,Sprint 1,,,OPEN,,Release 3
+2025.05.05,19,I_kwDOOhN35c60Zm2s,content_title,,Story G,Story G,,,,,,,OPEN,,Release 3
+2025.05.05,19,I_kwDOOhN35c60Zm2s,content_state,,OPEN,Story G,,,,,,,OPEN,,Release 3
+2025.05.05,19,I_kwDOOhN35c60Zm2s,milestone_title,,Release 3,Story G,,,,,,,OPEN,,Release 3
+2025.05.05,6,I_kwDOOhN35c60WYez,content_title,,Story 2,Story 2,,Team C,,,,,OPEN,,Release 3
+2025.05.05,6,I_kwDOOhN35c60WYez,content_state,,OPEN,Story 2,,Team C,,,,,OPEN,,Release 3
+2025.05.05,6,I_kwDOOhN35c60WYez,milestone_title,,Release 3,Story 2,,Team C,,,,,OPEN,,Release 3
+2025.05.05,6,I_kwDOOhN35c60WYez,team,,Team C,Story 2,,Team C,,,,,OPEN,,Release 3
+2025.05.05,18,I_kwDOOhN35c60Zkt7,content_title,,Story F,Story F,,Team B,,,,No,OPEN,,Release 3
+2025.05.05,18,I_kwDOOhN35c60Zkt7,content_state,,OPEN,Story F,,Team B,,,,No,OPEN,,Release 3
+2025.05.05,18,I_kwDOOhN35c60Zkt7,milestone_title,,Release 3,Story F,,Team B,,,,No,OPEN,,Release 3
+2025.05.05,18,I_kwDOOhN35c60Zkt7,escalate,,No,Story F,,Team B,,,,No,OPEN,,Release 3
+2025.05.05,18,I_kwDOOhN35c60Zkt7,team,,Team B,Story F,,Team B,,,,No,OPEN,,Release 3
+2025.05.05,3,I_kwDOOhN35c60WYLt,content_title,,Feature 2,Feature 2,,,,,,,OPEN,,
+2025.05.05,3,I_kwDOOhN35c60WYLt,content_state,,OPEN,Feature 2,,,,,,,OPEN,,
+2025.05.05,17,I_kwDOOhN35c60ZiDF,content_title,,Story E,Story E,,,,,,,OPEN,,Release 3
+2025.05.05,17,I_kwDOOhN35c60ZiDF,content_state,,OPEN,Story E,,,,,,,OPEN,,Release 3
+2025.05.05,17,I_kwDOOhN35c60ZiDF,milestone_title,,Release 3,Story E,,,,,,,OPEN,,Release 3
+2025.05.05,22,I_kwDOOhN35c61PaV8,content_title,,fix bug F,fix bug F,,Team B,,,,,OPEN,,Release 3
+2025.05.05,22,I_kwDOOhN35c61PaV8,content_state,,OPEN,fix bug F,,Team B,,,,,OPEN,,Release 3
+2025.05.05,22,I_kwDOOhN35c61PaV8,content_closed_at,,,fix bug F,,Team B,,,,,OPEN,,Release 3
+2025.05.05,22,I_kwDOOhN35c61PaV8,milestone_title,,Release 3,fix bug F,,Team B,,,,,OPEN,,Release 3
+2025.05.05,22,I_kwDOOhN35c61PaV8,issue_type_name,,,fix bug F,,Team B,,,,,OPEN,,Release 3
+2025.05.05,22,I_kwDOOhN35c61PaV8,parent_id,,,fix bug F,,Team B,,,,,OPEN,,Release 3
+2025.05.05,22,I_kwDOOhN35c61PaV8,escalate,,,fix bug F,,Team B,,,,,OPEN,,Release 3
+2025.05.05,22,I_kwDOOhN35c61PaV8,sprint,,,fix bug F,,Team B,,,,,OPEN,,Release 3
+2025.05.05,22,I_kwDOOhN35c61PaV8,status,,,fix bug F,,Team B,,,,,OPEN,,Release 3
+2025.05.05,22,I_kwDOOhN35c61PaV8,team,,Team B,fix bug F,,Team B,,,,,OPEN,,Release 3
+2025.05.05,7,I_kwDOOhN35c60WYl9,content_title,,Story 3,Story 3,,,,,,,OPEN,,
+2025.05.05,7,I_kwDOOhN35c60WYl9,content_state,,OPEN,Story 3,,,,,,,OPEN,,
+2025.05.05,25,I_kwDOOhN35c61P-h_,content_title,,Story 2 Testing,Story 2 Testing,,Team C,,,,,OPEN,,Release 3
+2025.05.05,25,I_kwDOOhN35c61P-h_,content_state,,OPEN,Story 2 Testing,,Team C,,,,,OPEN,,Release 3
+2025.05.05,25,I_kwDOOhN35c61P-h_,content_closed_at,,,Story 2 Testing,,Team C,,,,,OPEN,,Release 3
+2025.05.05,25,I_kwDOOhN35c61P-h_,milestone_title,,Release 3,Story 2 Testing,,Team C,,,,,OPEN,,Release 3
+2025.05.05,25,I_kwDOOhN35c61P-h_,issue_type_name,,,Story 2 Testing,,Team C,,,,,OPEN,,Release 3
+2025.05.05,25,I_kwDOOhN35c61P-h_,parent_id,,,Story 2 Testing,,Team C,,,,,OPEN,,Release 3
+2025.05.05,25,I_kwDOOhN35c61P-h_,escalate,,,Story 2 Testing,,Team C,,,,,OPEN,,Release 3
+2025.05.05,25,I_kwDOOhN35c61P-h_,sprint,,,Story 2 Testing,,Team C,,,,,OPEN,,Release 3
+2025.05.05,25,I_kwDOOhN35c61P-h_,status,,,Story 2 Testing,,Team C,,,,,OPEN,,Release 3
+2025.05.05,25,I_kwDOOhN35c61P-h_,team,,Team C,Story 2 Testing,,Team C,,,,,OPEN,,Release 3
+2025.05.05,1,I_kwDOOhN35c60WSvX,content_title,,Epic 1,Epic 1,,,,,,,OPEN,,
+2025.05.05,1,I_kwDOOhN35c60WSvX,content_state,,OPEN,Epic 1,,,,,,,OPEN,,
+2025.05.06,2,I_kwDOOhN35c60WYJd,issue_type_name,,Feature,Feature 1,Feature,Team A,Refining,Sprint 1,,,OPEN,,Release 3
+2025.05.06,10,I_kwDOOhN35c60WY9g,issue_type_name,,Task,Task 2,Task,,Done,Sprint 2,,,CLOSED,2025-05-05T20:12:20Z,Release 3
+2025.05.06,24,I_kwDOOhN35c61P-ee,issue_type_name,,Task,Story 2 Delivery,Task,Team C,,,,,OPEN,,Release 3
+2025.05.06,12,I_kwDOOhN35c60Wj2K,issue_type_name,,Epic,Epic 2,Epic,,,,,,OPEN,,
+2025.05.06,5,I_kwDOOhN35c60WYb2,issue_type_name,,Story,Story 1,Story,,,Sprint 3,,,OPEN,,Release 3
+2025.05.06,21,I_kwDOOhN35c60ZuJp,issue_type_name,,Story,Story R,Story,Team A,,Sprint 1,,,OPEN,,Release 3
+2025.05.06,9,I_kwDOOhN35c60WY5W,issue_type_name,,Task,Task 1,Task,,,Sprint 3,,,OPEN,,Release 3
+2025.05.06,13,I_kwDOOhN35c60ZVz-,issue_type_name,,Story,Story A,Story,,,,,,OPEN,,Release 3
+2025.05.06,8,I_kwDOOhN35c60WYpR,issue_type_name,,Story,Story 4,Story,,,,,,OPEN,,
+2025.05.06,16,I_kwDOOhN35c60ZdI4,issue_type_name,,Story,Story D,Story,Team A,In Progress,Sprint 1,,,OPEN,,Release 3
+2025.05.06,23,I_kwDOOhN35c61Paaj,issue_type_name,,Task,Test Fix for Bug F,Task,Team B,,,,,OPEN,,Release 3
+2025.05.06,14,I_kwDOOhN35c60ZXs6,issue_type_name,,Story,Story B,Story,,,,,,OPEN,,Release 3
+2025.05.06,15,I_kwDOOhN35c60ZakU,issue_type_name,,Story,Story C,Story,,,,,,OPEN,,Release 3
+2025.05.06,4,I_kwDOOhN35c60WYRW,issue_type_name,,Feature,Feature 3,Feature,,,,,,OPEN,,
+2025.05.06,11,I_kwDOOhN35c60WZAt,issue_type_name,,Task,Task 3,Task,,,Sprint 3,,,OPEN,,Release 3
+2025.05.06,20,I_kwDOOhN35c60ZqXV,issue_type_name,,Story,Story Q,Story,Team A,,Sprint 1,,,OPEN,,Release 3
+2025.05.06,19,I_kwDOOhN35c60Zm2s,issue_type_name,,Story,Story G,Story,,,,,,OPEN,,Release 3
+2025.05.06,6,I_kwDOOhN35c60WYez,issue_type_name,,Story,Story 2,Story,Team C,,,,,OPEN,,Release 3
+2025.05.06,18,I_kwDOOhN35c60Zkt7,issue_type_name,,Bug,Story F,Bug,Team B,,,,No,OPEN,,Release 3
+2025.05.06,3,I_kwDOOhN35c60WYLt,issue_type_name,,Feature,Feature 2,Feature,,,,,,OPEN,,
+2025.05.06,17,I_kwDOOhN35c60ZiDF,issue_type_name,,Story,Story E,Story,,,,,,OPEN,,Release 3
+2025.05.06,22,I_kwDOOhN35c61PaV8,issue_type_name,,Task,fix bug F,Task,Team B,,,,,OPEN,,Release 3
+2025.05.06,7,I_kwDOOhN35c60WYl9,issue_type_name,,Story,Story 3,Story,,,,,,OPEN,,
+2025.05.06,25,I_kwDOOhN35c61P-h_,issue_type_name,,Task,Story 2 Testing,Task,Team C,,,,,OPEN,,Release 3
+2025.05.06,1,I_kwDOOhN35c60WSvX,issue_type_name,,Epic,Epic 1,Epic,,,,,,OPEN,,
+2025.05.07,32,I_kwDOOhN35c61oXyk,content_title,,This is a newer Feature,This is a newer Feature,Feature,,,,,,OPEN,,
+2025.05.07,32,I_kwDOOhN35c61oXyk,content_state,,OPEN,This is a newer Feature,Feature,,,,,,OPEN,,
+2025.05.07,32,I_kwDOOhN35c61oXyk,content_closed_at,,,This is a newer Feature,Feature,,,,,,OPEN,,
+2025.05.07,32,I_kwDOOhN35c61oXyk,milestone_title,,,This is a newer Feature,Feature,,,,,,OPEN,,
+2025.05.07,32,I_kwDOOhN35c61oXyk,issue_type_name,,Feature,This is a newer Feature,Feature,,,,,,OPEN,,
+2025.05.07,32,I_kwDOOhN35c61oXyk,parent_id,,,This is a newer Feature,Feature,,,,,,OPEN,,
+2025.05.07,32,I_kwDOOhN35c61oXyk,escalate,,,This is a newer Feature,Feature,,,,,,OPEN,,
+2025.05.07,32,I_kwDOOhN35c61oXyk,sprint,,,This is a newer Feature,Feature,,,,,,OPEN,,
+2025.05.07,32,I_kwDOOhN35c61oXyk,status,,,This is a newer Feature,Feature,,,,,,OPEN,,
+2025.05.07,32,I_kwDOOhN35c61oXyk,team,,,This is a newer Feature,Feature,,,,,,OPEN,,
+2025.05.07,8,I_kwDOOhN35c60WYpR,content_title,Story 4,Layer earthquake risk zones on the map,Layer earthquake risk zones on the map,Story,,,,,,OPEN,,Release 2
+2025.05.07,8,I_kwDOOhN35c60WYpR,milestone_title,,Release 2,Layer earthquake risk zones on the map,Story,,,,,,OPEN,,Release 2
+2025.05.07,26,I_kwDOOhN35c61oMz2,content_title,,Show flood risk overlays by region,Show flood risk overlays by region,Story,,,,,,OPEN,,Release 2
+2025.05.07,26,I_kwDOOhN35c61oMz2,content_state,,OPEN,Show flood risk overlays by region,Story,,,,,,OPEN,,Release 2
+2025.05.07,26,I_kwDOOhN35c61oMz2,content_closed_at,,,Show flood risk overlays by region,Story,,,,,,OPEN,,Release 2
+2025.05.07,26,I_kwDOOhN35c61oMz2,milestone_title,,Release 2,Show flood risk overlays by region,Story,,,,,,OPEN,,Release 2
+2025.05.07,26,I_kwDOOhN35c61oMz2,issue_type_name,,Story,Show flood risk overlays by region,Story,,,,,,OPEN,,Release 2
+2025.05.07,26,I_kwDOOhN35c61oMz2,parent_id,,,Show flood risk overlays by region,Story,,,,,,OPEN,,Release 2
+2025.05.07,26,I_kwDOOhN35c61oMz2,escalate,,,Show flood risk overlays by region,Story,,,,,,OPEN,,Release 2
+2025.05.07,26,I_kwDOOhN35c61oMz2,sprint,,,Show flood risk overlays by region,Story,,,,,,OPEN,,Release 2
+2025.05.07,26,I_kwDOOhN35c61oMz2,status,,,Show flood risk overlays by region,Story,,,,,,OPEN,,Release 2
+2025.05.07,26,I_kwDOOhN35c61oMz2,team,,,Show flood risk overlays by region,Story,,,,,,OPEN,,Release 2
+2025.05.07,28,I_kwDOOhN35c61oNDc,content_title,,Highlight high-risk assets on the map,Highlight high-risk assets on the map,Story,,,,,,OPEN,,Release 2
+2025.05.07,28,I_kwDOOhN35c61oNDc,content_state,,OPEN,Highlight high-risk assets on the map,Story,,,,,,OPEN,,Release 2
+2025.05.07,28,I_kwDOOhN35c61oNDc,content_closed_at,,,Highlight high-risk assets on the map,Story,,,,,,OPEN,,Release 2
+2025.05.07,28,I_kwDOOhN35c61oNDc,milestone_title,,Release 2,Highlight high-risk assets on the map,Story,,,,,,OPEN,,Release 2
+2025.05.07,28,I_kwDOOhN35c61oNDc,issue_type_name,,Story,Highlight high-risk assets on the map,Story,,,,,,OPEN,,Release 2
+2025.05.07,28,I_kwDOOhN35c61oNDc,parent_id,,,Highlight high-risk assets on the map,Story,,,,,,OPEN,,Release 2
+2025.05.07,28,I_kwDOOhN35c61oNDc,escalate,,,Highlight high-risk assets on the map,Story,,,,,,OPEN,,Release 2
+2025.05.07,28,I_kwDOOhN35c61oNDc,sprint,,,Highlight high-risk assets on the map,Story,,,,,,OPEN,,Release 2
+2025.05.07,28,I_kwDOOhN35c61oNDc,status,,,Highlight high-risk assets on the map,Story,,,,,,OPEN,,Release 2
+2025.05.07,28,I_kwDOOhN35c61oNDc,team,,,Highlight high-risk assets on the map,Story,,,,,,OPEN,,Release 2
+2025.05.07,33,I_kwDOOhN35c61oYUi,content_title,,This is another Feature,This is another Feature,Feature,,,,,,OPEN,,Release 1
+2025.05.07,33,I_kwDOOhN35c61oYUi,content_state,,OPEN,This is another Feature,Feature,,,,,,OPEN,,Release 1
+2025.05.07,33,I_kwDOOhN35c61oYUi,content_closed_at,,,This is another Feature,Feature,,,,,,OPEN,,Release 1
+2025.05.07,33,I_kwDOOhN35c61oYUi,milestone_title,,Release 1,This is another Feature,Feature,,,,,,OPEN,,Release 1
+2025.05.07,33,I_kwDOOhN35c61oYUi,issue_type_name,,Feature,This is another Feature,Feature,,,,,,OPEN,,Release 1
+2025.05.07,33,I_kwDOOhN35c61oYUi,parent_id,,,This is another Feature,Feature,,,,,,OPEN,,Release 1
+2025.05.07,33,I_kwDOOhN35c61oYUi,escalate,,,This is another Feature,Feature,,,,,,OPEN,,Release 1
+2025.05.07,33,I_kwDOOhN35c61oYUi,sprint,,,This is another Feature,Feature,,,,,,OPEN,,Release 1
+2025.05.07,33,I_kwDOOhN35c61oYUi,status,,,This is another Feature,Feature,,,,,,OPEN,,Release 1
+2025.05.07,33,I_kwDOOhN35c61oYUi,team,,,This is another Feature,Feature,,,,,,OPEN,,Release 1
+2025.05.07,4,I_kwDOOhN35c60WYRW,content_title,Feature 3,Automated Portfolio Risk Assessment,Automated Portfolio Risk Assessment,Feature,,,,,,OPEN,,Release 2
+2025.05.07,4,I_kwDOOhN35c60WYRW,milestone_title,,Release 2,Automated Portfolio Risk Assessment,Feature,,,,,,OPEN,,Release 2
+2025.05.07,34,I_kwDOOhN35c61oY02,content_title,,One more Feature,One more Feature,Feature,,,,,,OPEN,,
+2025.05.07,34,I_kwDOOhN35c61oY02,content_state,,OPEN,One more Feature,Feature,,,,,,OPEN,,
+2025.05.07,34,I_kwDOOhN35c61oY02,content_closed_at,,,One more Feature,Feature,,,,,,OPEN,,
+2025.05.07,34,I_kwDOOhN35c61oY02,milestone_title,,,One more Feature,Feature,,,,,,OPEN,,
+2025.05.07,34,I_kwDOOhN35c61oY02,issue_type_name,,Feature,One more Feature,Feature,,,,,,OPEN,,
+2025.05.07,34,I_kwDOOhN35c61oY02,parent_id,,,One more Feature,Feature,,,,,,OPEN,,
+2025.05.07,34,I_kwDOOhN35c61oY02,escalate,,,One more Feature,Feature,,,,,,OPEN,,
+2025.05.07,34,I_kwDOOhN35c61oY02,sprint,,,One more Feature,Feature,,,,,,OPEN,,
+2025.05.07,34,I_kwDOOhN35c61oY02,status,,,One more Feature,Feature,,,,,,OPEN,,
+2025.05.07,34,I_kwDOOhN35c61oY02,team,,,One more Feature,Feature,,,,,,OPEN,,
+2025.05.07,29,I_kwDOOhN35c61oOd4,content_title,,Upload property portfolio via CSV,Upload property portfolio via CSV,Story,,,,,,OPEN,,Release 2
+2025.05.07,29,I_kwDOOhN35c61oOd4,content_state,,OPEN,Upload property portfolio via CSV,Story,,,,,,OPEN,,Release 2
+2025.05.07,29,I_kwDOOhN35c61oOd4,content_closed_at,,,Upload property portfolio via CSV,Story,,,,,,OPEN,,Release 2
+2025.05.07,29,I_kwDOOhN35c61oOd4,milestone_title,,Release 2,Upload property portfolio via CSV,Story,,,,,,OPEN,,Release 2
+2025.05.07,29,I_kwDOOhN35c61oOd4,issue_type_name,,Story,Upload property portfolio via CSV,Story,,,,,,OPEN,,Release 2
+2025.05.07,29,I_kwDOOhN35c61oOd4,parent_id,,,Upload property portfolio via CSV,Story,,,,,,OPEN,,Release 2
+2025.05.07,29,I_kwDOOhN35c61oOd4,escalate,,,Upload property portfolio via CSV,Story,,,,,,OPEN,,Release 2
+2025.05.07,29,I_kwDOOhN35c61oOd4,sprint,,,Upload property portfolio via CSV,Story,,,,,,OPEN,,Release 2
+2025.05.07,29,I_kwDOOhN35c61oOd4,status,,,Upload property portfolio via CSV,Story,,,,,,OPEN,,Release 2
+2025.05.07,29,I_kwDOOhN35c61oOd4,team,,,Upload property portfolio via CSV,Story,,,,,,OPEN,,Release 2
+2025.05.07,3,I_kwDOOhN35c60WYLt,content_title,Feature 2,Real-Time Catastrophe Risk Visualization,Real-Time Catastrophe Risk Visualization,Feature,,,,,,OPEN,,Release 2
+2025.05.07,3,I_kwDOOhN35c60WYLt,milestone_title,,Release 2,Real-Time Catastrophe Risk Visualization,Feature,,,,,,OPEN,,Release 2
+2025.05.07,31,I_kwDOOhN35c61oOta,content_title,,Download portfolio risk assessment report,Download portfolio risk assessment report,Story,,,,,,OPEN,,Release 2
+2025.05.07,31,I_kwDOOhN35c61oOta,content_state,,OPEN,Download portfolio risk assessment report,Story,,,,,,OPEN,,Release 2
+2025.05.07,31,I_kwDOOhN35c61oOta,content_closed_at,,,Download portfolio risk assessment report,Story,,,,,,OPEN,,Release 2
+2025.05.07,31,I_kwDOOhN35c61oOta,milestone_title,,Release 2,Download portfolio risk assessment report,Story,,,,,,OPEN,,Release 2
+2025.05.07,31,I_kwDOOhN35c61oOta,issue_type_name,,Story,Download portfolio risk assessment report,Story,,,,,,OPEN,,Release 2
+2025.05.07,31,I_kwDOOhN35c61oOta,parent_id,,,Download portfolio risk assessment report,Story,,,,,,OPEN,,Release 2
+2025.05.07,31,I_kwDOOhN35c61oOta,escalate,,,Download portfolio risk assessment report,Story,,,,,,OPEN,,Release 2
+2025.05.07,31,I_kwDOOhN35c61oOta,sprint,,,Download portfolio risk assessment report,Story,,,,,,OPEN,,Release 2
+2025.05.07,31,I_kwDOOhN35c61oOta,status,,,Download portfolio risk assessment report,Story,,,,,,OPEN,,Release 2
+2025.05.07,31,I_kwDOOhN35c61oOta,team,,,Download portfolio risk assessment report,Story,,,,,,OPEN,,Release 2
+2025.05.07,7,I_kwDOOhN35c60WYl9,content_title,Story 3,Display live hurricane tracks and projected paths,Display live hurricane tracks and projected paths,Story,,,,,,OPEN,,Release 2
+2025.05.07,7,I_kwDOOhN35c60WYl9,milestone_title,,Release 2,Display live hurricane tracks and projected paths,Story,,,,,,OPEN,,Release 2
+2025.05.07,30,I_kwDOOhN35c61oOm2,content_title,,Automated risk scoring for each property,Automated risk scoring for each property,Story,,,,,,OPEN,,Release 2
+2025.05.07,30,I_kwDOOhN35c61oOm2,content_state,,OPEN,Automated risk scoring for each property,Story,,,,,,OPEN,,Release 2
+2025.05.07,30,I_kwDOOhN35c61oOm2,content_closed_at,,,Automated risk scoring for each property,Story,,,,,,OPEN,,Release 2
+2025.05.07,30,I_kwDOOhN35c61oOm2,milestone_title,,Release 2,Automated risk scoring for each property,Story,,,,,,OPEN,,Release 2
+2025.05.07,30,I_kwDOOhN35c61oOm2,issue_type_name,,Story,Automated risk scoring for each property,Story,,,,,,OPEN,,Release 2
+2025.05.07,30,I_kwDOOhN35c61oOm2,parent_id,,,Automated risk scoring for each property,Story,,,,,,OPEN,,Release 2
+2025.05.07,30,I_kwDOOhN35c61oOm2,escalate,,,Automated risk scoring for each property,Story,,,,,,OPEN,,Release 2
+2025.05.07,30,I_kwDOOhN35c61oOm2,sprint,,,Automated risk scoring for each property,Story,,,,,,OPEN,,Release 2
+2025.05.07,30,I_kwDOOhN35c61oOm2,status,,,Automated risk scoring for each property,Story,,,,,,OPEN,,Release 2
+2025.05.07,30,I_kwDOOhN35c61oOm2,team,,,Automated risk scoring for each property,Story,,,,,,OPEN,,Release 2
+2025.05.07,27,I_kwDOOhN35c61oM81,content_title,,Enable interactive zoom and pan on catastrophe map,Enable interactive zoom and pan on catastrophe map,Story,,,,,,OPEN,,Release 2
+2025.05.07,27,I_kwDOOhN35c61oM81,content_state,,OPEN,Enable interactive zoom and pan on catastrophe map,Story,,,,,,OPEN,,Release 2
+2025.05.07,27,I_kwDOOhN35c61oM81,content_closed_at,,,Enable interactive zoom and pan on catastrophe map,Story,,,,,,OPEN,,Release 2
+2025.05.07,27,I_kwDOOhN35c61oM81,milestone_title,,Release 2,Enable interactive zoom and pan on catastrophe map,Story,,,,,,OPEN,,Release 2
+2025.05.07,27,I_kwDOOhN35c61oM81,issue_type_name,,Story,Enable interactive zoom and pan on catastrophe map,Story,,,,,,OPEN,,Release 2
+2025.05.07,27,I_kwDOOhN35c61oM81,parent_id,,,Enable interactive zoom and pan on catastrophe map,Story,,,,,,OPEN,,Release 2
+2025.05.07,27,I_kwDOOhN35c61oM81,escalate,,,Enable interactive zoom and pan on catastrophe map,Story,,,,,,OPEN,,Release 2
+2025.05.07,27,I_kwDOOhN35c61oM81,sprint,,,Enable interactive zoom and pan on catastrophe map,Story,,,,,,OPEN,,Release 2
+2025.05.07,27,I_kwDOOhN35c61oM81,status,,,Enable interactive zoom and pan on catastrophe map,Story,,,,,,OPEN,,Release 2
+2025.05.07,27,I_kwDOOhN35c61oM81,team,,,Enable interactive zoom and pan on catastrophe map,Story,,,,,,OPEN,,Release 2
+2025.05.07,35,I_kwDOOhN35c61oaJW,content_title,,This will work right?,This will work right?,Feature,,,,,,OPEN,,
+2025.05.07,35,I_kwDOOhN35c61oaJW,content_state,,OPEN,This will work right?,Feature,,,,,,OPEN,,
+2025.05.07,35,I_kwDOOhN35c61oaJW,content_closed_at,,,This will work right?,Feature,,,,,,OPEN,,
+2025.05.07,35,I_kwDOOhN35c61oaJW,milestone_title,,,This will work right?,Feature,,,,,,OPEN,,
+2025.05.07,35,I_kwDOOhN35c61oaJW,issue_type_name,,Feature,This will work right?,Feature,,,,,,OPEN,,
+2025.05.07,35,I_kwDOOhN35c61oaJW,parent_id,,,This will work right?,Feature,,,,,,OPEN,,
+2025.05.07,35,I_kwDOOhN35c61oaJW,escalate,,,This will work right?,Feature,,,,,,OPEN,,
+2025.05.07,35,I_kwDOOhN35c61oaJW,sprint,,,This will work right?,Feature,,,,,,OPEN,,
+2025.05.07,35,I_kwDOOhN35c61oaJW,status,,,This will work right?,Feature,,,,,,OPEN,,
+2025.05.07,35,I_kwDOOhN35c61oaJW,team,,,This will work right?,Feature,,,,,,OPEN,,
+2025.05.07,1,I_kwDOOhN35c60WSvX,milestone_title,,Release 1,Epic 1,Epic,,,,,,OPEN,,Release 1
+2025.05.08,2,I_kwDOOhN35c60WYJd,milestone_title,Release 3,,Feature 1,Feature,Team A,Refining,,,,OPEN,,
+2025.05.08,2,I_kwDOOhN35c60WYJd,sprint,Sprint 1,,Feature 1,Feature,Team A,Refining,,,,OPEN,,
+2025.05.08,39,I_kwDOOhN35c61pxMN,content_title,,Story test 4,Story test 4,Story,,,,,,OPEN,,
+2025.05.08,39,I_kwDOOhN35c61pxMN,content_state,,OPEN,Story test 4,Story,,,,,,OPEN,,
+2025.05.08,39,I_kwDOOhN35c61pxMN,content_closed_at,,,Story test 4,Story,,,,,,OPEN,,
+2025.05.08,39,I_kwDOOhN35c61pxMN,milestone_title,,,Story test 4,Story,,,,,,OPEN,,
+2025.05.08,39,I_kwDOOhN35c61pxMN,issue_type_name,,Story,Story test 4,Story,,,,,,OPEN,,
+2025.05.08,39,I_kwDOOhN35c61pxMN,parent_id,,,Story test 4,Story,,,,,,OPEN,,
+2025.05.08,39,I_kwDOOhN35c61pxMN,escalate,,,Story test 4,Story,,,,,,OPEN,,
+2025.05.08,39,I_kwDOOhN35c61pxMN,sprint,,,Story test 4,Story,,,,,,OPEN,,
+2025.05.08,39,I_kwDOOhN35c61pxMN,status,,,Story test 4,Story,,,,,,OPEN,,
+2025.05.08,39,I_kwDOOhN35c61pxMN,team,,,Story test 4,Story,,,,,,OPEN,,
+2025.05.08,10,I_kwDOOhN35c60WY9g,milestone_title,Release 3,,Task 2,Task,,Done,Sprint 2,,,CLOSED,2025-05-05T20:12:20Z,
+2025.05.08,24,I_kwDOOhN35c61P-ee,milestone_title,Release 3,,Story 2 Delivery,Task,Team C,,,,,OPEN,,
+2025.05.08,5,I_kwDOOhN35c60WYb2,milestone_title,Release 3,,Story 1,Story,,,Sprint 4,,,OPEN,,
+2025.05.08,5,I_kwDOOhN35c60WYb2,sprint,Sprint 3,Sprint 4,Story 1,Story,,,Sprint 4,,,OPEN,,
+2025.05.08,21,I_kwDOOhN35c60ZuJp,milestone_title,Release 3,,Story R,Story,Team A,,Sprint 1,,,OPEN,,
+2025.05.08,9,I_kwDOOhN35c60WY5W,milestone_title,Release 3,,Task 1,Task,,,Sprint 4,,,OPEN,,
+2025.05.08,9,I_kwDOOhN35c60WY5W,sprint,Sprint 3,Sprint 4,Task 1,Task,,,Sprint 4,,,OPEN,,
+2025.05.08,13,I_kwDOOhN35c60ZVz-,milestone_title,Release 3,,Story A,Story,,,,,,OPEN,,
+2025.05.08,16,I_kwDOOhN35c60ZdI4,milestone_title,Release 3,,Story D,Story,Team A,In Progress,Sprint 1,,,OPEN,,
+2025.05.08,23,I_kwDOOhN35c61Paaj,milestone_title,Release 3,,Test Fix for Bug F,Task,Team B,,,,,OPEN,,
+2025.05.08,37,I_kwDOOhN35c61pt1R,content_title,,story test 2,story test 2,Story,,,,,,OPEN,,
+2025.05.08,37,I_kwDOOhN35c61pt1R,content_state,,OPEN,story test 2,Story,,,,,,OPEN,,
+2025.05.08,37,I_kwDOOhN35c61pt1R,content_closed_at,,,story test 2,Story,,,,,,OPEN,,
+2025.05.08,37,I_kwDOOhN35c61pt1R,milestone_title,,,story test 2,Story,,,,,,OPEN,,
+2025.05.08,37,I_kwDOOhN35c61pt1R,issue_type_name,,Story,story test 2,Story,,,,,,OPEN,,
+2025.05.08,37,I_kwDOOhN35c61pt1R,parent_id,,,story test 2,Story,,,,,,OPEN,,
+2025.05.08,37,I_kwDOOhN35c61pt1R,escalate,,,story test 2,Story,,,,,,OPEN,,
+2025.05.08,37,I_kwDOOhN35c61pt1R,sprint,,,story test 2,Story,,,,,,OPEN,,
+2025.05.08,37,I_kwDOOhN35c61pt1R,status,,,story test 2,Story,,,,,,OPEN,,
+2025.05.08,37,I_kwDOOhN35c61pt1R,team,,,story test 2,Story,,,,,,OPEN,,
+2025.05.08,14,I_kwDOOhN35c60ZXs6,milestone_title,Release 3,,Story B,Story,,,,,,OPEN,,
+2025.05.08,15,I_kwDOOhN35c60ZakU,milestone_title,Release 3,,Story C,Story,,,,,,OPEN,,
+2025.05.08,36,I_kwDOOhN35c61psDI,content_title,,story tester,story tester,Story,,,,,,OPEN,,
+2025.05.08,36,I_kwDOOhN35c61psDI,content_state,,OPEN,story tester,Story,,,,,,OPEN,,
+2025.05.08,36,I_kwDOOhN35c61psDI,content_closed_at,,,story tester,Story,,,,,,OPEN,,
+2025.05.08,36,I_kwDOOhN35c61psDI,milestone_title,,,story tester,Story,,,,,,OPEN,,
+2025.05.08,36,I_kwDOOhN35c61psDI,issue_type_name,,Story,story tester,Story,,,,,,OPEN,,
+2025.05.08,36,I_kwDOOhN35c61psDI,parent_id,,,story tester,Story,,,,,,OPEN,,
+2025.05.08,36,I_kwDOOhN35c61psDI,escalate,,,story tester,Story,,,,,,OPEN,,
+2025.05.08,36,I_kwDOOhN35c61psDI,sprint,,,story tester,Story,,,,,,OPEN,,
+2025.05.08,36,I_kwDOOhN35c61psDI,status,,,story tester,Story,,,,,,OPEN,,
+2025.05.08,36,I_kwDOOhN35c61psDI,team,,,story tester,Story,,,,,,OPEN,,
+2025.05.08,11,I_kwDOOhN35c60WZAt,milestone_title,Release 3,,Task 3,Task,,,Sprint 4,,,OPEN,,
+2025.05.08,11,I_kwDOOhN35c60WZAt,sprint,Sprint 3,Sprint 4,Task 3,Task,,,Sprint 4,,,OPEN,,
+2025.05.08,20,I_kwDOOhN35c60ZqXV,milestone_title,Release 3,,Story Q,Story,Team A,,Sprint 1,,,OPEN,,
+2025.05.08,19,I_kwDOOhN35c60Zm2s,milestone_title,Release 3,,Story G,Story,,,,,,OPEN,,
+2025.05.08,6,I_kwDOOhN35c60WYez,milestone_title,Release 3,,Story 2,Bug,Team B,,,,,OPEN,,
+2025.05.08,6,I_kwDOOhN35c60WYez,issue_type_name,Story,Bug,Story 2,Bug,Team B,,,,,OPEN,,
+2025.05.08,6,I_kwDOOhN35c60WYez,team,Team C,Team B,Story 2,Bug,Team B,,,,,OPEN,,
+2025.05.08,18,I_kwDOOhN35c60Zkt7,milestone_title,Release 3,,Story F,Bug,Team B,,,,No,OPEN,,
+2025.05.08,3,I_kwDOOhN35c60WYLt,sprint,,Sprint 3,Real-Time Catastrophe Risk Visualization,Feature,,,Sprint 3,,,OPEN,,Release 2
+2025.05.08,17,I_kwDOOhN35c60ZiDF,milestone_title,Release 3,,Story E,Story,,,,,,OPEN,,
+2025.05.08,22,I_kwDOOhN35c61PaV8,milestone_title,Release 3,,fix bug F,Task,Team B,,,,,OPEN,,
+2025.05.08,31,I_kwDOOhN35c61oOta,sprint,,Sprint 1,Download portfolio risk assessment report,Story,,,Sprint 1,,,OPEN,,Release 2
+2025.05.08,40,I_kwDOOhN35c61pyvH,content_title,,story test 55,story test 55,Story,Team A,,,,,OPEN,,
+2025.05.08,40,I_kwDOOhN35c61pyvH,content_state,,OPEN,story test 55,Story,Team A,,,,,OPEN,,
+2025.05.08,40,I_kwDOOhN35c61pyvH,content_closed_at,,,story test 55,Story,Team A,,,,,OPEN,,
+2025.05.08,40,I_kwDOOhN35c61pyvH,milestone_title,,,story test 55,Story,Team A,,,,,OPEN,,
+2025.05.08,40,I_kwDOOhN35c61pyvH,issue_type_name,,Story,story test 55,Story,Team A,,,,,OPEN,,
+2025.05.08,40,I_kwDOOhN35c61pyvH,parent_id,,,story test 55,Story,Team A,,,,,OPEN,,
+2025.05.08,40,I_kwDOOhN35c61pyvH,escalate,,,story test 55,Story,Team A,,,,,OPEN,,
+2025.05.08,40,I_kwDOOhN35c61pyvH,sprint,,,story test 55,Story,Team A,,,,,OPEN,,
+2025.05.08,40,I_kwDOOhN35c61pyvH,status,,,story test 55,Story,Team A,,,,,OPEN,,
+2025.05.08,40,I_kwDOOhN35c61pyvH,team,,Team A,story test 55,Story,Team A,,,,,OPEN,,
+2025.05.08,41,I_kwDOOhN35c61pzdg,content_title,,story test 66,story test 66,Story,Team A,,,,,OPEN,,
+2025.05.08,41,I_kwDOOhN35c61pzdg,content_state,,OPEN,story test 66,Story,Team A,,,,,OPEN,,
+2025.05.08,41,I_kwDOOhN35c61pzdg,content_closed_at,,,story test 66,Story,Team A,,,,,OPEN,,
+2025.05.08,41,I_kwDOOhN35c61pzdg,milestone_title,,,story test 66,Story,Team A,,,,,OPEN,,
+2025.05.08,41,I_kwDOOhN35c61pzdg,issue_type_name,,Story,story test 66,Story,Team A,,,,,OPEN,,
+2025.05.08,41,I_kwDOOhN35c61pzdg,parent_id,,,story test 66,Story,Team A,,,,,OPEN,,
+2025.05.08,41,I_kwDOOhN35c61pzdg,escalate,,,story test 66,Story,Team A,,,,,OPEN,,
+2025.05.08,41,I_kwDOOhN35c61pzdg,sprint,,,story test 66,Story,Team A,,,,,OPEN,,
+2025.05.08,41,I_kwDOOhN35c61pzdg,status,,,story test 66,Story,Team A,,,,,OPEN,,
+2025.05.08,41,I_kwDOOhN35c61pzdg,team,,Team A,story test 66,Story,Team A,,,,,OPEN,,
+2025.05.08,25,I_kwDOOhN35c61P-h_,milestone_title,Release 3,,Story 2 Testing,Task,Team C,,,,,OPEN,,
+2025.05.08,38,I_kwDOOhN35c61pu-f,content_title,,story test 3,story test 3,Story,,,,,,OPEN,,
+2025.05.08,38,I_kwDOOhN35c61pu-f,content_state,,OPEN,story test 3,Story,,,,,,OPEN,,
+2025.05.08,38,I_kwDOOhN35c61pu-f,content_closed_at,,,story test 3,Story,,,,,,OPEN,,
+2025.05.08,38,I_kwDOOhN35c61pu-f,milestone_title,,,story test 3,Story,,,,,,OPEN,,
+2025.05.08,38,I_kwDOOhN35c61pu-f,issue_type_name,,Story,story test 3,Story,,,,,,OPEN,,
+2025.05.08,38,I_kwDOOhN35c61pu-f,parent_id,,,story test 3,Story,,,,,,OPEN,,
+2025.05.08,38,I_kwDOOhN35c61pu-f,escalate,,,story test 3,Story,,,,,,OPEN,,
+2025.05.08,38,I_kwDOOhN35c61pu-f,sprint,,,story test 3,Story,,,,,,OPEN,,
+2025.05.08,38,I_kwDOOhN35c61pu-f,status,,,story test 3,Story,,,,,,OPEN,,
+2025.05.08,38,I_kwDOOhN35c61pu-f,team,,,story test 3,Story,,,,,,OPEN,,
+2025.05.09,39,I_kwDOOhN35c61pxMN,parent_id,,I_kwDOOhN35c60WYJd,Story test 4,Story,,,,I_kwDOOhN35c60WYJd,,OPEN,,
+2025.05.09,5,I_kwDOOhN35c60WYb2,parent_id,,I_kwDOOhN35c60WYJd,Story 1,Story,,,Sprint 4,I_kwDOOhN35c60WYJd,,OPEN,,
+2025.05.09,9,I_kwDOOhN35c60WY5W,parent_id,,I_kwDOOhN35c60WYb2,Task 1,Task,,,Sprint 4,I_kwDOOhN35c60WYb2,,OPEN,,
+2025.05.09,13,I_kwDOOhN35c60ZVz-,parent_id,,I_kwDOOhN35c60WYJd,Story A,Story,,,,I_kwDOOhN35c60WYJd,,OPEN,,
+2025.05.09,26,I_kwDOOhN35c61oMz2,parent_id,,I_kwDOOhN35c60WYLt,Show flood risk overlays by region,Story,,,,I_kwDOOhN35c60WYLt,,OPEN,,Release 2
+2025.05.09,16,I_kwDOOhN35c60ZdI4,parent_id,,I_kwDOOhN35c60WYJd,Story D,Story,Team A,In Progress,Sprint 1,I_kwDOOhN35c60WYJd,,OPEN,,
+2025.05.09,23,I_kwDOOhN35c61Paaj,parent_id,,I_kwDOOhN35c60Zkt7,Test Fix for Bug F,Task,Team B,,,I_kwDOOhN35c60Zkt7,,OPEN,,
+2025.05.09,28,I_kwDOOhN35c61oNDc,parent_id,,I_kwDOOhN35c60WYLt,Highlight high-risk assets on the map,Story,,,,I_kwDOOhN35c60WYLt,,OPEN,,Release 2
+2025.05.09,15,I_kwDOOhN35c60ZakU,parent_id,,I_kwDOOhN35c60WYJd,Story C,Story,,,,I_kwDOOhN35c60WYJd,,OPEN,,
+2025.05.09,4,I_kwDOOhN35c60WYRW,parent_id,,I_kwDOOhN35c60WSvX,Automated Portfolio Risk Assessment,Feature,,,,I_kwDOOhN35c60WSvX,,OPEN,,Release 2
+2025.05.09,11,I_kwDOOhN35c60WZAt,parent_id,,I_kwDOOhN35c60WYb2,Task 3,Task,,,Sprint 4,I_kwDOOhN35c60WYb2,,OPEN,,
+2025.05.09,20,I_kwDOOhN35c60ZqXV,parent_id,,I_kwDOOhN35c60WYJd,Story Q,Story,Team A,,Sprint 1,I_kwDOOhN35c60WYJd,,OPEN,,
+2025.05.09,34,I_kwDOOhN35c61oY02,parent_id,,I_kwDOOhN35c60Wj2K,One more Feature,Feature,,,,I_kwDOOhN35c60Wj2K,,OPEN,,
+2025.05.09,6,I_kwDOOhN35c60WYez,milestone_title,,Release 1,Story 2,Story,Team B,,,I_kwDOOhN35c60WYJd,,OPEN,,Release 1
+2025.05.09,6,I_kwDOOhN35c60WYez,issue_type_name,Bug,Story,Story 2,Story,Team B,,,I_kwDOOhN35c60WYJd,,OPEN,,Release 1
+2025.05.09,6,I_kwDOOhN35c60WYez,parent_id,,I_kwDOOhN35c60WYJd,Story 2,Story,Team B,,,I_kwDOOhN35c60WYJd,,OPEN,,Release 1
+2025.05.09,44,I_kwDOOhN35c61--co,content_title,,this is a better task,this is a better task,Task,Team B,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,44,I_kwDOOhN35c61--co,content_state,,OPEN,this is a better task,Task,Team B,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,44,I_kwDOOhN35c61--co,content_closed_at,,,this is a better task,Task,Team B,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,44,I_kwDOOhN35c61--co,milestone_title,,Release 1,this is a better task,Task,Team B,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,44,I_kwDOOhN35c61--co,issue_type_name,,Task,this is a better task,Task,Team B,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,44,I_kwDOOhN35c61--co,parent_id,,I_kwDOOhN35c60WYez,this is a better task,Task,Team B,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,44,I_kwDOOhN35c61--co,escalate,,,this is a better task,Task,Team B,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,44,I_kwDOOhN35c61--co,sprint,,,this is a better task,Task,Team B,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,44,I_kwDOOhN35c61--co,status,,,this is a better task,Task,Team B,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,44,I_kwDOOhN35c61--co,team,,Team B,this is a better task,Task,Team B,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,18,I_kwDOOhN35c60Zkt7,parent_id,,I_kwDOOhN35c60WYJd,Story F,Bug,Team B,,,I_kwDOOhN35c60WYJd,No,OPEN,,
+2025.05.09,29,I_kwDOOhN35c61oOd4,parent_id,,I_kwDOOhN35c60WYRW,Upload property portfolio via CSV,Story,,,,I_kwDOOhN35c60WYRW,,OPEN,,Release 2
+2025.05.09,3,I_kwDOOhN35c60WYLt,parent_id,,I_kwDOOhN35c60WSvX,Real-Time Catastrophe Risk Visualization,Feature,,,Sprint 3,I_kwDOOhN35c60WSvX,,OPEN,,Release 2
+2025.05.09,17,I_kwDOOhN35c60ZiDF,parent_id,,I_kwDOOhN35c60WYJd,Story E,Story,,,,I_kwDOOhN35c60WYJd,,OPEN,,
+2025.05.09,22,I_kwDOOhN35c61PaV8,parent_id,,I_kwDOOhN35c60Zkt7,fix bug F,Task,Team B,,,I_kwDOOhN35c60Zkt7,,OPEN,,
+2025.05.09,7,I_kwDOOhN35c60WYl9,parent_id,,I_kwDOOhN35c60WYLt,Display live hurricane tracks and projected paths,Story,,,,I_kwDOOhN35c60WYLt,,OPEN,,Release 2
+2025.05.09,30,I_kwDOOhN35c61oOm2,parent_id,,I_kwDOOhN35c60WYRW,Automated risk scoring for each property,Story,,,,I_kwDOOhN35c60WYRW,,OPEN,,Release 2
+2025.05.09,27,I_kwDOOhN35c61oM81,parent_id,,I_kwDOOhN35c60WYLt,Enable interactive zoom and pan on catastrophe map,Story,,,,I_kwDOOhN35c60WYLt,,OPEN,,Release 2
+2025.05.09,40,I_kwDOOhN35c61pyvH,parent_id,,I_kwDOOhN35c60WYJd,story test 55,Story,Team A,,,I_kwDOOhN35c60WYJd,,OPEN,,
+2025.05.09,45,I_kwDOOhN35c61_Dyc,content_title,,this is a bad task,this is a bad task,Task,,,,,,OPEN,,
+2025.05.09,45,I_kwDOOhN35c61_Dyc,content_state,,OPEN,this is a bad task,Task,,,,,,OPEN,,
+2025.05.09,45,I_kwDOOhN35c61_Dyc,content_closed_at,,,this is a bad task,Task,,,,,,OPEN,,
+2025.05.09,45,I_kwDOOhN35c61_Dyc,milestone_title,,,this is a bad task,Task,,,,,,OPEN,,
+2025.05.09,45,I_kwDOOhN35c61_Dyc,issue_type_name,,Task,this is a bad task,Task,,,,,,OPEN,,
+2025.05.09,45,I_kwDOOhN35c61_Dyc,parent_id,,,this is a bad task,Task,,,,,,OPEN,,
+2025.05.09,45,I_kwDOOhN35c61_Dyc,escalate,,,this is a bad task,Task,,,,,,OPEN,,
+2025.05.09,45,I_kwDOOhN35c61_Dyc,sprint,,,this is a bad task,Task,,,,,,OPEN,,
+2025.05.09,45,I_kwDOOhN35c61_Dyc,status,,,this is a bad task,Task,,,,,,OPEN,,
+2025.05.09,45,I_kwDOOhN35c61_Dyc,team,,,this is a bad task,Task,,,,,,OPEN,,
+2025.05.09,35,I_kwDOOhN35c61oaJW,parent_id,,I_kwDOOhN35c60Wj2K,This will work right?,Feature,,,,I_kwDOOhN35c60Wj2K,,OPEN,,
+2025.05.09,41,I_kwDOOhN35c61pzdg,parent_id,,I_kwDOOhN35c60WYJd,story test 66,Story,Team A,,,I_kwDOOhN35c60WYJd,,OPEN,,
+2025.05.09,25,I_kwDOOhN35c61P-h_,milestone_title,,Release 1,Story 2 Testing,Task,Team C,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,25,I_kwDOOhN35c61P-h_,parent_id,,I_kwDOOhN35c60WYez,Story 2 Testing,Task,Team C,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,38,I_kwDOOhN35c61pu-f,parent_id,,I_kwDOOhN35c60WYJd,story test 3,Story,,,,I_kwDOOhN35c60WYJd,,OPEN,,
+2025.05.09,2,I_kwDOOhN35c60WYJd,parent_id,,I_kwDOOhN35c60WSvX,Feature 1,Feature,Team A,Refining,,I_kwDOOhN35c60WSvX,,OPEN,,
+2025.05.09,10,I_kwDOOhN35c60WY9g,parent_id,,I_kwDOOhN35c60WYb2,Task 2,Task,,Done,Sprint 2,I_kwDOOhN35c60WYb2,,CLOSED,2025-05-05T20:12:20Z,
+2025.05.09,24,I_kwDOOhN35c61P-ee,milestone_title,,Release 1,Story 2 Delivery,Task,Team C,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,24,I_kwDOOhN35c61P-ee,parent_id,,I_kwDOOhN35c60WYez,Story 2 Delivery,Task,Team C,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,42,I_kwDOOhN35c61-9C_,content_title,,this is a bad story,this is a bad story,Task,,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,42,I_kwDOOhN35c61-9C_,content_state,,OPEN,this is a bad story,Task,,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,42,I_kwDOOhN35c61-9C_,content_closed_at,,,this is a bad story,Task,,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,42,I_kwDOOhN35c61-9C_,milestone_title,,Release 1,this is a bad story,Task,,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,42,I_kwDOOhN35c61-9C_,issue_type_name,,Task,this is a bad story,Task,,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,42,I_kwDOOhN35c61-9C_,parent_id,,I_kwDOOhN35c60WYez,this is a bad story,Task,,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,42,I_kwDOOhN35c61-9C_,escalate,,,this is a bad story,Task,,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,42,I_kwDOOhN35c61-9C_,sprint,,,this is a bad story,Task,,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,42,I_kwDOOhN35c61-9C_,status,,,this is a bad story,Task,,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,42,I_kwDOOhN35c61-9C_,team,,,this is a bad story,Task,,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,32,I_kwDOOhN35c61oXyk,parent_id,,I_kwDOOhN35c60WSvX,This is a newer Feature,Feature,,,,I_kwDOOhN35c60WSvX,,OPEN,,
+2025.05.09,21,I_kwDOOhN35c60ZuJp,parent_id,,I_kwDOOhN35c60WYJd,Story R,Story,Team A,,Sprint 1,I_kwDOOhN35c60WYJd,,OPEN,,
+2025.05.09,8,I_kwDOOhN35c60WYpR,parent_id,,I_kwDOOhN35c60WYLt,Layer earthquake risk zones on the map,Story,,,,I_kwDOOhN35c60WYLt,,OPEN,,Release 2
+2025.05.09,37,I_kwDOOhN35c61pt1R,parent_id,,I_kwDOOhN35c60WYJd,story test 2,Story,,,,I_kwDOOhN35c60WYJd,,OPEN,,
+2025.05.09,14,I_kwDOOhN35c60ZXs6,parent_id,,I_kwDOOhN35c60WYJd,Story B,Story,,,,I_kwDOOhN35c60WYJd,,OPEN,,
+2025.05.09,33,I_kwDOOhN35c61oYUi,parent_id,,I_kwDOOhN35c60WSvX,This is another Feature,Feature,,,,I_kwDOOhN35c60WSvX,,OPEN,,Release 1
+2025.05.09,36,I_kwDOOhN35c61psDI,parent_id,,I_kwDOOhN35c60WYJd,story tester,Story,,,,I_kwDOOhN35c60WYJd,,OPEN,,
+2025.05.09,19,I_kwDOOhN35c60Zm2s,parent_id,,I_kwDOOhN35c60WYJd,Story G,Story,,,,I_kwDOOhN35c60WYJd,,OPEN,,
+2025.05.09,31,I_kwDOOhN35c61oOta,parent_id,,I_kwDOOhN35c60WYRW,Download portfolio risk assessment report,Story,,,Sprint 1,I_kwDOOhN35c60WYRW,,OPEN,,Release 2
+2025.05.09,43,I_kwDOOhN35c61-9bd,content_title,,this is a good task,this is a good task,Task,,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,43,I_kwDOOhN35c61-9bd,content_state,,OPEN,this is a good task,Task,,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,43,I_kwDOOhN35c61-9bd,content_closed_at,,,this is a good task,Task,,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,43,I_kwDOOhN35c61-9bd,milestone_title,,Release 1,this is a good task,Task,,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,43,I_kwDOOhN35c61-9bd,issue_type_name,,Task,this is a good task,Task,,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,43,I_kwDOOhN35c61-9bd,parent_id,,I_kwDOOhN35c60WYez,this is a good task,Task,,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,43,I_kwDOOhN35c61-9bd,escalate,,,this is a good task,Task,,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,43,I_kwDOOhN35c61-9bd,sprint,,,this is a good task,Task,,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,43,I_kwDOOhN35c61-9bd,status,,,this is a good task,Task,,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.09,43,I_kwDOOhN35c61-9bd,team,,,this is a good task,Task,,,,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.12,6,I_kwDOOhN35c60WYez,sprint,,Sprint 2,Story 2,Story,Team A,,Sprint 2,I_kwDOOhN35c60WYJd,,OPEN,,Release 1
+2025.05.12,6,I_kwDOOhN35c60WYez,team,Team B,Team A,Story 2,Story,Team A,,Sprint 2,I_kwDOOhN35c60WYJd,,OPEN,,Release 1
+2025.05.12,44,I_kwDOOhN35c61--co,sprint,,Sprint 2,this is a better task,Task,,,Sprint 2,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.12,44,I_kwDOOhN35c61--co,team,Team B,,this is a better task,Task,,,Sprint 2,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.12,41,I_kwDOOhN35c61pzdg,sprint,,Sprint 4,story test 66,Story,Team A,,Sprint 4,I_kwDOOhN35c60WYJd,,OPEN,,
+2025.05.12,25,I_kwDOOhN35c61P-h_,sprint,,Sprint 2,Story 2 Testing,Task,Team C,,Sprint 2,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.12,24,I_kwDOOhN35c61P-ee,sprint,,Sprint 2,Story 2 Delivery,Task,Team C,,Sprint 2,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.12,42,I_kwDOOhN35c61-9C_,sprint,,Sprint 2,this is a bad story,Task,Team A,,Sprint 2,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.12,42,I_kwDOOhN35c61-9C_,team,,Team A,this is a bad story,Task,Team A,,Sprint 2,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.12,43,I_kwDOOhN35c61-9bd,sprint,,Sprint 2,this is a good task,Task,Team C,,Sprint 2,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.12,43,I_kwDOOhN35c61-9bd,team,,Team C,this is a good task,Task,Team C,,Sprint 2,I_kwDOOhN35c60WYez,,OPEN,,Release 1
