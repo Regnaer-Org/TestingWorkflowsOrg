@@ -23,7 +23,6 @@ query($owner: String!, $name: String!, $since: DateTime!, $after: String) {
       first: 100
       filterBy: {states: CLOSED, since: $since}
       after: $after
-      orderBy: {field: CLOSED_AT, direction: DESC}
     ) {
       nodes {
         number
