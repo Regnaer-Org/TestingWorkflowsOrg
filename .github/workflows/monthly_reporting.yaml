@@ -76,3 +76,4 @@ jobs:
           else
             git commit -m "Add monthly report for ${TEAM_SAFE} on ${FILE_SUFFIX}"
             git push
+          fi
