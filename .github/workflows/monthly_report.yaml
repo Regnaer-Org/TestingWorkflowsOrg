@@ -51,7 +51,6 @@ jobs:
               issues(
                 first: 100
                 filterBy: {states: CLOSED, since: $since}
-                orderBy: {field: CLOSED_AT, direction: DESC}
               ) {
                 nodes {
                   number
