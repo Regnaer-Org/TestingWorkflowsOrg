@@ -1,0 +1,116 @@
+name: Export Closed Issues With Team
+
+on:
+  workflow_dispatch:
+    inputs:
+      team:
+        description: 'Team value (must match the project field value exactly)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  export-issues:
+    name: Export Closed Issues With Team
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout (no code needed, but standard)
+        uses: actions/checkout@v4
+
+      - name: Set up date for 30 days ago (ISO 8601)
+        id: date
+        run: |
+          echo "since=$(date -u -d '30 days ago' +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+
+      - name: Get owner and repo
+        id: repo
+        run: |
+          owner="${GITHUB_REPOSITORY%%/*}"
+          repo="${GITHUB_REPOSITORY##*/}"
+          echo "owner=$owner" >> "$GITHUB_OUTPUT"
+          echo "repo=$repo" >> "$GITHUB_OUTPUT"
+
+      - name: Query GitHub GraphQL API for closed issues
+        id: query
+        env:
+          GH_TOKEN: ${{ secrets.milestone_sync }}
+          PROJECT_ID: ${{ secrets.PROJECT_ID }}
+          TEAM_VALUE: ${{ inputs.team }}
+          SINCE: ${{ steps.date.outputs.since }}
+          OWNER: ${{ steps.repo.outputs.owner }}
+          REPO: ${{ steps.repo.outputs.repo }}
+        run: |
+          cat <<'GRAPHQL' > query.graphql
+          query($owner: String!, $name: String!, $since: DateTime!) {
+            repository(owner: $owner, name: $name) {
+              issues(
+                first: 100
+                filterBy: {states: CLOSED, since: $since}
+                orderBy: {field: CLOSED_AT, direction: DESC}
+              ) {
+                nodes {
+                  number
+                  title
+                  body
+                  closedAt
+                  issueType {
+                    id
+                    name
+                  }
+                  projectItems(first: 10, includeArchived: false) {
+                    nodes {
+                      project {
+                        id
+                      }
+                      fieldValueByName(name: "Team") {
+                        ... on ProjectV2ItemFieldSingleSelectValue {
+                          name
+                          optionId
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          GRAPHQL
+
+          gh api graphql \
+            -F owner="$OWNER" \
+            -F name="$REPO" \
+            -F since="$SINCE" \
+            -f query="$(cat query.graphql)" > raw_issues.json
+
+      - name: Filter issues by team and project
+        id: filter
+        env:
+          PROJECT_ID: ${{ secrets.PROJECT_ID }}
+          TEAM_VALUE: ${{ inputs.team }}
+        run: |
+          jq --arg PROJECT_ID "$PROJECT_ID" --arg TEAM_VALUE "$TEAM_VALUE" '
+            .data.repository.issues.nodes
+            | map(
+                . as $issue
+                | $issue.projectItems.nodes
+                | map(select(.project.id == $PROJECT_ID and .fieldValueByName.name == $TEAM_VALUE))
+                | if length > 0 then
+                    $issue + {team: $TEAM_VALUE}
+                  else
+                    null
+                  end
+              )
+            | map(select(. != null))
+          ' raw_issues.json > closed_issues_with_team.json
+
+      - name: Upload result as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: closed-issues-with-team
+          path: closed_issues_with_team.json
+          retention-days: 14
