@@ -1,12 +1,12 @@
 [
   {
-    "number": 42,
-    "title": "this is a bad story",
+    "number": 16,
+    "title": "Story D",
     "body": "",
-    "closedAt": "2025-05-19T05:23:16Z",
+    "closedAt": "2025-05-19T06:07:20Z",
     "issueType": {
-      "id": "IT_kwDODH0FwM4BljUj",
-      "name": "Task"
+      "id": "IT_kwDODH0FwM4BljVo",
+      "name": "Story"
     },
     "projectItems": {
       "nodes": [
