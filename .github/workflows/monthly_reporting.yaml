@@ -19,7 +19,7 @@ jobs:
     environment: production
 
     steps:
-      - name: Checkout (standard)
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -28,19 +28,14 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install requests
+        run: pip install requests
 
-      - name: Set up date for 30 days ago (ISO 8601) and file date suffix
-        id: date
+      - name: Set up date and team for filenames
+        id: vars
         run: |
-          SINCE=$(date -u -d '30 days ago' +'%Y-%m-%dT%H:%M:%SZ')
           FILE_SUFFIX=$(date -u +'%Y.%m.%d')
-          # Convert team input to lowercase and replace spaces and non-alphanum with underscores for filename
           TEAM_INPUT="${{ github.event.inputs.team }}"
           TEAM_SAFE=$(echo "$TEAM_INPUT" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g' | sed -E 's/^_+|_+$//g')
-          echo "since=$SINCE" >> "$GITHUB_OUTPUT"
           echo "file_suffix=$FILE_SUFFIX" >> "$GITHUB_OUTPUT"
           echo "team_safe=$TEAM_SAFE" >> "$GITHUB_OUTPUT"
 
@@ -53,37 +48,32 @@ jobs:
           echo "repo=$repo" >> "$GITHUB_OUTPUT"
 
       - name: Run export script
-        id: export
         env:
           GH_TOKEN: ${{ secrets.milestone_sync }}
           PROJECT_ID: ${{ secrets.PROJECT_ID }}
           TEAM_VALUE: ${{ inputs.team }}
-          SINCE: ${{ steps.date.outputs.since }}
+          SINCE: $(date -u -d '30 days ago' +'%Y-%m-%dT%H:%M:%SZ')
           OWNER: ${{ steps.repo.outputs.owner }}
           REPO: ${{ steps.repo.outputs.repo }}
-          FILE_SUFFIX: ${{ steps.date.outputs.file_suffix }}
-          TEAM_SAFE: ${{ steps.date.outputs.team_safe }}
+          FILE_SUFFIX: ${{ steps.vars.outputs.file_suffix }}
+          TEAM_SAFE: ${{ steps.vars.outputs.team_safe }}
         run: |
           python .github/scripts/export_closed_issues_with_team.py
 
-      - name: Clone destination repo
-        uses: actions/checkout@v4
-        with:
-          repository: Regnaer-Org/TestingWorkflowsOrg
-          ref: main
-          token: ${{ secrets.milestone_sync }}
-          path: dest_repo
-
-      - name: Copy JSON report to destination and commit
+      - name: Commit and push monthly report
         env:
-          FILE_SUFFIX: ${{ steps.date.outputs.file_suffix }}
-          TEAM_SAFE: ${{ steps.date.outputs.team_safe }}
+          FILE_SUFFIX: ${{ steps.vars.outputs.file_suffix }}
+          TEAM_SAFE: ${{ steps.vars.outputs.team_safe }}
         run: |
-          DEST="dest_repo/monthly_report/${TEAM_SAFE}_monthlyreport_${FILE_SUFFIX}.json"
-          cp closed_issues_with_team.json "$DEST"
-          cd dest_repo
+          mkdir -p monthly_report
+          REPORT_FILE="${TEAM_SAFE}_monthlyreport_${FILE_SUFFIX}.json"
+          cp closed_issues_with_team.json monthly_report/${REPORT_FILE}
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "$DEST"
-          git commit -m "Add monthly report for ${TEAM_SAFE} on ${FILE_SUFFIX}" || echo "No changes to commit"
-          git push origin main
+          git add monthly_report/${REPORT_FILE}
+          if git diff --staged --quiet; then
+            echo "Monthly report is up-to-date. Nothing to commit."
+          else
+            git commit -m "Add monthly report for ${TEAM_SAFE} on ${FILE_SUFFIX}"
+            git push
+          fi
