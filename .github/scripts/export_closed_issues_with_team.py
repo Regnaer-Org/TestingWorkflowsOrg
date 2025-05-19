@@ -1,6 +1,7 @@
 import os
 import requests
 import json
+import sys
 
 GITHUB_API_URL = "https://api.github.com/graphql"
 
@@ -73,6 +74,12 @@ def get_issues():
         )
         response.raise_for_status()
         data = response.json()
+        if "errors" in data:
+            print("GraphQL errors:", json.dumps(data["errors"], indent=2), file=sys.stderr)
+            raise RuntimeError("GraphQL query failed. See errors above.")
+        if "data" not in data or data["data"] is None:
+            print("Full response for debugging:", json.dumps(data, indent=2), file=sys.stderr)
+            raise RuntimeError("No 'data' in GraphQL response.")
         issues = data["data"]["repository"]["issues"]["nodes"]
         all_issues.extend(issues)
         page_info = data["data"]["repository"]["issues"]["pageInfo"]
@@ -98,14 +105,15 @@ def filter_issues_by_team(issues, project_id, team_value):
 def main():
     issues = get_issues()
     filtered = filter_issues_by_team(issues, PROJECT_ID, TEAM_VALUE)
-    filename = f"closed_issues_with_team.json"
-    # Save with the team and date in the filename as well for clarity if needed
     if TEAM_SAFE and FILE_SUFFIX:
         filename = f"{TEAM_SAFE}_monthlyreport_{FILE_SUFFIX}.json"
+    else:
+        filename = "closed_issues_with_team.json"
+    # Always write to closed_issues_with_team.json for downstream steps
     with open("closed_issues_with_team.json", "w", encoding="utf-8") as f:
         json.dump(filtered, f, indent=2, ensure_ascii=False)
-    # Also save with the dynamic filename for easy copying
-    if TEAM_SAFE and FILE_SUFFIX:
+    # Also write to the descriptive filename for clarity or local debugging
+    if filename != "closed_issues_with_team.json":
         with open(filename, "w", encoding="utf-8") as f:
             json.dump(filtered, f, indent=2, ensure_ascii=False)
     print(f"Exported {len(filtered)} issues to {filename}")
