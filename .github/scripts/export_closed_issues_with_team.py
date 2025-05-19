@@ -2,15 +2,16 @@ import os
 import requests
 import json
 import sys
+from datetime import datetime, timedelta
 
 GITHUB_API_URL = "https://api.github.com/graphql"
 
-GH_TOKEN = os.environ["GH_TOKEN"]
-PROJECT_ID = os.environ["PROJECT_ID"]
-TEAM_VALUE = os.environ["TEAM_VALUE"]
-SINCE = os.environ["SINCE"]
-OWNER = os.environ["OWNER"]
-REPO = os.environ["REPO"]
+GH_TOKEN = os.environ.get("GH_TOKEN")
+PROJECT_ID = os.environ.get("PROJECT_ID")
+TEAM_VALUE = os.environ.get("TEAM_VALUE")
+SINCE = os.environ.get("SINCE")
+OWNER = os.environ.get("OWNER")
+REPO = os.environ.get("REPO")
 FILE_SUFFIX = os.environ.get("FILE_SUFFIX", "")
 TEAM_SAFE = os.environ.get("TEAM_SAFE", "")
 
