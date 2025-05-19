@@ -1,0 +1,26 @@
+[
+  {
+    "number": 42,
+    "title": "this is a bad story",
+    "body": "",
+    "closedAt": "2025-05-19T05:23:16Z",
+    "issueType": {
+      "id": "IT_kwDODH0FwM4BljUj",
+      "name": "Task"
+    },
+    "projectItems": {
+      "nodes": [
+        {
+          "project": {
+            "id": "PVT_kwDODH0FwM4A3yi4"
+          },
+          "fieldValueByName": {
+            "name": "Team A",
+            "optionId": "c3f4e693"
+          }
+        }
+      ]
+    },
+    "team": "Team A"
+  }
+]
