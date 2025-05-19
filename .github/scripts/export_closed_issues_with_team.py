@@ -2,7 +2,6 @@ import os
 import requests
 import json
 import sys
-from datetime import datetime, timedelta
 
 GITHUB_API_URL = "https://api.github.com/graphql"
 
@@ -89,9 +88,13 @@ def get_issues():
             break
     return all_issues
 
-def filter_issues_by_team(issues, project_id, team_value):
+def filter_issues_by_team_and_type(issues, project_id, team_value):
     filtered = []
     for issue in issues:
+        # Only include issues where issueType.name is 'Story' or 'Bug'
+        issue_type_name = (issue.get("issueType") or {}).get("name", "")
+        if issue_type_name not in ("Story", "Bug"):
+            continue
         for item in issue.get("projectItems", {}).get("nodes", []):
             if item["project"]["id"] == project_id:
                 team_field = item.get("fieldValueByName")
@@ -104,7 +107,7 @@ def filter_issues_by_team(issues, project_id, team_value):
 
 def main():
     issues = get_issues()
-    filtered = filter_issues_by_team(issues, PROJECT_ID, TEAM_VALUE)
+    filtered = filter_issues_by_team_and_type(issues, PROJECT_ID, TEAM_VALUE)
     if TEAM_SAFE and FILE_SUFFIX:
         filename = f"{TEAM_SAFE}_monthlyreport_{FILE_SUFFIX}.json"
     else:
