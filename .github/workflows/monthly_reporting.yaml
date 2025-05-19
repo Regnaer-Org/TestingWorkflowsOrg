@@ -1,4 +1,4 @@
-name: monthly_reporting
+name: Monthly Reporting
 
 on:
   workflow_dispatch:
@@ -10,13 +10,11 @@ on:
 
 permissions:
   contents: write
-  actions: read
 
 jobs:
   export-issues:
     name: Export Closed Issues With Team
     runs-on: ubuntu-latest
-    environment: production
 
     steps:
       - name: Checkout repository
@@ -30,12 +28,14 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Set up date and team for filenames
+      - name: Set up date, team, and since variables
         id: vars
         run: |
+          SINCE=$(date -u -d '30 days ago' +'%Y-%m-%dT%H:%M:%SZ')
           FILE_SUFFIX=$(date -u +'%Y.%m.%d')
           TEAM_INPUT="${{ github.event.inputs.team }}"
           TEAM_SAFE=$(echo "$TEAM_INPUT" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g' | sed -E 's/^_+|_+$//g')
+          echo "since=$SINCE" >> "$GITHUB_OUTPUT"
           echo "file_suffix=$FILE_SUFFIX" >> "$GITHUB_OUTPUT"
           echo "team_safe=$TEAM_SAFE" >> "$GITHUB_OUTPUT"
 
@@ -51,8 +51,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.milestone_sync }}
           PROJECT_ID: ${{ secrets.PROJECT_ID }}
-          TEAM_VALUE: ${{ inputs.team }}
-          SINCE: $(date -u -d '30 days ago' +'%Y-%m-%dT%H:%M:%SZ')
+          TEAM_VALUE: ${{ github.event.inputs.team }}
+          SINCE: ${{ steps.vars.outputs.since }}
           OWNER: ${{ steps.repo.outputs.owner }}
           REPO: ${{ steps.repo.outputs.repo }}
           FILE_SUFFIX: ${{ steps.vars.outputs.file_suffix }}
@@ -76,4 +76,3 @@ jobs:
           else
             git commit -m "Add monthly report for ${TEAM_SAFE} on ${FILE_SUFFIX}"
             git push
-          fi
