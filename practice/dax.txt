@@ -1,10 +1,10 @@
-LastSprintAsOfDay =
+LastStatusAsOfDay =
 CALCULATE(
     MAX(issue_changelog[new_value]),
     FILTER(
         issue_changelog,
         issue_changelog[issue_id] = SELECTEDVALUE(MetaRisk_GitHub_Data[issue_id]) &&
-        issue_changelog[field_changed] = "sprint" &&
+        issue_changelog[field_changed] = "status" &&
         issue_changelog[change_date] <= SELECTEDVALUE('Calendar'[Date])
     )
 )
