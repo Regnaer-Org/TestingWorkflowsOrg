@@ -8,69 +8,117 @@ SUMX (
     MetaRisk_GitHub_Data,
     VAR IssueID = MetaRisk_GitHub_Data[content_id]
     VAR Created = MetaRisk_GitHub_Data[content_created_at]
-    // Get values as of the current day, falling back to snapshot if no changelog exists
-    VAR TeamAsOfDay =
-        VAR ChangelogTeam = CALCULATE(
-            MAX(issue_changelog[new_value]),
-            FILTER(
-                issue_changelog,
-                issue_changelog[content_id] = IssueID &&
-                issue_changelog[field] = "team" &&
-                issue_changelog[date] <= CurrentDay
+    
+    // Team as of current day
+    VAR TeamAsOfDay = 
+        VAR LastTeamChange = 
+            CALCULATE(
+                MAX(issue_changelog[date]),
+                FILTER(
+                    issue_changelog,
+                    issue_changelog[content_id] = IssueID &&
+                    issue_changelog[field] = "team" &&
+                    issue_changelog[date] <= CurrentDay
+                )
             )
-        )
-        RETURN IF(
-            ISBLANK(ChangelogTeam),
-            MetaRisk_GitHub_Data[team],
-            ChangelogTeam
-        )
+        RETURN 
+            IF(
+                ISBLANK(LastTeamChange),
+                MetaRisk_GitHub_Data[team],
+                CALCULATE(
+                    MAX(issue_changelog[new_value]),
+                    FILTER(
+                        issue_changelog,
+                        issue_changelog[content_id] = IssueID &&
+                        issue_changelog[field] = "team" &&
+                        issue_changelog[date] = LastTeamChange
+                    )
+                )
+            )
+    
+    // Sprint as of current day
     VAR SprintAsOfDay =
-        VAR ChangelogSprint = CALCULATE(
-            MAX(issue_changelog[new_value]),
-            FILTER(
-                issue_changelog,
-                issue_changelog[content_id] = IssueID &&
-                issue_changelog[field] = "sprint" &&
-                issue_changelog[date] <= CurrentDay
+        VAR LastSprintChange = 
+            CALCULATE(
+                MAX(issue_changelog[date]),
+                FILTER(
+                    issue_changelog,
+                    issue_changelog[content_id] = IssueID &&
+                    issue_changelog[field] = "sprint" &&
+                    issue_changelog[date] <= CurrentDay
+                )
             )
-        )
-        RETURN IF(
-            ISBLANK(ChangelogSprint),
-            MetaRisk_GitHub_Data[sprint],
-            ChangelogSprint
-        )
+        RETURN 
+            IF(
+                ISBLANK(LastSprintChange),
+                MetaRisk_GitHub_Data[sprint],
+                CALCULATE(
+                    MAX(issue_changelog[new_value]),
+                    FILTER(
+                        issue_changelog,
+                        issue_changelog[content_id] = IssueID &&
+                        issue_changelog[field] = "sprint" &&
+                        issue_changelog[date] = LastSprintChange
+                    )
+                )
+            )
+    
+    // Type as of current day
     VAR TypeAsOfDay =
-        VAR ChangelogType = CALCULATE(
-            MAX(issue_changelog[new_value]),
-            FILTER(
-                issue_changelog,
-                issue_changelog[content_id] = IssueID &&
-                issue_changelog[field] = "issue_type_name" &&
-                issue_changelog[date] <= CurrentDay
+        VAR LastTypeChange = 
+            CALCULATE(
+                MAX(issue_changelog[date]),
+                FILTER(
+                    issue_changelog,
+                    issue_changelog[content_id] = IssueID &&
+                    issue_changelog[field] = "issue_type_name" &&
+                    issue_changelog[date] <= CurrentDay
+                )
             )
-        )
-        RETURN IF(
-            ISBLANK(ChangelogType),
-            MetaRisk_GitHub_Data[issue_type_name],
-            ChangelogType
-        )
+        RETURN 
+            IF(
+                ISBLANK(LastTypeChange),
+                MetaRisk_GitHub_Data[issue_type_name],
+                CALCULATE(
+                    MAX(issue_changelog[new_value]),
+                    FILTER(
+                        issue_changelog,
+                        issue_changelog[content_id] = IssueID &&
+                        issue_changelog[field] = "issue_type_name" &&
+                        issue_changelog[date] = LastTypeChange
+                    )
+                )
+            )
+    
+    // Status as of current day
     VAR StatusAsOfDay =
-        VAR ChangelogStatus = CALCULATE(
-            MAX(issue_changelog[new_value]),
-            FILTER(
-                issue_changelog,
-                issue_changelog[content_id] = IssueID &&
-                issue_changelog[field] = "status" &&
-                issue_changelog[date] <= CurrentDay
+        VAR LastStatusChange = 
+            CALCULATE(
+                MAX(issue_changelog[date]),
+                FILTER(
+                    issue_changelog,
+                    issue_changelog[content_id] = IssueID &&
+                    issue_changelog[field] = "status" &&
+                    issue_changelog[date] <= CurrentDay
+                )
             )
-        )
-        RETURN IF(
-            ISBLANK(ChangelogStatus),
-            MetaRisk_GitHub_Data[status],
-            ChangelogStatus
-        )
-    // Only count issue if it is in-scope AND still open
-    RETURN IF(
+        RETURN 
+            IF(
+                ISBLANK(LastStatusChange),
+                MetaRisk_GitHub_Data[status],
+                CALCULATE(
+                    MAX(issue_changelog[new_value]),
+                    FILTER(
+                        issue_changelog,
+                        issue_changelog[content_id] = IssueID &&
+                        issue_changelog[field] = "status" &&
+                        issue_changelog[date] = LastStatusChange
+                    )
+                )
+            )
+
+    RETURN
+    IF(
         Created <= CurrentDay &&
         TeamAsOfDay = SelectedTeam &&
         SprintAsOfDay = SelectedSprint &&
