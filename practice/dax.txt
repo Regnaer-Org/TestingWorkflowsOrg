@@ -2,7 +2,7 @@ Open Issues In Sprint By Day =
 VAR SelectedSprint = SELECTEDVALUE(SprintmetaData[sprint])
 VAR SelectedDate = SELECTEDVALUE('Calendar'[date])
 
--- All issues that have ever been in the sprint
+// Get all issues that have ever been in the sprint
 VAR IssuesEverInSprint =
     DISTINCT (
         UNION (
@@ -27,23 +27,11 @@ COUNTROWS (
         IssuesEverInSprint,
         VAR IssueId = [content_id]
 
-        // Get all events for this issue in date order
-        VAR Changelog =
-            FILTER(
-                issue_changelog,
-                issue_changelog[content_id] = IssueId &&
-                (
-                    (issue_changelog[field] = "sprint" && (issue_changelog[new_value] = SelectedSprint || issue_changelog[old_value] = SelectedSprint))
-                    ||
-                    (issue_changelog[field] = "content_state" && issue_changelog[new_value] = "CLOSED")
-                )
-            )
-
-        // Table of all possible entry dates (assigned or moved in)
+        // Gather all entry dates (assigned, moved in, or created in sprint)
         VAR EnterDates =
-            UNION(
+            UNION (
                 SELECTCOLUMNS(
-                    FILTER(Changelog, issue_changelog[field] = "sprint" && issue_changelog[new_value] = SelectedSprint),
+                    FILTER(issue_changelog, issue_changelog[content_id] = IssueId && issue_changelog[field] = "sprint" && issue_changelog[new_value] = SelectedSprint),
                     "EnterDate", issue_changelog[date]
                 ),
                 SELECTCOLUMNS(
@@ -56,42 +44,48 @@ COUNTROWS (
                 )
             )
 
-        // Table of all possible exit dates (moved out or closed)
+        // Gather all exit dates (moved out or closed)
         VAR ExitDates =
-            UNION(
+            UNION (
                 SELECTCOLUMNS(
-                    FILTER(Changelog, issue_changelog[field] = "sprint" && issue_changelog[old_value] = SelectedSprint && issue_changelog[new_value] <> SelectedSprint),
+                    FILTER(issue_changelog, issue_changelog[content_id] = IssueId && issue_changelog[field] = "sprint" && issue_changelog[old_value] = SelectedSprint && issue_changelog[new_value] <> SelectedSprint),
                     "ExitDate", issue_changelog[date]
                 ),
                 SELECTCOLUMNS(
-                    FILTER(Changelog, issue_changelog[field] = "content_state" && issue_changelog[new_value] = "CLOSED"),
+                    FILTER(issue_changelog, issue_changelog[content_id] = IssueId && issue_changelog[field] = "content_state" && issue_changelog[new_value] = "CLOSED"),
                     "ExitDate", issue_changelog[date]
                 )
             )
 
-        // Build ordered pairs of entry/exit dates (assume alternation: enter, exit, enter, exit...)
-        // For each enter date, find the next exit date after it (or 2099 if missing)
-        VAR IsOpen =
-            MAXX (
-                ADDCOLUMNS (
-                    EnterDates,
-                    "ExitDate",
+        // For each entry date, find the next exit date after it (or 2099-01-01 if none)
+        VAR OpenPeriods =
+            ADDCOLUMNS (
+                EnterDates,
+                "ExitDate",
+                    VAR ThisEnter = [EnterDate]
+                    VAR NextExit =
                         MINX (
                             FILTER (
                                 ExitDates,
-                                ExitDates[ExitDate] > [EnterDate]
+                                ExitDates[ExitDate] > ThisEnter
                             ),
                             ExitDates[ExitDate]
                         )
-                ),
-                IF (
+                    RETURN IF(ISBLANK(NextExit), DATE(2099,1,1), NextExit)
+            )
+
+        // IsSelectedDateInAnyOpenPeriod = TRUE if SelectedDate is between any EnterDate and its paired ExitDate
+        VAR IsOpenOnDate =
+            MAXX (
+                FILTER (
+                    OpenPeriods,
                     [EnterDate] <= SelectedDate &&
-                    SelectedDate < IF ( ISBLANK([ExitDate]), DATE(2099,1,1), [ExitDate] ),
-                    1, 0
-                )
+                    SelectedDate < [ExitDate]
+                ),
+                1
             )
 
         RETURN
-            IsOpen = 1
+            IsOpenOnDate = 1
     )
 )
