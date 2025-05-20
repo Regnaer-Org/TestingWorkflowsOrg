@@ -27,31 +27,37 @@ COUNTROWS (
         VAR IssueId = [content_id]
 
         VAR EnterDates =
-            UNION (
-                SELECTCOLUMNS(
-                    FILTER(issue_changelog, issue_changelog[content_id] = IssueId && issue_changelog[field] = "sprint" && issue_changelog[new_value] = SelectedSprint),
-                    "EnterDate", issue_changelog[date]
+            SELECTCOLUMNS(
+                UNION (
+                    SELECTCOLUMNS(
+                        FILTER(issue_changelog, issue_changelog[content_id] = IssueId && issue_changelog[field] = "sprint" && issue_changelog[new_value] = SelectedSprint),
+                        "EnterDate", issue_changelog[date]
+                    ),
+                    SELECTCOLUMNS(
+                        FILTER(SprintAssignments, SprintAssignments[content_id] = IssueId && SprintAssignments[sprint] = SelectedSprint),
+                        "EnterDate", SprintAssignments[assigned_date]
+                    ),
+                    SELECTCOLUMNS(
+                        FILTER(MetaRisk_GitHub_Data, MetaRisk_GitHub_Data[content_id] = IssueId && MetaRisk_GitHub_Data[sprint] = SelectedSprint),
+                        "EnterDate", MetaRisk_GitHub_Data[created_date]
+                    )
                 ),
-                SELECTCOLUMNS(
-                    FILTER(SprintAssignments, SprintAssignments[content_id] = IssueId && SprintAssignments[sprint] = SelectedSprint),
-                    "EnterDate", SprintAssignments[assigned_date]
-                ),
-                SELECTCOLUMNS(
-                    FILTER(MetaRisk_GitHub_Data, MetaRisk_GitHub_Data[content_id] = IssueId && MetaRisk_GitHub_Data[sprint] = SelectedSprint),
-                    "EnterDate", MetaRisk_GitHub_Data[created_date]
-                )
+                "EnterDate", [EnterDate]
             )
 
         VAR ExitDates =
-            UNION (
-                SELECTCOLUMNS(
-                    FILTER(issue_changelog, issue_changelog[content_id] = IssueId && issue_changelog[field] = "sprint" && issue_changelog[old_value] = SelectedSprint && issue_changelog[new_value] <> SelectedSprint),
-                    "ExitDate", issue_changelog[date]
+            SELECTCOLUMNS(
+                UNION (
+                    SELECTCOLUMNS(
+                        FILTER(issue_changelog, issue_changelog[content_id] = IssueId && issue_changelog[field] = "sprint" && issue_changelog[old_value] = SelectedSprint && issue_changelog[new_value] <> SelectedSprint),
+                        "ExitDate", issue_changelog[date]
+                    ),
+                    SELECTCOLUMNS(
+                        FILTER(issue_changelog, issue_changelog[content_id] = IssueId && issue_changelog[field] = "content_state" && issue_changelog[new_value] = "CLOSED"),
+                        "ExitDate", issue_changelog[date]
+                    )
                 ),
-                SELECTCOLUMNS(
-                    FILTER(issue_changelog, issue_changelog[content_id] = IssueId && issue_changelog[field] = "content_state" && issue_changelog[new_value] = "CLOSED"),
-                    "ExitDate", issue_changelog[date]
-                )
+                "ExitDate", [ExitDate]
             )
 
         VAR OpenPeriods =
@@ -60,14 +66,14 @@ COUNTROWS (
                 "ExitDate",
                     VAR ThisEnter = [EnterDate]
                     VAR NextExit =
-                        MINX (
+                        CALCULATE (
+                            MIN ( 'ExitDates'[ExitDate] ),
                             FILTER (
                                 ExitDates,
                                 'ExitDates'[ExitDate] > ThisEnter
-                            ),
-                            'ExitDates'[ExitDate]
+                            )
                         )
-                    RETURN IF(ISBLANK(NextExit), DATE(2099,1,1), NextExit)
+                    RETURN IF ( ISBLANK ( NextExit ), DATE(2099,1,1), NextExit )
             )
 
         VAR IsOpenOnDate =
