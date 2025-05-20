@@ -2,20 +2,27 @@ Open Issues In Sprint By Day =
 VAR SelectedSprint = SELECTEDVALUE(SprintmetaData[sprint])
 VAR SelectedDate = SELECTEDVALUE('Calendar'[date])
 
+-- Find all issues ever in the sprint
 VAR IssuesEverInSprint =
     DISTINCT (
         UNION (
             SELECTCOLUMNS(
                 FILTER(MetaRisk_GitHub_Data, MetaRisk_GitHub_Data[sprint] = SelectedSprint),
-                "content_id", MetaRisk_GitHub_Data[content_id]
+                "content_id", MetaRisk_GitHub_Data[content_id],
+                "EnterDate", MetaRisk_GitHub_Data[created_date],
+                "ClosedDate", MetaRisk_GitHub_Data[content_closed_at]
             ),
             SELECTCOLUMNS(
                 FILTER(SprintAssignments, SprintAssignments[sprint] = SelectedSprint),
-                "content_id", SprintAssignments[content_id]
+                "content_id", SprintAssignments[content_id],
+                "EnterDate", SprintAssignments[assigned_date],
+                "ClosedDate", LOOKUPVALUE(MetaRisk_GitHub_Data[content_closed_at], MetaRisk_GitHub_Data[content_id], SprintAssignments[content_id])
             ),
             SELECTCOLUMNS(
                 FILTER(issue_changelog, issue_changelog[field] = "sprint" && issue_changelog[new_value] = SelectedSprint),
-                "content_id", issue_changelog[content_id]
+                "content_id", issue_changelog[content_id],
+                "EnterDate", issue_changelog[date],
+                "ClosedDate", LOOKUPVALUE(MetaRisk_GitHub_Data[content_closed_at], MetaRisk_GitHub_Data[content_id], issue_changelog[content_id])
             )
         )
     )
@@ -24,64 +31,10 @@ RETURN
 COUNTROWS (
     FILTER (
         IssuesEverInSprint,
-        VAR IssueId = [content_id]
-
-        VAR EnterDates =
-            SELECTCOLUMNS(
-                UNION (
-                    SELECTCOLUMNS(
-                        FILTER(issue_changelog, issue_changelog[content_id] = IssueId && issue_changelog[field] = "sprint" && issue_changelog[new_value] = SelectedSprint),
-                        "EnterDate", issue_changelog[date]
-                    ),
-                    SELECTCOLUMNS(
-                        FILTER(SprintAssignments, SprintAssignments[content_id] = IssueId && SprintAssignments[sprint] = SelectedSprint),
-                        "EnterDate", SprintAssignments[assigned_date]
-                    ),
-                    SELECTCOLUMNS(
-                        FILTER(MetaRisk_GitHub_Data, MetaRisk_GitHub_Data[content_id] = IssueId && MetaRisk_GitHub_Data[sprint] = SelectedSprint),
-                        "EnterDate", MetaRisk_GitHub_Data[created_date]
-                    )
-                ),
-                "EnterDate", [EnterDate]
-            )
-
-        VAR ExitDates =
-            SELECTCOLUMNS(
-                UNION (
-                    SELECTCOLUMNS(
-                        FILTER(issue_changelog, issue_changelog[content_id] = IssueId && issue_changelog[field] = "sprint" && issue_changelog[old_value] = SelectedSprint && issue_changelog[new_value] <> SelectedSprint),
-                        "ExitDate", issue_changelog[date]
-                    ),
-                    SELECTCOLUMNS(
-                        FILTER(issue_changelog, issue_changelog[content_id] = IssueId && issue_changelog[field] = "content_state" && issue_changelog[new_value] = "CLOSED"),
-                        "ExitDate", issue_changelog[date]
-                    )
-                ),
-                "ExitDate", [ExitDate]
-            )
-
-        VAR IsOpenOnDate =
-            MAXX (
-                EnterDates,
-                VAR ThisEnterDate = [EnterDate]
-                VAR MatchedExit =
-                    MINX(
-                        FILTER(
-                            ExitDates,
-                            [ExitDate] > ThisEnterDate
-                        ),
-                        [ExitDate]
-                    )
-                VAR ThisExitDate = IF(ISBLANK(MatchedExit), DATE(2099,1,1), MatchedExit)
-                RETURN
-                    IF(
-                        ThisEnterDate <= SelectedDate && SelectedDate < ThisExitDate,
-                        1,
-                        0
-                    )
-            )
-
-        RETURN
-            IsOpenOnDate = 1
+        [EnterDate] <= SelectedDate &&
+        (
+            ISBLANK([ClosedDate]) ||
+            [ClosedDate] > SelectedDate
+        )
     )
 )
