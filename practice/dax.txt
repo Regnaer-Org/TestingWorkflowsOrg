@@ -1,15 +1,12 @@
-Sprint Completion (Count) =
+Sprint Commitment (Count) =
 VAR SelectedSprint = SELECTEDVALUE(SprintmetaData[sprint])
 VAR SprintStart = CALCULATE(MIN(SprintmetaData[start_date]), SprintmetaData[sprint] = SelectedSprint)
-VAR SprintEnd = CALCULATE(MAX(SprintmetaData[end_date]), SprintmetaData[sprint] = SelectedSprint)
 RETURN
 CALCULATE(
     COUNTROWS(MetaRisk_GitHub_Data),
     FILTER(
         MetaRisk_GitHub_Data,
         MetaRisk_GitHub_Data[sprint] = SelectedSprint &&
-        MetaRisk_GitHub_Data[created_date] <= SprintStart &&
-        NOT ISBLANK(MetaRisk_GitHub_Data[content_closed_at]) &&
-        MetaRisk_GitHub_Data[content_closed_at] <= SprintEnd
+        MetaRisk_GitHub_Data[created_date] <= SprintStart
     )
 )
