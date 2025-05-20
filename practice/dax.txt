@@ -1,27 +1,23 @@
-Open Issues In Sprint By Day =
+Closed Issues In Sprint By Day =
 VAR SelectedSprint = SELECTEDVALUE(SprintmetaData[sprint])
 VAR SelectedDate = SELECTEDVALUE('Calendar'[date])
 
--- Find all issues ever in the sprint
 VAR IssuesEverInSprint =
     DISTINCT (
         UNION (
             SELECTCOLUMNS(
                 FILTER(MetaRisk_GitHub_Data, MetaRisk_GitHub_Data[sprint] = SelectedSprint),
                 "content_id", MetaRisk_GitHub_Data[content_id],
-                "EnterDate", MetaRisk_GitHub_Data[created_date],
                 "ClosedDate", MetaRisk_GitHub_Data[content_closed_at]
             ),
             SELECTCOLUMNS(
                 FILTER(SprintAssignments, SprintAssignments[sprint] = SelectedSprint),
                 "content_id", SprintAssignments[content_id],
-                "EnterDate", SprintAssignments[assigned_date],
                 "ClosedDate", LOOKUPVALUE(MetaRisk_GitHub_Data[content_closed_at], MetaRisk_GitHub_Data[content_id], SprintAssignments[content_id])
             ),
             SELECTCOLUMNS(
                 FILTER(issue_changelog, issue_changelog[field] = "sprint" && issue_changelog[new_value] = SelectedSprint),
                 "content_id", issue_changelog[content_id],
-                "EnterDate", issue_changelog[date],
                 "ClosedDate", LOOKUPVALUE(MetaRisk_GitHub_Data[content_closed_at], MetaRisk_GitHub_Data[content_id], issue_changelog[content_id])
             )
         )
@@ -31,10 +27,7 @@ RETURN
 COUNTROWS (
     FILTER (
         IssuesEverInSprint,
-        [EnterDate] <= SelectedDate &&
-        (
-            ISBLANK([ClosedDate]) ||
-            [ClosedDate] > SelectedDate
-        )
+        NOT(ISBLANK([ClosedDate])) &&
+        [ClosedDate] <= SelectedDate
     )
 )
