@@ -1,10 +1,29 @@
-LastStatusAsOfDay =
+IssuesInScopeAsOfDay =
+VAR SelectedTeam = SELECTEDVALUE(Teams[Team])
+VAR SelectedSprint = SELECTEDVALUE(SprintmetaData[sprint])
+VAR CurrentDay = SELECTEDVALUE('Calendar'[Date])
+RETURN
 CALCULATE(
-    MAX(issue_changelog[new_value]),
+    COUNTROWS(MetaRisk_GitHub_Data),
     FILTER(
-        issue_changelog,
-        issue_changelog[issue_id] = SELECTEDVALUE(MetaRisk_GitHub_Data[issue_id]) &&
-        issue_changelog[field_changed] = "status" &&
-        issue_changelog[change_date] <= SELECTEDVALUE('Calendar'[Date])
+        MetaRisk_GitHub_Data,
+        CALCULATE(
+            MAX(issue_changelog[new_value]),
+            FILTER(
+                issue_changelog,
+                issue_changelog[issue_id] = MetaRisk_GitHub_Data[issue_id] &&
+                issue_changelog[field_changed] = "team" &&
+                issue_changelog[change_date] <= CurrentDay
+            )
+        ) = SelectedTeam &&
+        CALCULATE(
+            MAX(issue_changelog[new_value]),
+            FILTER(
+                issue_changelog,
+                issue_changelog[issue_id] = MetaRisk_GitHub_Data[issue_id] &&
+                issue_changelog[field_changed] = "sprint" &&
+                issue_changelog[change_date] <= CurrentDay
+            )
+        ) = SelectedSprint
     )
 )
