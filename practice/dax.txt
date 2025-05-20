@@ -1,43 +1,82 @@
-IssuesInScopeAsOfDay = 
+IssuesInScopeAsOfDay =
 VAR CurrentDay = SELECTEDVALUE('Calendar'[Date])
 VAR SelectedTeam = SELECTEDVALUE(Teams[Team])
 VAR SelectedSprint = SELECTEDVALUE(SprintmetaData[sprint])
 VAR SelectedType = SELECTEDVALUE(IssueTypes[issue_type_name])
 RETURN
-CALCULATE(
-    COUNTROWS(MetaRisk_GitHub_Data),
-    FILTER(
-        MetaRisk_GitHub_Data,
-            MetaRisk_GitHub_Data[created_at] <= CurrentDay &&
-            // Team as of current day matches filter
-            CALCULATE(
-                MAX(issue_changelog[new_value]),
-                FILTER(
-                    issue_changelog,
-                    issue_changelog[content_id] = MetaRisk_GitHub_Data[issue_id] &&
-                    issue_changelog[field] = "team" &&
-                    issue_changelog[date] <= CurrentDay
-                )
-            ) = SelectedTeam &&
-            // Sprint as of current day matches filter
-            CALCULATE(
-                MAX(issue_changelog[new_value]),
-                FILTER(
-                    issue_changelog,
-                    issue_changelog[content_id] = MetaRisk_GitHub_Data[issue_id] &&
-                    issue_changelog[field] = "sprint" &&
-                    issue_changelog[date] <= CurrentDay
-                )
-            ) = SelectedSprint &&
-            // Issue type as of current day matches filter
-            CALCULATE(
-                MAX(issue_changelog[new_value]),
-                FILTER(
-                    issue_changelog,
-                    issue_changelog[content_id] = MetaRisk_GitHub_Data[issue_id] &&
-                    issue_changelog[field] = "issue_type_name" &&
-                    issue_changelog[date] <= CurrentDay
-                )
-            ) = SelectedType
+SUMX (
+    MetaRisk_GitHub_Data,
+    VAR IssueID = MetaRisk_GitHub_Data[content_id]
+    VAR Created = MetaRisk_GitHub_Data[content_created_at]
+    // Get values as of the current day, falling back to snapshot if no changelog exists
+    VAR TeamAsOfDay =
+        VAR ChangelogTeam = CALCULATE(
+            MAX(issue_changelog[new_value]),
+            FILTER(
+                issue_changelog,
+                issue_changelog[content_id] = IssueID &&
+                issue_changelog[field] = "team" &&
+                issue_changelog[date] <= CurrentDay
+            )
+        )
+        RETURN IF(
+            ISBLANK(ChangelogTeam),
+            MetaRisk_GitHub_Data[team],
+            ChangelogTeam
+        )
+    VAR SprintAsOfDay =
+        VAR ChangelogSprint = CALCULATE(
+            MAX(issue_changelog[new_value]),
+            FILTER(
+                issue_changelog,
+                issue_changelog[content_id] = IssueID &&
+                issue_changelog[field] = "sprint" &&
+                issue_changelog[date] <= CurrentDay
+            )
+        )
+        RETURN IF(
+            ISBLANK(ChangelogSprint),
+            MetaRisk_GitHub_Data[sprint],
+            ChangelogSprint
+        )
+    VAR TypeAsOfDay =
+        VAR ChangelogType = CALCULATE(
+            MAX(issue_changelog[new_value]),
+            FILTER(
+                issue_changelog,
+                issue_changelog[content_id] = IssueID &&
+                issue_changelog[field] = "issue_type_name" &&
+                issue_changelog[date] <= CurrentDay
+            )
+        )
+        RETURN IF(
+            ISBLANK(ChangelogType),
+            MetaRisk_GitHub_Data[issue_type_name],
+            ChangelogType
+        )
+    VAR StatusAsOfDay =
+        VAR ChangelogStatus = CALCULATE(
+            MAX(issue_changelog[new_value]),
+            FILTER(
+                issue_changelog,
+                issue_changelog[content_id] = IssueID &&
+                issue_changelog[field] = "status" &&
+                issue_changelog[date] <= CurrentDay
+            )
+        )
+        RETURN IF(
+            ISBLANK(ChangelogStatus),
+            MetaRisk_GitHub_Data[status],
+            ChangelogStatus
+        )
+    // Only count issue if it is in-scope AND still open
+    RETURN IF(
+        Created <= CurrentDay &&
+        TeamAsOfDay = SelectedTeam &&
+        SprintAsOfDay = SelectedSprint &&
+        TypeAsOfDay = SelectedType &&
+        StatusAsOfDay <> "Closed",
+        1,
+        0
     )
 )
