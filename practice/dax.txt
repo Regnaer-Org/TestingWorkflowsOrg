@@ -1,38 +1,54 @@
-ClosedIssuesAsOfDay =
+IssuesInScopeAsOfDay =
+VAR CurrentDay = SELECTEDVALUE('Calendar'[Date])
 VAR SelectedTeam = SELECTEDVALUE(Teams[Team])
 VAR SelectedSprint = SELECTEDVALUE(SprintmetaData[sprint])
-VAR CurrentDay = SELECTEDVALUE('Calendar'[Date])
+VAR SelectedType = SELECTEDVALUE(IssueTypes[issue_type_name])
 RETURN
 CALCULATE(
     COUNTROWS(MetaRisk_GitHub_Data),
     FILTER(
         MetaRisk_GitHub_Data,
-        CALCULATE(
-            MAX(issue_changelog[new_value]),
-            FILTER(
-                issue_changelog,
-                issue_changelog[issue_id] = MetaRisk_GitHub_Data[issue_id] &&
-                issue_changelog[field_changed] = "team" &&
-                issue_changelog[change_date] <= CurrentDay
-            )
-        ) = SelectedTeam &&
-        CALCULATE(
-            MAX(issue_changelog[new_value]),
-            FILTER(
-                issue_changelog,
-                issue_changelog[issue_id] = MetaRisk_GitHub_Data[issue_id] &&
-                issue_changelog[field_changed] = "sprint" &&
-                issue_changelog[change_date] <= CurrentDay
-            )
-        ) = SelectedSprint &&
-        CALCULATE(
-            MAX(issue_changelog[new_value]),
-            FILTER(
-                issue_changelog,
-                issue_changelog[issue_id] = MetaRisk_GitHub_Data[issue_id] &&
-                issue_changelog[field_changed] = "status" &&
-                issue_changelog[change_date] <= CurrentDay
-            )
-        ) = "Closed"
+            // Created on or before the current day
+            MetaRisk_GitHub_Data[created_at] <= CurrentDay &&
+            // Team as of current day matches filter
+            CALCULATE(
+                MAX(issue_changelog[new_value]),
+                FILTER(
+                    issue_changelog,
+                    issue_changelog[content_id] = MetaRisk_GitHub_Data[issue_id] &&
+                    issue_changelog[field] = "team" &&
+                    issue_changelog[date] <= CurrentDay
+                )
+            ) = SelectedTeam &&
+            // Sprint as of current day matches filter
+            CALCULATE(
+                MAX(issue_changelog[new_value]),
+                FILTER(
+                    issue_changelog,
+                    issue_changelog[content_id] = MetaRisk_GitHub_Data[issue_id] &&
+                    issue_changelog[field] = "sprint" &&
+                    issue_changelog[date] <= CurrentDay
+                )
+            ) = SelectedSprint &&
+            // Issue type as of current day matches filter
+            CALCULATE(
+                MAX(issue_changelog[new_value]),
+                FILTER(
+                    issue_changelog,
+                    issue_changelog[content_id] = MetaRisk_GitHub_Data[issue_id] &&
+                    issue_changelog[field] = "issue_type_name" &&
+                    issue_changelog[date] <= CurrentDay
+                )
+            ) = SelectedType &&
+            // Status as of current day is not Closed
+            CALCULATE(
+                MAX(issue_changelog[new_value]),
+                FILTER(
+                    issue_changelog,
+                    issue_changelog[content_id] = MetaRisk_GitHub_Data[issue_id] &&
+                    issue_changelog[field] = "status" &&
+                    issue_changelog[date] <= CurrentDay
+                )
+            ) <> "Closed"
     )
 )
