@@ -8,114 +8,106 @@ SUMX (
     MetaRisk_GitHub_Data,
     VAR IssueID = MetaRisk_GitHub_Data[content_id]
     VAR Created = MetaRisk_GitHub_Data[content_created_at]
-    
-    // Team as of current day
-    VAR TeamAsOfDay = 
-        VAR LastTeamChange = 
-            CALCULATE(
-                MAX(issue_changelog[date]),
-                FILTER(
-                    issue_changelog,
-                    issue_changelog[content_id] = IssueID &&
-                    issue_changelog[field] = "team" &&
-                    issue_changelog[date] <= CurrentDay
-                )
+
+    // Team
+    VAR LastTeamChange =
+        CALCULATE(
+            MAX(issue_changelog[date]),
+            FILTER(
+                issue_changelog,
+                issue_changelog[content_id] = IssueID &&
+                issue_changelog[field] = "team" &&
+                issue_changelog[date] <= CurrentDay
             )
-        RETURN 
-            IF(
-                ISBLANK(LastTeamChange),
-                MetaRisk_GitHub_Data[team],
-                CALCULATE(
-                    MAX(issue_changelog[new_value]),
-                    FILTER(
-                        issue_changelog,
-                        issue_changelog[content_id] = IssueID &&
-                        issue_changelog[field] = "team" &&
-                        issue_changelog[date] = LastTeamChange
-                    )
-                )
+        )
+    VAR TeamAsOfDay = IF(
+        ISBLANK(LastTeamChange),
+        MetaRisk_GitHub_Data[team],
+        CALCULATE(
+            MAX(issue_changelog[new_value]),
+            FILTER(
+                issue_changelog,
+                issue_changelog[content_id] = IssueID &&
+                issue_changelog[field] = "team" &&
+                issue_changelog[date] = LastTeamChange
             )
-    
-    // Sprint as of current day
-    VAR SprintAsOfDay =
-        VAR LastSprintChange = 
-            CALCULATE(
-                MAX(issue_changelog[date]),
-                FILTER(
-                    issue_changelog,
-                    issue_changelog[content_id] = IssueID &&
-                    issue_changelog[field] = "sprint" &&
-                    issue_changelog[date] <= CurrentDay
-                )
+        )
+    )
+
+    // Sprint
+    VAR LastSprintChange =
+        CALCULATE(
+            MAX(issue_changelog[date]),
+            FILTER(
+                issue_changelog,
+                issue_changelog[content_id] = IssueID &&
+                issue_changelog[field] = "sprint" &&
+                issue_changelog[date] <= CurrentDay
             )
-        RETURN 
-            IF(
-                ISBLANK(LastSprintChange),
-                MetaRisk_GitHub_Data[sprint],
-                CALCULATE(
-                    MAX(issue_changelog[new_value]),
-                    FILTER(
-                        issue_changelog,
-                        issue_changelog[content_id] = IssueID &&
-                        issue_changelog[field] = "sprint" &&
-                        issue_changelog[date] = LastSprintChange
-                    )
-                )
+        )
+    VAR SprintAsOfDay = IF(
+        ISBLANK(LastSprintChange),
+        MetaRisk_GitHub_Data[sprint],
+        CALCULATE(
+            MAX(issue_changelog[new_value]),
+            FILTER(
+                issue_changelog,
+                issue_changelog[content_id] = IssueID &&
+                issue_changelog[field] = "sprint" &&
+                issue_changelog[date] = LastSprintChange
             )
-    
-    // Type as of current day
-    VAR TypeAsOfDay =
-        VAR LastTypeChange = 
-            CALCULATE(
-                MAX(issue_changelog[date]),
-                FILTER(
-                    issue_changelog,
-                    issue_changelog[content_id] = IssueID &&
-                    issue_changelog[field] = "issue_type_name" &&
-                    issue_changelog[date] <= CurrentDay
-                )
+        )
+    )
+
+    // Issue Type
+    VAR LastTypeChange =
+        CALCULATE(
+            MAX(issue_changelog[date]),
+            FILTER(
+                issue_changelog,
+                issue_changelog[content_id] = IssueID &&
+                issue_changelog[field] = "issue_type_name" &&
+                issue_changelog[date] <= CurrentDay
             )
-        RETURN 
-            IF(
-                ISBLANK(LastTypeChange),
-                MetaRisk_GitHub_Data[issue_type_name],
-                CALCULATE(
-                    MAX(issue_changelog[new_value]),
-                    FILTER(
-                        issue_changelog,
-                        issue_changelog[content_id] = IssueID &&
-                        issue_changelog[field] = "issue_type_name" &&
-                        issue_changelog[date] = LastTypeChange
-                    )
-                )
+        )
+    VAR TypeAsOfDay = IF(
+        ISBLANK(LastTypeChange),
+        MetaRisk_GitHub_Data[issue_type_name],
+        CALCULATE(
+            MAX(issue_changelog[new_value]),
+            FILTER(
+                issue_changelog,
+                issue_changelog[content_id] = IssueID &&
+                issue_changelog[field] = "issue_type_name" &&
+                issue_changelog[date] = LastTypeChange
             )
-    
-    // Status as of current day
-    VAR StatusAsOfDay =
-        VAR LastStatusChange = 
-            CALCULATE(
-                MAX(issue_changelog[date]),
-                FILTER(
-                    issue_changelog,
-                    issue_changelog[content_id] = IssueID &&
-                    issue_changelog[field] = "status" &&
-                    issue_changelog[date] <= CurrentDay
-                )
+        )
+    )
+
+    // Status
+    VAR LastStatusChange =
+        CALCULATE(
+            MAX(issue_changelog[date]),
+            FILTER(
+                issue_changelog,
+                issue_changelog[content_id] = IssueID &&
+                issue_changelog[field] = "status" &&
+                issue_changelog[date] <= CurrentDay
             )
-        RETURN 
-            IF(
-                ISBLANK(LastStatusChange),
-                MetaRisk_GitHub_Data[status],
-                CALCULATE(
-                    MAX(issue_changelog[new_value]),
-                    FILTER(
-                        issue_changelog,
-                        issue_changelog[content_id] = IssueID &&
-                        issue_changelog[field] = "status" &&
-                        issue_changelog[date] = LastStatusChange
-                    )
-                )
+        )
+    VAR StatusAsOfDay = IF(
+        ISBLANK(LastStatusChange),
+        MetaRisk_GitHub_Data[status],
+        CALCULATE(
+            MAX(issue_changelog[new_value]),
+            FILTER(
+                issue_changelog,
+                issue_changelog[content_id] = IssueID &&
+                issue_changelog[field] = "status" &&
+                issue_changelog[date] = LastStatusChange
             )
+        )
+    )
 
     RETURN
     IF(
