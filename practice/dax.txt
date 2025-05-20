@@ -1,0 +1,102 @@
+
+Open Issues In Sprint By Day =
+VAR SelectedSprint = SELECTEDVALUE(SprintmetaData[sprint])
+VAR SelectedDate = SELECTEDVALUE('Calendar'[date])
+
+-- All issues that have ever been in the sprint (from assignments, changelog, or created in the sprint)
+VAR IssuesEverInSprint =
+    DISTINCT (
+        UNION (
+            SELECTCOLUMNS(
+                FILTER(MetaRisk_GitHub_Data, MetaRisk_GitHub_Data[sprint] = SelectedSprint),
+                "content_id", MetaRisk_GitHub_Data[content_id]
+            ),
+            SELECTCOLUMNS(
+                FILTER(SprintAssignments, SprintAssignments[sprint] = SelectedSprint),
+                "content_id", SprintAssignments[content_id]
+            ),
+            SELECTCOLUMNS(
+                FILTER(issue_changelog, issue_changelog[field] = "sprint" && issue_changelog[new_value] = SelectedSprint),
+                "content_id", issue_changelog[content_id]
+            )
+        )
+    )
+
+RETURN
+COUNTROWS (
+    FILTER (
+        IssuesEverInSprint,
+        VAR IssueId = [content_id]
+        // Find the earliest date the issue entered the sprint (via assignment, changelog, or created in the sprint)
+        VAR AssignmentDate =
+            CALCULATE(
+                MIN(SprintAssignments[assigned_date]),
+                SprintAssignments[content_id] = IssueId,
+                SprintAssignments[sprint] = SelectedSprint,
+                SprintAssignments[assigned_date] <= SelectedDate
+            )
+        VAR SprintChangelogDate =
+            CALCULATE(
+                MIN(issue_changelog[date]),
+                issue_changelog[content_id] = IssueId,
+                issue_changelog[field] = "sprint",
+                issue_changelog[new_value] = SelectedSprint,
+                issue_changelog[date] <= SelectedDate
+            )
+        VAR CreatedDate =
+            CALCULATE(
+                MIN(MetaRisk_GitHub_Data[created_date]),
+                MetaRisk_GitHub_Data[content_id] = IssueId,
+                MetaRisk_GitHub_Data[sprint] = SelectedSprint,
+                MetaRisk_GitHub_Data[created_date] <= SelectedDate
+            )
+        VAR EntryDate =
+            MINX(
+                FILTER(
+                    {
+                        (AssignmentDate),
+                        (SprintChangelogDate),
+                        (CreatedDate)
+                    },
+                    NOT(ISBLANK([Value]))
+                ),
+                [Value]
+            )
+
+        // Find the soonest date after EntryDate that issue left the sprint (moved out or closed)
+        VAR ExitDate_Sprint =
+            CALCULATE(
+                MIN(issue_changelog[date]),
+                issue_changelog[content_id] = IssueId,
+                issue_changelog[field] = "sprint",
+                issue_changelog[old_value] = SelectedSprint,
+                issue_changelog[new_value] <> SelectedSprint,
+                issue_changelog[date] > EntryDate
+            )
+        VAR ExitDate_Closed =
+            CALCULATE(
+                MIN(issue_changelog[date]),
+                issue_changelog[content_id] = IssueId,
+                issue_changelog[field] = "content_state",
+                issue_changelog[new_value] = "CLOSED",
+                issue_changelog[date] > EntryDate
+            )
+        VAR ExitDate =
+            MINX(
+                FILTER(
+                    {
+                        (ExitDate_Sprint),
+                        (ExitDate_Closed)
+                    },
+                    NOT(ISBLANK([Value]))
+                ),
+                [Value]
+            )
+        VAR FinalExitDate = IF(ISBLANK(ExitDate), DATE(2099,1,1), ExitDate)
+
+        RETURN
+            NOT(ISBLANK(EntryDate)) &&
+            EntryDate <= SelectedDate &&
+            SelectedDate < FinalExitDate
+    )
+)
