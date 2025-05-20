@@ -2,7 +2,6 @@ Open Issues In Sprint By Day =
 VAR SelectedSprint = SELECTEDVALUE(SprintmetaData[sprint])
 VAR SelectedDate = SELECTEDVALUE('Calendar'[date])
 
-// Get all issues that have ever been in the sprint
 VAR IssuesEverInSprint =
     DISTINCT (
         UNION (
@@ -27,7 +26,6 @@ COUNTROWS (
         IssuesEverInSprint,
         VAR IssueId = [content_id]
 
-        // Gather all entry dates (assigned, moved in, or created in sprint)
         VAR EnterDates =
             UNION (
                 SELECTCOLUMNS(
@@ -44,7 +42,6 @@ COUNTROWS (
                 )
             )
 
-        // Gather all exit dates (moved out or closed)
         VAR ExitDates =
             UNION (
                 SELECTCOLUMNS(
@@ -57,7 +54,6 @@ COUNTROWS (
                 )
             )
 
-        // For each entry date, find the next exit date after it (or 2099-01-01 if none)
         VAR OpenPeriods =
             ADDCOLUMNS (
                 EnterDates,
@@ -67,14 +63,13 @@ COUNTROWS (
                         MINX (
                             FILTER (
                                 ExitDates,
-                                ExitDates[ExitDate] > ThisEnter
+                                'ExitDates'[ExitDate] > ThisEnter
                             ),
-                            ExitDates[ExitDate]
+                            'ExitDates'[ExitDate]
                         )
                     RETURN IF(ISBLANK(NextExit), DATE(2099,1,1), NextExit)
             )
 
-        // IsSelectedDateInAnyOpenPeriod = TRUE if SelectedDate is between any EnterDate and its paired ExitDate
         VAR IsOpenOnDate =
             MAXX (
                 FILTER (
