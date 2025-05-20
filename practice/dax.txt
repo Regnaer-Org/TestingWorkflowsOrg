@@ -1,33 +1,15 @@
-Removed from Sprint =
+Sprint Completion (All In Sprint) =
 VAR SelectedSprint = SELECTEDVALUE(SprintmetaData[sprint])
 VAR SprintStart = CALCULATE(MIN(SprintmetaData[startdate]), SprintmetaData[sprint] = SelectedSprint)
-VAR RemovedTable =
-    FILTER (
-        issue_changelog,
-        issue_changelog[field] = "sprint" &&
-        issue_changelog[old_value] = SelectedSprint &&
-        issue_changelog[new_value] <> SelectedSprint &&
-        issue_changelog[date] > SprintStart
-    )
+VAR SprintEnd = CALCULATE(MAX(SprintmetaData[enddate]), SprintmetaData[sprint] = SelectedSprint)
 RETURN
-CALCULATE (
-    DISTINCTCOUNT(issue_changelog[content_id]),
-    FILTER (
-        RemovedTable,
-        issue_changelog[date] =
-            CALCULATE (
-                MAX(issue_changelog[date]),
-                FILTER (
-                    issue_changelog,
-                    issue_changelog[content_id] = EARLIER(issue_changelog[content_id]) &&
-                    issue_changelog[field] = "sprint" &&
-                    (
-                        issue_changelog[new_value] = SelectedSprint ||
-                        issue_changelog[old_value] = SelectedSprint
-                    ) &&
-                    issue_changelog[date] > SprintStart
-                )
-            ) &&
-        issue_changelog[old_value] = SelectedSprint
+CALCULATE(
+    COUNTROWS(MetaRisk_GitHub_Data),
+    FILTER(
+        MetaRisk_GitHub_Data,
+        MetaRisk_GitHub_Data[sprint] = SelectedSprint &&
+        NOT ISBLANK(MetaRisk_GitHub_Data[content_closed_at]) &&
+        MetaRisk_GitHub_Data[content_closed_at] >= SprintStart &&
+        MetaRisk_GitHub_Data[content_closed_at] <= SprintEnd
     )
 )
