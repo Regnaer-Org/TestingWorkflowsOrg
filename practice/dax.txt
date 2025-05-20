@@ -1,4 +1,4 @@
-Added to Sprint =
+Removed from Sprint =
 VAR SelectedSprint = SELECTEDVALUE(SprintmetaData[sprint])
 VAR SprintStart = CALCULATE(MIN(SprintmetaData[start_date]), SprintmetaData[sprint] = SelectedSprint)
 RETURN
@@ -6,7 +6,7 @@ CALCULATE(
     COUNTROWS(MetaRisk_GitHub_Data),
     FILTER(
         MetaRisk_GitHub_Data,
-        MetaRisk_GitHub_Data[sprint] = SelectedSprint &&
-        MetaRisk_GitHub_Data[created_date] > SprintStart
+        MetaRisk_GitHub_Data[created_date] <= SprintStart &&
+        MetaRisk_GitHub_Data[sprint] <> SelectedSprint
     )
 )
