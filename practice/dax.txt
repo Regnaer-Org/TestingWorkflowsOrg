@@ -1,13 +1,10 @@
-Closed Issues in Sprint by Day =
-VAR SelectedSprint = SELECTEDVALUE(SprintmetaData[sprint])
-VAR CurrentDay = SELECTEDVALUE('Calendar'[Date]) // Assuming you use a Calendar table for your axis
+LastTeamAsOfDay =
+VAR CurrentIssue = MetaRisk_GitHub_Data[issue_id]
+VAR CurrentDay = SELECTEDVALUE('Calendar'[Date])
 RETURN
 CALCULATE(
-    COUNTROWS(MetaRisk_GitHub_Data),
-    FILTER(
-        MetaRisk_GitHub_Data,
-        MetaRisk_GitHub_Data[sprint] = SelectedSprint &&
-        NOT(ISBLANK(MetaRisk_GitHub_Data[content_closed_at])) &&
-        MetaRisk_GitHub_Data[content_closed_at] <= CurrentDay
-    )
+    LASTNONBLANK(issue_changelog[change_date], 1),
+    issue_changelog[issue_id] = CurrentIssue,
+    issue_changelog[field_changed] = "team",
+    issue_changelog[change_date] <= CurrentDay
 )
