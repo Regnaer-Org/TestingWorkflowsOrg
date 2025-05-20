@@ -1,116 +1,19 @@
-ClosedIssuesInScopeAsOfDay =
-VAR CurrentDay = SELECTEDVALUE('Calendar'[Date])
-VAR SelectedTeam = SELECTEDVALUE(Teams[Team])
-VAR SelectedSprint = SELECTEDVALUE(SprintmetaData[sprint])
-VAR SelectedType = SELECTEDVALUE(IssueTypes[issue_type_name])
+AverageVelocity3Sprints =
+VAR CurrentSprint = MAX(MetaRisk_GitHub_Data[sprint_name])
+VAR Last3Sprints =
+    CALCULATETABLE (
+        VALUES(MetaRisk_GitHub_Data[sprint_name]),
+        MetaRisk_GitHub_Data[sprint_name] <= CurrentSprint
+    )
+VAR Last3Sorted =
+    TOPN(3, Last3Sprints, MetaRisk_GitHub_Data[sprint_name], DESC)
+VAR IssuesClosedLast3 =
+    CALCULATE (
+        COUNTROWS(MetaRisk_GitHub_Data),
+        MetaRisk_GitHub_Data[status] IN {"Done", "Closed"},
+        MetaRisk_GitHub_Data[sprint_name] IN Last3Sorted
+    )
+VAR NumSprints =
+    COUNTROWS(Last3Sorted)
 RETURN
-SUMX (
-    MetaRisk_GitHub_Data,
-    VAR IssueID = MetaRisk_GitHub_Data[content_id]
-    VAR Created = MetaRisk_GitHub_Data[content_created_at]
-
-    // Team
-    VAR LastTeamChange =
-        CALCULATE(
-            MAX(issue_changelog[date]),
-            FILTER(
-                issue_changelog,
-                issue_changelog[content_id] = IssueID
-                    && issue_changelog[field] = "team"
-                    && issue_changelog[date] <= CurrentDay
-            )
-        )
-    VAR TeamAsOfDay = IF(
-        ISBLANK(LastTeamChange),
-        MetaRisk_GitHub_Data[team],
-        CALCULATE(
-            MAX(issue_changelog[new_value]),
-            FILTER(
-                issue_changelog,
-                issue_changelog[content_id] = IssueID
-                    && issue_changelog[field] = "team"
-                    && issue_changelog[date] = LastTeamChange
-            )
-        )
-    )
-
-    // Sprint
-    VAR LastSprintChange =
-        CALCULATE(
-            MAX(issue_changelog[date]),
-            FILTER(
-                issue_changelog,
-                issue_changelog[content_id] = IssueID
-                    && issue_changelog[field] = "sprint"
-                    && issue_changelog[date] <= CurrentDay
-            )
-        )
-    VAR SprintAsOfDay = IF(
-        ISBLANK(LastSprintChange),
-        MetaRisk_GitHub_Data[sprint],
-        CALCULATE(
-            MAX(issue_changelog[new_value]),
-            FILTER(
-                issue_changelog,
-                issue_changelog[content_id] = IssueID
-                    && issue_changelog[field] = "sprint"
-                    && issue_changelog[date] = LastSprintChange
-            )
-        )
-    )
-
-    // Issue Type
-    VAR LastTypeChange =
-        CALCULATE(
-            MAX(issue_changelog[date]),
-            FILTER(
-                issue_changelog,
-                issue_changelog[content_id] = IssueID
-                    && issue_changelog[field] = "issue_type_name"
-                    && issue_changelog[date] <= CurrentDay
-            )
-        )
-    VAR TypeAsOfDay = IF(
-        ISBLANK(LastTypeChange),
-        MetaRisk_GitHub_Data[issue_type_name],
-        CALCULATE(
-            MAX(issue_changelog[new_value]),
-            FILTER(
-                issue_changelog,
-                issue_changelog[content_id] = IssueID
-                    && issue_changelog[field] = "issue_type_name"
-                    && issue_changelog[date] = LastTypeChange
-            )
-        )
-    )
-
-    // Closed? (NEW LOGIC)
-    VAR ClosedChangeDate =
-        CALCULATE(
-            MIN(issue_changelog[date]), // Use MIN in case of multiple closes/reopens, for first close
-            FILTER(
-                issue_changelog,
-                issue_changelog[content_id] = IssueID
-                    && issue_changelog[field] = "content_closed_at"
-                    && issue_changelog[date] <= CurrentDay
-            )
-        )
-    // Did we close before or on CurrentDay via changelog, or is snapshot "CLOSED"?
-    VAR IsClosedAsOfDay =
-        IF(
-            NOT(ISBLANK(ClosedChangeDate)) && ClosedChangeDate <= CurrentDay,
-            TRUE(),
-            MetaRisk_GitHub_Data[content_state] = "CLOSED"
-                && Created <= CurrentDay
-        )
-    RETURN
-        IF(
-            Created <= CurrentDay &&
-            TeamAsOfDay = SelectedTeam &&
-            SprintAsOfDay = SelectedSprint &&
-            TypeAsOfDay = SelectedType &&
-            IsClosedAsOfDay,
-            1,
-            0
-        )
-)
+    DIVIDE(IssuesClosedLast3, NumSprints, 0)
