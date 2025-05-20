@@ -1,33 +1,33 @@
-Added to Sprint =
+Removed from Sprint =
 VAR SelectedSprint = SELECTEDVALUE(SprintmetaData[sprint])
 VAR SprintStart = CALCULATE(MIN(SprintmetaData[startdate]), SprintmetaData[sprint] = SelectedSprint)
--- Find all change events that represent an add after the first day
-VAR AddedTable =
+VAR RemovedTable =
     FILTER (
         issue_changelog,
-        issue_changelog[value] = "sprint" &&
-        issue_changelog[new_value] = SelectedSprint &&
-        issue_changelog[old_value] <> SelectedSprint &&
-        issue_changelog[change_date] > SprintStart
+        issue_changelog[field] = "sprint" &&
+        issue_changelog[old_value] = SelectedSprint &&
+        issue_changelog[new_value] <> SelectedSprint &&
+        issue_changelog[date] > SprintStart
     )
--- Exclude issues that were later removed and re-added (i.e., count only the first add after the first day, if not re-added after removal)
 RETURN
 CALCULATE (
     DISTINCTCOUNT(issue_changelog[content_id]),
     FILTER (
-        AddedTable,
-        -- For each issue, only count if this is the latest change for the sprint in the changelog
-        issue_changelog[change_date] = 
-            CALCULATE(
-                MAX(issue_changelog[change_date]),
-                FILTER(
+        RemovedTable,
+        issue_changelog[date] =
+            CALCULATE (
+                MAX(issue_changelog[date]),
+                FILTER (
                     issue_changelog,
                     issue_changelog[content_id] = EARLIER(issue_changelog[content_id]) &&
-                    issue_changelog[value] = "sprint" &&
-                    (issue_changelog[new_value] = SelectedSprint || issue_changelog[old_value] = SelectedSprint) &&
-                    issue_changelog[change_date] > SprintStart
+                    issue_changelog[field] = "sprint" &&
+                    (
+                        issue_changelog[new_value] = SelectedSprint ||
+                        issue_changelog[old_value] = SelectedSprint
+                    ) &&
+                    issue_changelog[date] > SprintStart
                 )
             ) &&
-        issue_changelog[new_value] = SelectedSprint
+        issue_changelog[old_value] = SelectedSprint
     )
 )
