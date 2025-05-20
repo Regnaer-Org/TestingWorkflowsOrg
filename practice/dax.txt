@@ -1,4 +1,4 @@
-IssuesInScopeAsOfDay =
+ClosedIssuesInScopeAsOfDay =
 VAR CurrentDay = SELECTEDVALUE('Calendar'[Date])
 VAR SelectedTeam = SELECTEDVALUE(Teams[Team])
 VAR SelectedSprint = SELECTEDVALUE(SprintmetaData[sprint])
@@ -115,7 +115,7 @@ SUMX (
         TeamAsOfDay = SelectedTeam &&
         SprintAsOfDay = SelectedSprint &&
         TypeAsOfDay = SelectedType &&
-        StatusAsOfDay <> "Closed",
+        StatusAsOfDay = "Closed",
         1,
         0
     )
