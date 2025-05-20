@@ -60,6 +60,7 @@ COUNTROWS (
                 "ExitDate", [ExitDate]
             )
 
+        // Build a table of open periods
         VAR OpenPeriods =
             ADDCOLUMNS (
                 EnterDates,
@@ -67,10 +68,10 @@ COUNTROWS (
                     VAR ThisEnter = [EnterDate]
                     VAR NextExit =
                         CALCULATE (
-                            MIN ( 'ExitDates'[ExitDate] ),
+                            MIN ( [ExitDate] ),
                             FILTER (
                                 ExitDates,
-                                'ExitDates'[ExitDate] > ThisEnter
+                                [ExitDate] > ThisEnter
                             )
                         )
                     RETURN IF ( ISBLANK ( NextExit ), DATE(2099,1,1), NextExit )
