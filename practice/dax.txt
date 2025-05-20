@@ -60,31 +60,25 @@ COUNTROWS (
                 "ExitDate", [ExitDate]
             )
 
-        // Build a table of open periods
-        VAR OpenPeriods =
-            ADDCOLUMNS (
-                EnterDates,
-                "ExitDate",
-                    VAR ThisEnter = [EnterDate]
-                    VAR NextExit =
-                        CALCULATE (
-                            MIN ( [ExitDate] ),
-                            FILTER (
-                                ExitDates,
-                                [ExitDate] > ThisEnter
-                            )
-                        )
-                    RETURN IF ( ISBLANK ( NextExit ), DATE(2099,1,1), NextExit )
-            )
-
         VAR IsOpenOnDate =
             MAXX (
-                FILTER (
-                    OpenPeriods,
-                    [EnterDate] <= SelectedDate &&
-                    SelectedDate < [ExitDate]
-                ),
-                1
+                EnterDates,
+                VAR ThisEnterDate = [EnterDate]
+                VAR MatchedExit =
+                    MINX(
+                        FILTER(
+                            ExitDates,
+                            [ExitDate] > ThisEnterDate
+                        ),
+                        [ExitDate]
+                    )
+                VAR ThisExitDate = IF(ISBLANK(MatchedExit), DATE(2099,1,1), MatchedExit)
+                RETURN
+                    IF(
+                        ThisEnterDate <= SelectedDate && SelectedDate < ThisExitDate,
+                        1,
+                        0
+                    )
             )
 
         RETURN
