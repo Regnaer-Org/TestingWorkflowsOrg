@@ -1,13 +1,13 @@
-Sprint Commitment (Count) =
+Closed Issues in Sprint by Day =
 VAR SelectedSprint = SELECTEDVALUE(SprintmetaData[sprint])
-VAR SprintStart = CALCULATE(MIN(SprintmetaData[start_date]), SprintmetaData[sprint] = SelectedSprint)
+VAR CurrentDay = SELECTEDVALUE('Calendar'[Date]) // Assuming you use a Calendar table for your axis
 RETURN
 CALCULATE(
     COUNTROWS(MetaRisk_GitHub_Data),
     FILTER(
         MetaRisk_GitHub_Data,
         MetaRisk_GitHub_Data[sprint] = SelectedSprint &&
-        // Compares only the date part, ignoring time
-        INT(MetaRisk_GitHub_Data[created_date]) <= INT(SprintStart)
+        NOT(ISBLANK(MetaRisk_GitHub_Data[content_closed_at])) &&
+        MetaRisk_GitHub_Data[content_closed_at] <= CurrentDay
     )
 )
