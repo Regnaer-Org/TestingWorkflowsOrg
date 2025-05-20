@@ -15,9 +15,9 @@ SUMX (
             MAX(issue_changelog[date]),
             FILTER(
                 issue_changelog,
-                issue_changelog[content_id] = IssueID &&
-                issue_changelog[field] = "team" &&
-                issue_changelog[date] <= CurrentDay
+                issue_changelog[content_id] = IssueID
+                    && issue_changelog[field] = "team"
+                    && issue_changelog[date] <= CurrentDay
             )
         )
     VAR TeamAsOfDay = IF(
@@ -27,9 +27,9 @@ SUMX (
             MAX(issue_changelog[new_value]),
             FILTER(
                 issue_changelog,
-                issue_changelog[content_id] = IssueID &&
-                issue_changelog[field] = "team" &&
-                issue_changelog[date] = LastTeamChange
+                issue_changelog[content_id] = IssueID
+                    && issue_changelog[field] = "team"
+                    && issue_changelog[date] = LastTeamChange
             )
         )
     )
@@ -40,9 +40,9 @@ SUMX (
             MAX(issue_changelog[date]),
             FILTER(
                 issue_changelog,
-                issue_changelog[content_id] = IssueID &&
-                issue_changelog[field] = "sprint" &&
-                issue_changelog[date] <= CurrentDay
+                issue_changelog[content_id] = IssueID
+                    && issue_changelog[field] = "sprint"
+                    && issue_changelog[date] <= CurrentDay
             )
         )
     VAR SprintAsOfDay = IF(
@@ -52,9 +52,9 @@ SUMX (
             MAX(issue_changelog[new_value]),
             FILTER(
                 issue_changelog,
-                issue_changelog[content_id] = IssueID &&
-                issue_changelog[field] = "sprint" &&
-                issue_changelog[date] = LastSprintChange
+                issue_changelog[content_id] = IssueID
+                    && issue_changelog[field] = "sprint"
+                    && issue_changelog[date] = LastSprintChange
             )
         )
     )
@@ -65,9 +65,9 @@ SUMX (
             MAX(issue_changelog[date]),
             FILTER(
                 issue_changelog,
-                issue_changelog[content_id] = IssueID &&
-                issue_changelog[field] = "issue_type_name" &&
-                issue_changelog[date] <= CurrentDay
+                issue_changelog[content_id] = IssueID
+                    && issue_changelog[field] = "issue_type_name"
+                    && issue_changelog[date] <= CurrentDay
             )
         )
     VAR TypeAsOfDay = IF(
@@ -77,46 +77,40 @@ SUMX (
             MAX(issue_changelog[new_value]),
             FILTER(
                 issue_changelog,
-                issue_changelog[content_id] = IssueID &&
-                issue_changelog[field] = "issue_type_name" &&
-                issue_changelog[date] = LastTypeChange
+                issue_changelog[content_id] = IssueID
+                    && issue_changelog[field] = "issue_type_name"
+                    && issue_changelog[date] = LastTypeChange
             )
         )
     )
 
-    // Status
-    VAR LastStatusChange =
+    // Closed? (NEW LOGIC)
+    VAR ClosedChangeDate =
         CALCULATE(
-            MAX(issue_changelog[date]),
+            MIN(issue_changelog[date]), // Use MIN in case of multiple closes/reopens, for first close
             FILTER(
                 issue_changelog,
-                issue_changelog[content_id] = IssueID &&
-                issue_changelog[field] = "status" &&
-                issue_changelog[date] <= CurrentDay
+                issue_changelog[content_id] = IssueID
+                    && issue_changelog[field] = "content_closed_at"
+                    && issue_changelog[date] <= CurrentDay
             )
         )
-    VAR StatusAsOfDay = IF(
-        ISBLANK(LastStatusChange),
-        MetaRisk_GitHub_Data[status],
-        CALCULATE(
-            MAX(issue_changelog[new_value]),
-            FILTER(
-                issue_changelog,
-                issue_changelog[content_id] = IssueID &&
-                issue_changelog[field] = "status" &&
-                issue_changelog[date] = LastStatusChange
-            )
+    // Did we close before or on CurrentDay via changelog, or is snapshot "CLOSED"?
+    VAR IsClosedAsOfDay =
+        IF(
+            NOT(ISBLANK(ClosedChangeDate)) && ClosedChangeDate <= CurrentDay,
+            TRUE(),
+            MetaRisk_GitHub_Data[content_state] = "CLOSED"
+                && Created <= CurrentDay
         )
-    )
-
     RETURN
-    IF(
-        Created <= CurrentDay &&
-        TeamAsOfDay = SelectedTeam &&
-        SprintAsOfDay = SelectedSprint &&
-        TypeAsOfDay = SelectedType &&
-        StatusAsOfDay = "Closed",
-        1,
-        0
-    )
+        IF(
+            Created <= CurrentDay &&
+            TeamAsOfDay = SelectedTeam &&
+            SprintAsOfDay = SelectedSprint &&
+            TypeAsOfDay = SelectedType &&
+            IsClosedAsOfDay,
+            1,
+            0
+        )
 )
