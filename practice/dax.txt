@@ -1,4 +1,4 @@
-IssuesInScopeAsOfDay =
+ClosedIssuesAsOfDay =
 VAR SelectedTeam = SELECTEDVALUE(Teams[Team])
 VAR SelectedSprint = SELECTEDVALUE(SprintmetaData[sprint])
 VAR CurrentDay = SELECTEDVALUE('Calendar'[Date])
@@ -24,6 +24,15 @@ CALCULATE(
                 issue_changelog[field_changed] = "sprint" &&
                 issue_changelog[change_date] <= CurrentDay
             )
-        ) = SelectedSprint
+        ) = SelectedSprint &&
+        CALCULATE(
+            MAX(issue_changelog[new_value]),
+            FILTER(
+                issue_changelog,
+                issue_changelog[issue_id] = MetaRisk_GitHub_Data[issue_id] &&
+                issue_changelog[field_changed] = "status" &&
+                issue_changelog[change_date] <= CurrentDay
+            )
+        ) = "Closed"
     )
 )
