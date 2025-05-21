@@ -430,3 +430,7 @@ date,issue_number,content_id,field,old_value,new_value,content_title,issue_type_
 2025.05.12,42,I_kwDOOhN35c61-9C_,team,,Team A,this is a bad story,Task,Team A,,Sprint 2,I_kwDOOhN35c60WYez,,OPEN,,Release 1
 2025.05.12,43,I_kwDOOhN35c61-9bd,sprint,,Sprint 2,this is a good task,Task,Team C,,Sprint 2,I_kwDOOhN35c60WYez,,OPEN,,Release 1
 2025.05.12,43,I_kwDOOhN35c61-9bd,team,,Team C,this is a good task,Task,Team C,,Sprint 2,I_kwDOOhN35c60WYez,,OPEN,,Release 1
+2025.05.19,16,I_kwDOOhN35c60ZdI4,content_state,OPEN,CLOSED,Story D,Story,Team A,In Progress,Sprint 1,I_kwDOOhN35c60WYJd,,CLOSED,2025-05-19T06:07:20Z,
+2025.05.19,16,I_kwDOOhN35c60ZdI4,content_closed_at,,2025-05-19T06:07:20Z,Story D,Story,Team A,In Progress,Sprint 1,I_kwDOOhN35c60WYJd,,CLOSED,2025-05-19T06:07:20Z,
+2025.05.19,42,I_kwDOOhN35c61-9C_,content_state,OPEN,CLOSED,this is a bad story,Task,Team A,,Sprint 2,I_kwDOOhN35c60WYez,,CLOSED,2025-05-19T05:23:16Z,Release 1
+2025.05.19,42,I_kwDOOhN35c61-9C_,content_closed_at,,2025-05-19T05:23:16Z,this is a bad story,Task,Team A,,Sprint 2,I_kwDOOhN35c60WYez,,CLOSED,2025-05-19T05:23:16Z,Release 1
