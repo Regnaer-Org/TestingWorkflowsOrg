@@ -27,7 +27,9 @@ def sanitize_filename(team):
 today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
 team_for_filename = sanitize_filename(TEAM_INPUT)
 output_filename = f"{today_str}_{team_for_filename}_monthlyreport.JSON"
-output_dir = "monthly_report"
+# Compute repo-rooted monthly_report path (works from any script location)
+repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+output_dir = os.path.join(repo_root, "monthly_report")
 OUTPUT_PATH = os.path.join(output_dir, output_filename)
 
 # --- Fetch the Team field id from ProjectV2 ---
