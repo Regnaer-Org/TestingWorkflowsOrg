@@ -29,9 +29,7 @@ def sanitize_filename(team):
 today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
 team_for_filename = sanitize_filename(TEAM_INPUT)
 output_filename = f"{today_str}_{team_for_filename}_monthlyreport.JSON"
-# Compute repo-rooted monthly_report path (works from any script location)
-repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-output_dir = os.path.join(repo_root, "monthly_report")
+output_dir = "monthly_report"
 OUTPUT_PATH = os.path.join(output_dir, output_filename)
 
 # --- Fetch the Team field id from ProjectV2 ---
@@ -162,7 +160,6 @@ while has_next_page:
             continue
         team_val = None
         for fv in item.get("fieldValues", {}).get("nodes", []):
-            # --- updated to match the field id in the fragment
             field = fv.get("field", {})
             team_field = field.get("id") if isinstance(field, dict) else None
             if fv and team_field == team_field_id:
