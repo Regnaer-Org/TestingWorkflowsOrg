@@ -7,6 +7,8 @@ on:
         description: 'Team name (or ALL for all teams)'
         required: true
         default: 'ALL'
+  schedule:
+    - cron: '15 4 1 * *'
 
 jobs:
   filter-issues:
@@ -31,7 +33,7 @@ jobs:
           python .github/scripts/monthly_closed_issue_report.py "${{ github.event.inputs.team_input || 'ALL' }}"
           echo "REPORT_FILENAME=$(ls monthly_report/*_monthlyreport.JSON | sort | tail -n 1)" >> "$GITHUB_OUTPUT"
         env:
-          MILESTONE_SYNC_TOKEN: ${{ secrets.MILESTONE_SYNC_TOKEN }}
+          MILESTONE_SYNC_TOKEN: ${{ secrets.MILESTONE_SYNC }}   # <--- CHANGED HERE
           PROJECT_ID: ${{ secrets.PROJECT_ID }}
 
       - name: Upload filtered issues as artifact
