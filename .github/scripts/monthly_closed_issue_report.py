@@ -104,7 +104,11 @@ while has_next_page:
               fieldValues(first: 20) {
                 nodes {
                   ... on ProjectV2ItemFieldSingleSelectValue {
-                    field { id }
+                    field {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                      }
+                    }
                     name
                   }
                 }
@@ -158,7 +162,10 @@ while has_next_page:
             continue
         team_val = None
         for fv in item.get("fieldValues", {}).get("nodes", []):
-            if fv and fv.get("field", {}).get("id") == team_field_id:
+            # --- updated to match the field id in the fragment
+            field = fv.get("field", {})
+            team_field = field.get("id") if isinstance(field, dict) else None
+            if fv and team_field == team_field_id:
                 team_val = fv.get("name")
                 break
         if TEAM_INPUT != "ALL":
