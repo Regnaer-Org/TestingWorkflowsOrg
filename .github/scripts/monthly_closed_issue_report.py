@@ -5,9 +5,7 @@ import json
 from datetime import datetime, timedelta, timezone
 
 # --- CONFIGURATION ---
-TOKEN = os.environ.get("MILESTONE_SYNC_TOKEN")
-if not TOKEN:
-    TOKEN = os.environ.get("MILESTONE_SYNC")  # fallback if using the alternate secret name
+TOKEN = os.environ.get("MILESTONE_SYNC_TOKEN") or os.environ.get("MILESTONE_SYNC")
 PROJECT_ID = os.environ.get("PROJECT_ID")
 TEAM_INPUT = sys.argv[1] if len(sys.argv) > 1 else "ALL"
 VALID_ISSUETYPES = {"Bug", "Story"}
@@ -32,6 +30,8 @@ output_filename = f"{today_str}_{team_for_filename}_monthlyreport.JSON"
 output_dir = "monthly_report"
 OUTPUT_PATH = os.path.join(output_dir, output_filename)
 
+os.makedirs(output_dir, exist_ok=True)
+
 # --- Fetch the Team field id from ProjectV2 ---
 def get_team_field_id():
     query = '''
@@ -54,9 +54,6 @@ def get_team_field_id():
     variables = {"projectId": PROJECT_ID}
     headers = {"Authorization": f"Bearer {TOKEN}"}
     resp = requests.post(GRAPHQL_API_URL, headers=headers, json={"query": query, "variables": variables})
-    if resp.status_code != 200:
-        print(f"Error from GitHub API: {resp.text}", file=sys.stderr)
-        sys.exit(1)
     data = resp.json()
     if "errors" in data:
         print("GraphQL errors returned:", file=sys.stderr)
@@ -70,7 +67,7 @@ def get_team_field_id():
 
 team_field_id, team_options = get_team_field_id()
 if TEAM_INPUT != "ALL" and TEAM_INPUT not in team_options:
-    print(f"Error: Team value '{TEAM_INPUT}' not found in project options: {list(team_options.keys())}", file=sys.stderr)
+    print(f"Error: Team value '{TEAM_INPUT}' not found.", file=sys.stderr)
     sys.exit(1)
 
 # --- Date window ---
@@ -135,9 +132,6 @@ while has_next_page:
     variables = {"projectId": PROJECT_ID, "cursor": cursor}
     headers = {"Authorization": f"Bearer {TOKEN}"}
     resp = requests.post(GRAPHQL_API_URL, json={"query": query, "variables": variables}, headers=headers)
-    if resp.status_code != 200:
-        print(f"Error from GitHub API: {resp.text}", file=sys.stderr)
-        sys.exit(1)
     data = resp.json()
     if "errors" in data:
         print("GraphQL errors returned:", file=sys.stderr)
@@ -165,9 +159,8 @@ while has_next_page:
             if fv and team_field == team_field_id:
                 team_val = fv.get("name")
                 break
-        if TEAM_INPUT != "ALL":
-            if team_val != TEAM_INPUT:
-                continue
+        if TEAM_INPUT != "ALL" and team_val != TEAM_INPUT:
+            continue
         all_issues.append({
             "id": content.get("id"),
             "number": content.get("number"),
@@ -182,7 +175,6 @@ while has_next_page:
             "team": team_val,
         })
 
-os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
 with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
     json.dump(all_issues, f, indent=2, ensure_ascii=False)
 
