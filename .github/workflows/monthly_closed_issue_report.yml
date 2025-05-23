@@ -7,17 +7,17 @@ on:
         description: 'Team name (or ALL for all teams)'
         required: true
         default: 'ALL'
-  schedule:
-    - cron: '15 4 1 * *'
 
 jobs:
   filter-issues:
     runs-on: ubuntu-latest
-    name: Query ProjectV2, filter closed issues for team, output JSON
+    name: Query ProjectV2, filter closed issues for team, output JSON and commit
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repo (with full history for commit)
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -28,16 +28,19 @@ jobs:
         run: pip install requests
 
       - name: Run monthly closed issue report
-        id: monthly_report
         run: |
           python .github/scripts/monthly_closed_issue_report.py "${{ github.event.inputs.team_input || 'ALL' }}"
-          echo "REPORT_FILENAME=$(ls monthly_report/*_monthlyreport.JSON | sort | tail -n 1)" >> "$GITHUB_OUTPUT"
-        env:
-          MILESTONE_SYNC_TOKEN: ${{ secrets.MILESTONE_SYNC }}   # <--- CHANGED HERE
-          PROJECT_ID: ${{ secrets.PROJECT_ID }}
 
-      - name: Upload filtered issues as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: filtered_issues_json
-          path: ${{ steps.monthly_report.outputs.REPORT_FILENAME }}
+      - name: Commit & push monthly report to repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add monthly_report/*.JSON
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore: update monthly closed issues report [skip ci]"
+            git push origin HEAD:${GITHUB_REF#refs/heads/}
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
