@@ -28,7 +28,7 @@ jobs:
       - name: Run monthly closed issue report
         id: monthly_report
         run: |
-          python monthly_report/monthly_closed_issue_report.py "${{ github.event.inputs.team_input || 'ALL' }}"
+          python .github/scripts/monthly_closed_issue_report.py "${{ github.event.inputs.team_input || 'ALL' }}"
           echo "REPORT_FILENAME=$(ls monthly_report/*_monthlyreport.JSON | sort | tail -n 1)" >> "$GITHUB_OUTPUT"
         env:
           MILESTONE_SYNC_TOKEN: ${{ secrets.MILESTONE_SYNC_TOKEN }}
