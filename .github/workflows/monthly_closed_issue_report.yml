@@ -7,8 +7,6 @@ on:
         description: 'Team name (or ALL for all teams)'
         required: true
         default: 'ALL'
-  schedule:
-    - cron: '15 4 1 * *' # runs at 04:15 UTC on the 1st of every month
 
 jobs:
   filter-issues:
@@ -28,8 +26,10 @@ jobs:
         run: pip install requests
 
       - name: Run monthly closed issue report
+        id: monthly_report
         run: |
-          python agilereporting/monthly_closed_issue_report.py "${{ github.event.inputs.team_input || 'ALL' }}"
+          python monthly_report/monthly_closed_issue_report.py "${{ github.event.inputs.team_input || 'ALL' }}"
+          echo "REPORT_FILENAME=$(ls monthly_report/*_monthlyreport.JSON | sort | tail -n 1)" >> "$GITHUB_OUTPUT"
         env:
           MILESTONE_SYNC_TOKEN: ${{ secrets.MILESTONE_SYNC_TOKEN }}
           PROJECT_ID: ${{ secrets.PROJECT_ID }}
@@ -38,4 +38,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: filtered_issues_json
-          path: agilereporting/filtered_issues.json
+          path: ${{ steps.monthly_report.outputs.REPORT_FILENAME }}
