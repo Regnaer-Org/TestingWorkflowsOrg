@@ -6,12 +6,14 @@ from datetime import datetime, timedelta, timezone
 
 # --- CONFIGURATION ---
 TOKEN = os.environ.get("MILESTONE_SYNC_TOKEN")
+if not TOKEN:
+    TOKEN = os.environ.get("MILESTONE_SYNC")  # fallback if using the alternate secret name
 PROJECT_ID = os.environ.get("PROJECT_ID")
 TEAM_INPUT = sys.argv[1] if len(sys.argv) > 1 else "ALL"
 VALID_ISSUETYPES = {"Bug", "Story"}
 
 if not TOKEN:
-    print("Error: MILESTONE_SYNC_TOKEN is not set.", file=sys.stderr)
+    print("Error: MILESTONE_SYNC_TOKEN (or MILESTONE_SYNC) is not set.", file=sys.stderr)
     sys.exit(1)
 if not PROJECT_ID:
     print("Error: PROJECT_ID is not set.", file=sys.stderr)
@@ -55,8 +57,13 @@ def get_team_field_id():
     headers = {"Authorization": f"Bearer {TOKEN}"}
     resp = requests.post(GRAPHQL_API_URL, headers=headers, json={"query": query, "variables": variables})
     if resp.status_code != 200:
-        raise Exception(f"Failed to fetch fields: {resp.status_code} {resp.text}")
+        print(f"Error from GitHub API: {resp.text}", file=sys.stderr)
+        sys.exit(1)
     data = resp.json()
+    if "errors" in data:
+        print("GraphQL errors returned:", file=sys.stderr)
+        print(json.dumps(data, indent=2), file=sys.stderr)
+        sys.exit(1)
     fields = data["data"]["node"]["fields"]["nodes"]
     for f in fields:
         if f and f.get("name", "").lower() == "team":
@@ -130,6 +137,10 @@ while has_next_page:
         print(f"Error from GitHub API: {resp.text}", file=sys.stderr)
         sys.exit(1)
     data = resp.json()
+    if "errors" in data:
+        print("GraphQL errors returned:", file=sys.stderr)
+        print(json.dumps(data, indent=2), file=sys.stderr)
+        sys.exit(1)
     items = data["data"]["node"]["items"]["nodes"]
     page_info = data["data"]["node"]["items"]["pageInfo"]
     cursor = page_info["endCursor"]
