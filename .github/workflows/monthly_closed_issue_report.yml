@@ -1,0 +1,39 @@
+name: Monthly Closed Issue Report
+
+on:
+  workflow_dispatch:
+    inputs:
+      team_input:
+        description: 'Team name (or ALL for all teams)'
+        required: true
+        default: 'ALL'
+
+jobs:
+  filter-issues:
+    runs-on: ubuntu-latest
+    name: Filter closed issues for team and output JSON
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pandas
+        run: pip install pandas
+
+      - name: Run filter script
+        run: |
+          python agilereporting/monthly_closed_issue_report.py "${{ github.event.inputs.team_input || 'ALL' }}"
+        env:
+          MILESTONE_SYNC_TOKEN: ${{ secrets.MILESTONE_SYNC_TOKEN }}
+          PROJECT_ID: ${{ secrets.PROJECT_ID }}
+
+      - name: Upload filtered issues as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: filtered_issues_json
+          path: agilereporting/filtered_issues.json
