@@ -9,7 +9,6 @@ TOKEN = os.environ.get("MILESTONE_SYNC_TOKEN")
 PROJECT_ID = os.environ.get("PROJECT_ID")
 TEAM_INPUT = sys.argv[1] if len(sys.argv) > 1 else "ALL"
 VALID_ISSUETYPES = {"Bug", "Story"}
-OUTPUT_PATH = "agilereporting/filtered_issues.json"
 
 if not TOKEN:
     print("Error: MILESTONE_SYNC_TOKEN is not set.", file=sys.stderr)
@@ -19,6 +18,17 @@ if not PROJECT_ID:
     sys.exit(1)
 
 GRAPHQL_API_URL = "https://api.github.com/graphql"
+
+# --- OUTPUT FILENAME LOGIC ---
+def sanitize_filename(team):
+    # Replace spaces with underscores and remove problematic chars
+    return "".join([c if c.isalnum() or c in (' ', '_') else "_" for c in team]).replace(" ", "_")
+
+today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+team_for_filename = sanitize_filename(TEAM_INPUT)
+output_filename = f"{today_str}_{team_for_filename}_monthlyreport.JSON"
+output_dir = "monthly_report"
+OUTPUT_PATH = os.path.join(output_dir, output_filename)
 
 # --- Fetch the Team field id from ProjectV2 ---
 def get_team_field_id():
@@ -52,7 +62,6 @@ def get_team_field_id():
     raise Exception("No ProjectV2 field named 'Team' found.")
 
 team_field_id, team_options = get_team_field_id()
-# If user requests a specific team, map to option ID (for safety, but script uses name matching)
 if TEAM_INPUT != "ALL" and TEAM_INPUT not in team_options:
     print(f"Error: Team value '{TEAM_INPUT}' not found in project options: {list(team_options.keys())}", file=sys.stderr)
     sys.exit(1)
@@ -65,7 +74,6 @@ def parse_dt(s):
     if not s:
         return None
     try:
-        # Handles Z or +00:00
         return datetime.fromisoformat(s.replace("Z", "+00:00")).astimezone(timezone.utc)
     except Exception:
         return None
@@ -80,7 +88,7 @@ while has_next_page:
     query($projectId:ID!, $cursor:String) {
       node(id: $projectId) {
         ... on ProjectV2 {
-          items(first: 50, after: $cursor) {
+          items(first: 100, after: $cursor) {
             pageInfo { endCursor hasNextPage }
             nodes {
               id
@@ -129,15 +137,12 @@ while has_next_page:
         content = item.get("content")
         if not content or content.get("state", "").lower() != "closed":
             continue
-        # Closed date check
         closed_at = parse_dt(content.get("closedAt"))
         if not closed_at or closed_at < window_start:
             continue
-        # Issue type check
         issue_type = (content.get("issueType") or {}).get("name", "")
         if issue_type not in VALID_ISSUETYPES:
             continue
-        # Team check
         team_val = None
         for fv in item.get("fieldValues", {}).get("nodes", []):
             if fv and fv.get("field", {}).get("id") == team_field_id:
@@ -146,7 +151,6 @@ while has_next_page:
         if TEAM_INPUT != "ALL":
             if team_val != TEAM_INPUT:
                 continue
-        # If ALL, include even if team_val is None
         all_issues.append({
             "id": content.get("id"),
             "number": content.get("number"),
@@ -161,7 +165,6 @@ while has_next_page:
             "team": team_val,
         })
 
-# Write output
 os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
 with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
     json.dump(all_issues, f, indent=2, ensure_ascii=False)
