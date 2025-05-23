@@ -7,11 +7,13 @@ on:
         description: 'Team name (or ALL for all teams)'
         required: true
         default: 'ALL'
+  schedule:
+    - cron: '15 4 1 * *' # runs at 04:15 UTC on the 1st of every month
 
 jobs:
   filter-issues:
     runs-on: ubuntu-latest
-    name: Filter closed issues for team and output JSON
+    name: Query ProjectV2, filter closed issues for team, output JSON
 
     steps:
       - name: Checkout repo
@@ -22,10 +24,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install pandas
-        run: pip install pandas
+      - name: Install requests
+        run: pip install requests
 
-      - name: Run filter script
+      - name: Run monthly closed issue report
         run: |
           python agilereporting/monthly_closed_issue_report.py "${{ github.event.inputs.team_input || 'ALL' }}"
         env:
