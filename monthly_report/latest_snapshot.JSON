@@ -115,6 +115,48 @@
     "priority": "MVP"
   },
   {
+    "id": "I_kwDOOhN35c60ZiDF",
+    "number": 17,
+    "title": "Story E",
+    "state": "CLOSED",
+    "url": "https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/17",
+    "createdAt": "2025-04-29T00:15:28Z",
+    "closedAt": "2025-05-24T04:00:24Z",
+    "body": "",
+    "labels": {
+      "nodes": []
+    },
+    "issueType": {
+      "id": "IT_kwDODH0FwM4BljVo",
+      "name": "Story"
+    },
+    "parent": {
+      "id": "I_kwDOOhN35c60WYJd",
+      "title": "Feature 1"
+    },
+    "_fieldValues": [
+      {
+        "__typename": "ProjectV2ItemFieldRepositoryValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldTextValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldSingleSelectValue",
+        "name": "Team A",
+        "field": {
+          "name": "Team"
+        }
+      }
+    ],
+    "issue_type": "Story",
+    "parent_id": "I_kwDOOhN35c60WYJd",
+    "parent_title": "Feature 1",
+    "team": "Team A",
+    "sprint": null,
+    "priority": null
+  },
+  {
     "id": "I_kwDOOhN35c61oMz2",
     "number": 26,
     "title": "Show flood risk overlays by region",
