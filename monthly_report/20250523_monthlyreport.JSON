@@ -19,9 +19,34 @@
       "id": "I_kwDOOhN35c60WYb2",
       "title": "Story 1"
     },
+    "_fieldValues": [
+      {
+        "__typename": "ProjectV2ItemFieldRepositoryValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldTextValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldIterationValue",
+        "title": "Sprint 2",
+        "field": {
+          "name": "Sprint"
+        }
+      },
+      {
+        "__typename": "ProjectV2ItemFieldSingleSelectValue",
+        "name": "Done",
+        "field": {
+          "name": "Status"
+        }
+      }
+    ],
     "issue_type": "Task",
     "parent_id": "I_kwDOOhN35c60WYb2",
-    "parent_title": "Story 1"
+    "parent_title": "Story 1",
+    "team": null,
+    "sprint": "Sprint 2",
+    "priority": null
   },
   {
     "id": "I_kwDOOhN35c60ZdI4",
@@ -43,9 +68,51 @@
       "id": "I_kwDOOhN35c60WYJd",
       "title": "Feature 1"
     },
+    "_fieldValues": [
+      {
+        "__typename": "ProjectV2ItemFieldRepositoryValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldTextValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldIterationValue",
+        "title": "Sprint 1",
+        "field": {
+          "name": "Sprint"
+        }
+      },
+      {
+        "__typename": "ProjectV2ItemFieldSingleSelectValue",
+        "name": "Team A",
+        "field": {
+          "name": "Team"
+        }
+      },
+      {
+        "__typename": "ProjectV2ItemFieldSingleSelectValue",
+        "name": "In Progress",
+        "field": {
+          "name": "Status"
+        }
+      },
+      {
+        "__typename": "ProjectV2ItemFieldSingleSelectValue",
+        "name": "MVP",
+        "field": {
+          "name": "Priority"
+        }
+      },
+      {
+        "__typename": "ProjectV2ItemFieldNumberValue"
+      }
+    ],
     "issue_type": "Story",
     "parent_id": "I_kwDOOhN35c60WYJd",
-    "parent_title": "Feature 1"
+    "parent_title": "Feature 1",
+    "team": "Team A",
+    "sprint": "Sprint 1",
+    "priority": "MVP"
   },
   {
     "id": "I_kwDOOhN35c61oMz2",
@@ -67,9 +134,37 @@
       "id": "I_kwDOOhN35c60WYLt",
       "title": "Real-Time Catastrophe Risk Visualization"
     },
+    "_fieldValues": [
+      {
+        "__typename": "ProjectV2ItemFieldRepositoryValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldMilestoneValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldTextValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldSingleSelectValue",
+        "name": "Team B",
+        "field": {
+          "name": "Team"
+        }
+      },
+      {
+        "__typename": "ProjectV2ItemFieldSingleSelectValue",
+        "name": "Done",
+        "field": {
+          "name": "Status"
+        }
+      }
+    ],
     "issue_type": "Story",
     "parent_id": "I_kwDOOhN35c60WYLt",
-    "parent_title": "Real-Time Catastrophe Risk Visualization"
+    "parent_title": "Real-Time Catastrophe Risk Visualization",
+    "team": "Team B",
+    "sprint": null,
+    "priority": null
   },
   {
     "id": "I_kwDOOhN35c61oM81",
@@ -91,9 +186,37 @@
       "id": "I_kwDOOhN35c60WYLt",
       "title": "Real-Time Catastrophe Risk Visualization"
     },
+    "_fieldValues": [
+      {
+        "__typename": "ProjectV2ItemFieldRepositoryValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldMilestoneValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldTextValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldSingleSelectValue",
+        "name": "Team B",
+        "field": {
+          "name": "Team"
+        }
+      },
+      {
+        "__typename": "ProjectV2ItemFieldSingleSelectValue",
+        "name": "Done",
+        "field": {
+          "name": "Status"
+        }
+      }
+    ],
     "issue_type": "Story",
     "parent_id": "I_kwDOOhN35c60WYLt",
-    "parent_title": "Real-Time Catastrophe Risk Visualization"
+    "parent_title": "Real-Time Catastrophe Risk Visualization",
+    "team": "Team B",
+    "sprint": null,
+    "priority": null
   },
   {
     "id": "I_kwDOOhN35c61oNDc",
@@ -115,9 +238,37 @@
       "id": "I_kwDOOhN35c60WYLt",
       "title": "Real-Time Catastrophe Risk Visualization"
     },
+    "_fieldValues": [
+      {
+        "__typename": "ProjectV2ItemFieldRepositoryValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldMilestoneValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldTextValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldSingleSelectValue",
+        "name": "Team B",
+        "field": {
+          "name": "Team"
+        }
+      },
+      {
+        "__typename": "ProjectV2ItemFieldSingleSelectValue",
+        "name": "Done",
+        "field": {
+          "name": "Status"
+        }
+      }
+    ],
     "issue_type": "Story",
     "parent_id": "I_kwDOOhN35c60WYLt",
-    "parent_title": "Real-Time Catastrophe Risk Visualization"
+    "parent_title": "Real-Time Catastrophe Risk Visualization",
+    "team": "Team B",
+    "sprint": null,
+    "priority": null
   },
   {
     "id": "I_kwDOOhN35c61oOd4",
@@ -139,9 +290,37 @@
       "id": "I_kwDOOhN35c60WYRW",
       "title": "Automated Portfolio Risk Assessment"
     },
+    "_fieldValues": [
+      {
+        "__typename": "ProjectV2ItemFieldRepositoryValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldMilestoneValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldTextValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldSingleSelectValue",
+        "name": "Team B",
+        "field": {
+          "name": "Team"
+        }
+      },
+      {
+        "__typename": "ProjectV2ItemFieldSingleSelectValue",
+        "name": "Done",
+        "field": {
+          "name": "Status"
+        }
+      }
+    ],
     "issue_type": "Story",
     "parent_id": "I_kwDOOhN35c60WYRW",
-    "parent_title": "Automated Portfolio Risk Assessment"
+    "parent_title": "Automated Portfolio Risk Assessment",
+    "team": "Team B",
+    "sprint": null,
+    "priority": null
   },
   {
     "id": "I_kwDOOhN35c61oOm2",
@@ -163,9 +342,37 @@
       "id": "I_kwDOOhN35c60WYRW",
       "title": "Automated Portfolio Risk Assessment"
     },
+    "_fieldValues": [
+      {
+        "__typename": "ProjectV2ItemFieldRepositoryValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldMilestoneValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldTextValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldSingleSelectValue",
+        "name": "Team B",
+        "field": {
+          "name": "Team"
+        }
+      },
+      {
+        "__typename": "ProjectV2ItemFieldSingleSelectValue",
+        "name": "Done",
+        "field": {
+          "name": "Status"
+        }
+      }
+    ],
     "issue_type": "Story",
     "parent_id": "I_kwDOOhN35c60WYRW",
-    "parent_title": "Automated Portfolio Risk Assessment"
+    "parent_title": "Automated Portfolio Risk Assessment",
+    "team": "Team B",
+    "sprint": null,
+    "priority": null
   },
   {
     "id": "I_kwDOOhN35c61-9C_",
@@ -187,8 +394,36 @@
       "id": "I_kwDOOhN35c60WYez",
       "title": "Story 2"
     },
+    "_fieldValues": [
+      {
+        "__typename": "ProjectV2ItemFieldRepositoryValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldMilestoneValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldTextValue"
+      },
+      {
+        "__typename": "ProjectV2ItemFieldIterationValue",
+        "title": "Sprint 2",
+        "field": {
+          "name": "Sprint"
+        }
+      },
+      {
+        "__typename": "ProjectV2ItemFieldSingleSelectValue",
+        "name": "Team A",
+        "field": {
+          "name": "Team"
+        }
+      }
+    ],
     "issue_type": "Task",
     "parent_id": "I_kwDOOhN35c60WYez",
-    "parent_title": "Story 2"
+    "parent_title": "Story 2",
+    "team": "Team A",
+    "sprint": "Sprint 2",
+    "priority": null
   }
 ]
