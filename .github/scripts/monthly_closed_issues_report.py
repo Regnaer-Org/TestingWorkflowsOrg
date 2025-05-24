@@ -58,13 +58,15 @@ query GetProjectV2Items($projectId: ID!, $cursor: String) {
               __typename
               ... on ProjectV2ItemFieldSingleSelectValue {
                 name
-                field { name }
+                field {
+                  ... on ProjectV2SingleSelectFieldConfiguration { name }
+                }
               }
               ... on ProjectV2ItemFieldIterationValue {
                 title
-                startDate
-                duration
-                field { name }
+                field {
+                  ... on ProjectV2IterationFieldConfiguration { name }
+                }
               }
             }
           }
@@ -82,15 +84,16 @@ query GetProjectV2Items($projectId: ID!, $cursor: String) {
 def extract_project_fields(field_values):
     result = {"team": None, "sprint": None, "priority": None}
     for fv in field_values or []:
-        field_name = (fv.get("field") or {}).get("name", "").lower()
+        field_type = fv.get("__typename")
+        field = fv.get("field") or {}
         # Team (single select)
-        if fv.get("__typename") == "ProjectV2ItemFieldSingleSelectValue" and field_name == "team":
+        if field_type == "ProjectV2ItemFieldSingleSelectValue" and field.get("name", "").lower() == "team":
             result["team"] = fv.get("name")
         # Priority (single select)
-        if fv.get("__typename") == "ProjectV2ItemFieldSingleSelectValue" and field_name == "priority":
+        if field_type == "ProjectV2ItemFieldSingleSelectValue" and field.get("name", "").lower() == "priority":
             result["priority"] = fv.get("name")
         # Sprint (iteration)
-        if fv.get("__typename") == "ProjectV2ItemFieldIterationValue" and field_name == "sprint":
+        if field_type == "ProjectV2ItemFieldIterationValue" and field.get("name", "").lower() == "sprint":
             result["sprint"] = fv.get("title")
     return result
 
