@@ -8,8 +8,11 @@ jobs:
     name: Monthly Closed Issues Status Report
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -19,7 +22,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install requests
+      - name: Install Python dependencies
         run: pip install requests
 
       - name: Run monthly closed issues report
@@ -38,7 +41,7 @@ jobs:
             echo "No changes to commit."
           else
             git commit -m "chore: update monthly closed issues report [skip ci]"
-            git push origin HEAD:${GITHUB_REF#refs/heads/}
+            git push
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
