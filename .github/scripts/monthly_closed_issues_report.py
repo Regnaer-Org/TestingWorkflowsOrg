@@ -53,6 +53,21 @@ query GetProjectV2Items($projectId: ID!, $cursor: String) {
               }
             }
           }
+          fieldValues(first: 30) {
+            nodes {
+              __typename
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field { name }
+              }
+              ... on ProjectV2ItemFieldIterationValue {
+                title
+                startDate
+                duration
+                field { name }
+              }
+            }
+          }
         }
         pageInfo {
           endCursor
@@ -63,6 +78,21 @@ query GetProjectV2Items($projectId: ID!, $cursor: String) {
   }
 }
 """
+
+def extract_project_fields(field_values):
+    result = {"team": None, "sprint": None, "priority": None}
+    for fv in field_values or []:
+        field_name = (fv.get("field") or {}).get("name", "").lower()
+        # Team (single select)
+        if fv.get("__typename") == "ProjectV2ItemFieldSingleSelectValue" and field_name == "team":
+            result["team"] = fv.get("name")
+        # Priority (single select)
+        if fv.get("__typename") == "ProjectV2ItemFieldSingleSelectValue" and field_name == "priority":
+            result["priority"] = fv.get("name")
+        # Sprint (iteration)
+        if fv.get("__typename") == "ProjectV2ItemFieldIterationValue" and field_name == "sprint":
+            result["sprint"] = fv.get("title")
+    return result
 
 all_issues = []
 has_next_page = True
@@ -95,6 +125,8 @@ while has_next_page:
             issue = item.get("content")
             if not issue or issue.get("__typename", "Issue") != "Issue":
                 continue
+            field_values = item.get("fieldValues", {}).get("nodes", [])
+            issue["_fieldValues"] = field_values
             all_issues.append(issue)
         page_info = (
             data.get('data', {})
@@ -138,6 +170,11 @@ for issue in all_issues:
     parent = issue.get("parent")
     output_issue["parent_id"] = parent.get("id") if parent else None
     output_issue["parent_title"] = parent.get("title") if parent else None
+    # Add project custom fields
+    proj_fields = extract_project_fields(issue.get("_fieldValues", []))
+    output_issue["team"] = proj_fields.get("team")
+    output_issue["sprint"] = proj_fields.get("sprint")
+    output_issue["priority"] = proj_fields.get("priority")
     filtered_issues.append(output_issue)
 
 print(f"Returning {len(filtered_issues)} issues closed in last 30 days (excluding 'duplicate' and 'not planned').")
