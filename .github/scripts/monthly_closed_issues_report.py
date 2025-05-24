@@ -6,7 +6,6 @@ import time
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-# --- Configuration ---
 PROJECT_ID = os.environ.get("PROJECT_ID")
 GRAPHQL_API_URL = "https://api.github.com/graphql"
 OUTPUT_DIR = "monthly_report"
@@ -30,7 +29,7 @@ OUTPUT_PATH = os.path.join(OUTPUT_DIR, SNAPSHOT_FILENAME)
 LATEST_SNAPSHOT_FILENAME = "latest_snapshot.JSON"
 LATEST_OUTPUT_PATH = os.path.join(OUTPUT_DIR, LATEST_SNAPSHOT_FILENAME)
 
-# --- GraphQL Query (Issues only, include labels and closedAt) ---
+# GraphQL query for ProjectV2 Issues with parent & sub-issue info
 graphql_query = """
 query GetProjectV2Items($projectId: ID!, $cursor: String) {
   node(id: $projectId) {
@@ -49,6 +48,22 @@ query GetProjectV2Items($projectId: ID!, $cursor: String) {
               closedAt
               body
               labels(first: 20) { nodes { name } }
+              trackedByIssues(first: 1) {
+                nodes {
+                  id
+                  number
+                  title
+                  url
+                }
+              }
+              trackedIssues(first: 50) {
+                nodes {
+                  id
+                  number
+                  title
+                  url
+                }
+              }
             }
           }
         }
@@ -62,7 +77,6 @@ query GetProjectV2Items($projectId: ID!, $cursor: String) {
 }
 """
 
-# --- Fetch All Items via Pagination ---
 all_issues = []
 has_next_page = True
 cursor = None
@@ -111,7 +125,6 @@ while has_next_page:
 
 print(f"Fetched {len(all_issues)} issues from project.")
 
-# --- Filter: closed in last 30 days, state CLOSED, not labeled 'duplicate' or 'not planned' ---
 now = datetime.now(timezone.utc)
 window_start = now - timedelta(days=30)
 filtered_issues = []
@@ -127,25 +140,46 @@ for issue in all_issues:
         continue
     if closed_at_dt < window_start:
         continue
-
-    # Current exclusion logic: skip issues labeled 'duplicate' or 'not planned' (case-insensitive)
     labels = [lbl['name'].strip().lower() for lbl in (issue.get('labels', {}).get('nodes') or []) if 'name' in lbl]
     if any(lbl in ['duplicate', 'not planned'] for lbl in labels):
         continue
 
-    # ------ FUTURE LOGIC ------
-    # When close reason is available (e.g. via extra REST API call or labeling on close), replace the above with:
-    # if issue.get('close_reason') in ['NOT_PLANNED', 'DUPLICATE']:
-    #     continue
+    # Parent info (first trackedByIssues node, if any)
+    parent = None
+    parent_nodes = issue.get('trackedByIssues', {}).get('nodes', [])
+    if parent_nodes:
+        parent = parent_nodes[0]
+        parent_id = parent.get('id')
+        parent_number = parent.get('number')
+        parent_title = parent.get('title')
+        parent_url = parent.get('url')
+    else:
+        parent_id = parent_number = parent_title = parent_url = None
 
-    filtered_issues.append(issue)
+    # Sub-issues (all trackedIssues nodes)
+    sub_issues = []
+    for sub in issue.get('trackedIssues', {}).get('nodes', []):
+        sub_issues.append({
+            'id': sub.get('id'),
+            'number': sub.get('number'),
+            'title': sub.get('title'),
+            'url': sub.get('url')
+        })
+
+    # Compose final output for the issue
+    output_issue = dict(issue)  # shallow copy
+    output_issue["parent_id"] = parent_id
+    output_issue["parent_number"] = parent_number
+    output_issue["parent_title"] = parent_title
+    output_issue["parent_url"] = parent_url
+    output_issue["sub_issues"] = sub_issues
+    filtered_issues.append(output_issue)
 
 print(f"Returning {len(filtered_issues)} issues closed in last 30 days (excluding 'duplicate' and 'not planned').")
 if len(filtered_issues) < len(all_issues):
     print("Note: Exclusion is based on the labels 'duplicate' or 'not planned'. The true close 'reason' is not available from the ProjectV2 API. "
           "In the future, update logic here to use close_reason if you label issues or fetch close reason via REST API.")
 
-# --- Write to JSON ---
 def write_json(file_path, data_to_write):
     print(f"Writing {len(data_to_write)} issues to {file_path}...")
     try:
