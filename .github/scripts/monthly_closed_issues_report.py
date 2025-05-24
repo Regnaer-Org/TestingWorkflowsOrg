@@ -29,11 +29,23 @@ OUTPUT_PATH = os.path.join(OUTPUT_DIR, SNAPSHOT_FILENAME)
 LATEST_SNAPSHOT_FILENAME = "latest_snapshot.JSON"
 LATEST_OUTPUT_PATH = os.path.join(OUTPUT_DIR, LATEST_SNAPSHOT_FILENAME)
 
-# GraphQL query for ProjectV2 Issues with parent & sub-issue info
+# Query all fields for this project so we can find the "Status" field and its options
 graphql_query = """
 query GetProjectV2Items($projectId: ID!, $cursor: String) {
   node(id: $projectId) {
     ... on ProjectV2 {
+      fields(first: 50) {
+        nodes {
+          ... on ProjectV2SingleSelectField {
+            id
+            name
+            options {
+              id
+              name
+            }
+          }
+        }
+      }
       items(first: 100, after: $cursor, orderBy: {field: POSITION, direction: ASC}) {
         nodes {
           id
@@ -56,13 +68,26 @@ query GetProjectV2Items($projectId: ID!, $cursor: String) {
                   url
                 }
               }
-              trackedIssues(first: 50) {
+              trackedIssues(first: 20) {
                 nodes {
                   id
                   number
                   title
                   url
                 }
+              }
+            }
+          }
+          fieldValues(first: 20) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                field {
+                  ... on ProjectV2SingleSelectField {
+                    id
+                    name
+                  }
+                }
+                name
               }
             }
           }
@@ -77,7 +102,9 @@ query GetProjectV2Items($projectId: ID!, $cursor: String) {
 }
 """
 
+all_items = []
 all_issues = []
+fields = []
 has_next_page = True
 cursor = None
 print(f"Fetching items for Project ID: {PROJECT_ID}...")
@@ -98,32 +125,68 @@ while has_next_page:
             print("Error: GraphQL API returned errors:", file=sys.stderr)
             print(json.dumps(data['errors'], indent=2), file=sys.stderr)
             sys.exit(1)
+        project_node = data.get("data", {}).get("node", {})
+        if not fields:
+            # Only need to get fields once
+            fields = project_node.get("fields", {}).get("nodes", [])
         items = (
-            data.get('data', {})
-            .get('node', {})
+            project_node
             .get('items', {})
             .get('nodes', [])
         )
+        all_items.extend(items)
+        # Extract issue content for our main list
         for item in items:
             issue = item.get("content")
             if not issue or issue.get("__typename", "Issue") != "Issue":
                 continue
+            # Save the project item id for lookup
+            issue["_project_item_id"] = item["id"]
+            issue["_fieldValues"] = item.get("fieldValues", {}).get("nodes", [])
             all_issues.append(issue)
         page_info = (
-            data.get('data', {})
-            .get('node', {})
+            project_node
             .get('items', {})
             .get('pageInfo', {})
         )
         has_next_page = page_info.get('hasNextPage', False)
         cursor = page_info.get('endCursor')
         if has_next_page:
-            time.sleep(0.2)
+            time.sleep(0.25)
     except Exception as e:
         print(f"Error fetching data: {e}", file=sys.stderr)
         sys.exit(1)
 
 print(f"Fetched {len(all_issues)} issues from project.")
+
+# Find the ID of the Status field
+status_field_id = None
+for f in fields:
+    if f.get("name", "").lower() == "status":
+        status_field_id = f["id"]
+        break
+if not status_field_id:
+    print("Could not find 'Status' single-select field for this project.", file=sys.stderr)
+    sys.exit(1)
+
+def extract_status(field_values, status_field_id):
+    for fv in field_values:
+        field = fv.get("field", {})
+        if field.get("id") == status_field_id:
+            return fv.get("name")
+    return None
+
+# Map from Issue ID to {status, etc.} for lookup by parent/sub-issue
+issue_id_to_iteminfo = {}
+for item in all_items:
+    issue = item.get("content")
+    if not issue or issue.get("__typename", "Issue") != "Issue":
+        continue
+    field_values = item.get("fieldValues", {}).get("nodes", [])
+    status_val = extract_status(field_values, status_field_id)
+    issue_id_to_iteminfo[issue["id"]] = {
+        "status": status_val
+    }
 
 now = datetime.now(timezone.utc)
 window_start = now - timedelta(days=30)
@@ -144,6 +207,9 @@ for issue in all_issues:
     if any(lbl in ['duplicate', 'not planned'] for lbl in labels):
         continue
 
+    # Main issue status
+    project_item_status = issue_id_to_iteminfo.get(issue["id"], {}).get("status")
+
     # Parent info (first trackedByIssues node, if any)
     parent = None
     parent_nodes = issue.get('trackedByIssues', {}).get('nodes', [])
@@ -153,25 +219,30 @@ for issue in all_issues:
         parent_number = parent.get('number')
         parent_title = parent.get('title')
         parent_url = parent.get('url')
+        parent_status = issue_id_to_iteminfo.get(parent_id, {}).get("status")
     else:
-        parent_id = parent_number = parent_title = parent_url = None
+        parent_id = parent_number = parent_title = parent_url = parent_status = None
 
     # Sub-issues (all trackedIssues nodes)
     sub_issues = []
     for sub in issue.get('trackedIssues', {}).get('nodes', []):
+        sub_id = sub.get('id')
         sub_issues.append({
-            'id': sub.get('id'),
+            'id': sub_id,
             'number': sub.get('number'),
             'title': sub.get('title'),
-            'url': sub.get('url')
+            'url': sub.get('url'),
+            'status': issue_id_to_iteminfo.get(sub_id, {}).get("status"),
         })
 
     # Compose final output for the issue
     output_issue = dict(issue)  # shallow copy
+    output_issue["status"] = project_item_status
     output_issue["parent_id"] = parent_id
     output_issue["parent_number"] = parent_number
     output_issue["parent_title"] = parent_title
     output_issue["parent_url"] = parent_url
+    output_issue["parent_status"] = parent_status
     output_issue["sub_issues"] = sub_issues
     filtered_issues.append(output_issue)
 
