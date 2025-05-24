@@ -33,6 +33,14 @@ graphql_query = """
 query GetProjectV2Items($projectId: ID!, $cursor: String) {
   node(id: $projectId) {
     ... on ProjectV2 {
+      fields(first: 50) {
+        nodes {
+          ... on ProjectV2Field {
+            id
+            name
+          }
+        }
+      }
       items(first: 100, after: $cursor, orderBy: {field: POSITION, direction: ASC}) {
         nodes {
           id
@@ -47,6 +55,25 @@ query GetProjectV2Items($projectId: ID!, $cursor: String) {
               closedAt
               body
               labels(first: 20) { nodes { name } }
+              issueType { id name }
+            }
+          }
+          fieldValues(first: 20) {
+            nodes {
+              ... on ProjectV2ItemFieldIssueValue {
+                field {
+                  ... on ProjectV2Field {
+                    id
+                    name
+                  }
+                }
+                issue {
+                  id
+                  number
+                  title
+                  url
+                }
+              }
             }
           }
         }
@@ -60,7 +87,9 @@ query GetProjectV2Items($projectId: ID!, $cursor: String) {
 }
 """
 
+all_items = []
 all_issues = []
+fields = []
 has_next_page = True
 cursor = None
 print(f"Fetching items for Project ID: {PROJECT_ID}...")
@@ -81,20 +110,25 @@ while has_next_page:
             print("Error: GraphQL API returned errors:", file=sys.stderr)
             print(json.dumps(data['errors'], indent=2), file=sys.stderr)
             sys.exit(1)
+        project_node = data.get("data", {}).get("node", {})
+        if not fields:
+            fields = project_node.get("fields", {}).get("nodes", [])
         items = (
-            data.get('data', {})
-            .get('node', {})
+            project_node
             .get('items', {})
             .get('nodes', [])
         )
+        all_items.extend(items)
         for item in items:
             issue = item.get("content")
             if not issue or issue.get("__typename", "Issue") != "Issue":
                 continue
+            # Attach the field values to the issue for later processing
+            issue["_project_item_id"] = item["id"]
+            issue["_fieldValues"] = item.get("fieldValues", {}).get("nodes", [])
             all_issues.append(issue)
         page_info = (
-            data.get('data', {})
-            .get('node', {})
+            project_node
             .get('items', {})
             .get('pageInfo', {})
         )
@@ -107,6 +141,29 @@ while has_next_page:
         sys.exit(1)
 
 print(f"Fetched {len(all_issues)} issues from project.")
+
+# Find the ID of the "Parent issue" field
+parent_field_id = None
+for f in fields:
+    if f.get("name", "").lower() == "parent issue":
+        parent_field_id = f["id"]
+        break
+
+def extract_parent(field_values, parent_field_id):
+    if not parent_field_id:
+        return None, None, None, None
+    for fv in field_values:
+        field = fv.get("field", {})
+        if field.get("id") == parent_field_id:
+            parent_issue = fv.get("issue")
+            if parent_issue:
+                return (
+                    parent_issue.get("id"),
+                    parent_issue.get("number"),
+                    parent_issue.get("title"),
+                    parent_issue.get("url")
+                )
+    return None, None, None, None
 
 now = datetime.now(timezone.utc)
 window_start = now - timedelta(days=30)
@@ -127,7 +184,15 @@ for issue in all_issues:
     if any(lbl in ['duplicate', 'not planned'] for lbl in labels):
         continue
 
-    filtered_issues.append(issue)
+    # Extract parent issue info via fieldValues
+    parent_id, parent_number, parent_title, parent_url = extract_parent(issue.get("_fieldValues", []), parent_field_id)
+    output_issue = dict(issue)
+    output_issue["issue_type"] = issue.get("issueType", {}).get("name")
+    output_issue["parent_id"] = parent_id
+    output_issue["parent_number"] = parent_number
+    output_issue["parent_title"] = parent_title
+    output_issue["parent_url"] = parent_url
+    filtered_issues.append(output_issue)
 
 print(f"Returning {len(filtered_issues)} issues closed in last 30 days (excluding 'duplicate' and 'not planned').")
 if len(filtered_issues) < len(all_issues):
