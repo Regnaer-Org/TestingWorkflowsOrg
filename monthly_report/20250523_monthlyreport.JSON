@@ -10,7 +10,18 @@
     "body": "",
     "labels": {
       "nodes": []
-    }
+    },
+    "issueType": {
+      "id": "IT_kwDODH0FwM4BljUj",
+      "name": "Task"
+    },
+    "parent": {
+      "id": "I_kwDOOhN35c60WYb2",
+      "title": "Story 1"
+    },
+    "issue_type": "Task",
+    "parent_id": "I_kwDOOhN35c60WYb2",
+    "parent_title": "Story 1"
   },
   {
     "id": "I_kwDOOhN35c60ZdI4",
@@ -23,7 +34,18 @@
     "body": "",
     "labels": {
       "nodes": []
-    }
+    },
+    "issueType": {
+      "id": "IT_kwDODH0FwM4BljVo",
+      "name": "Story"
+    },
+    "parent": {
+      "id": "I_kwDOOhN35c60WYJd",
+      "title": "Feature 1"
+    },
+    "issue_type": "Story",
+    "parent_id": "I_kwDOOhN35c60WYJd",
+    "parent_title": "Feature 1"
   },
   {
     "id": "I_kwDOOhN35c61oMz2",
@@ -36,7 +58,18 @@
     "body": "**Description:**  \nOverlay flood risk zones on the map, allowing users to filter by region for focused analysis.\n\n**Additional Notes:**  \n- Integrate with external flood risk datasets.\n- Provide region-based filtering UI.\n- Ensure overlays have clear legends.\n\n**Acceptance Criteria:**  \n- Flood risk zones are accurately displayed for selected regions.\n- Users can filter overlays by region.\n- Legends and color keys are present.\n- Overlay rendering is efficient.\n",
     "labels": {
       "nodes": []
-    }
+    },
+    "issueType": {
+      "id": "IT_kwDODH0FwM4BljVo",
+      "name": "Story"
+    },
+    "parent": {
+      "id": "I_kwDOOhN35c60WYLt",
+      "title": "Real-Time Catastrophe Risk Visualization"
+    },
+    "issue_type": "Story",
+    "parent_id": "I_kwDOOhN35c60WYLt",
+    "parent_title": "Real-Time Catastrophe Risk Visualization"
   },
   {
     "id": "I_kwDOOhN35c61oM81",
@@ -49,7 +82,18 @@
     "body": "**Description:**  \nImplement smooth zooming and panning on the risk map, ensuring overlays and property markers remain accurate and responsive.\n\n**Additional Notes:**  \n- Keyboard shortcuts for accessibility.\n- “Reset to home view” button.\n- Test on desktop and mobile browsers.\n\n**Acceptance Criteria:**  \n- Users can zoom and pan seamlessly.\n- All overlays/markers stay aligned during interaction.\n- Map resets to default view on command.\n- No significant lag at max zoom",
     "labels": {
       "nodes": []
-    }
+    },
+    "issueType": {
+      "id": "IT_kwDODH0FwM4BljVo",
+      "name": "Story"
+    },
+    "parent": {
+      "id": "I_kwDOOhN35c60WYLt",
+      "title": "Real-Time Catastrophe Risk Visualization"
+    },
+    "issue_type": "Story",
+    "parent_id": "I_kwDOOhN35c60WYLt",
+    "parent_title": "Real-Time Catastrophe Risk Visualization"
   },
   {
     "id": "I_kwDOOhN35c61oNDc",
@@ -62,7 +106,18 @@
     "body": "**Description:**  \nVisually distinguish properties with the highest risk scores on the catastrophe risk map.\n\n**Additional Notes:**  \n- Define clear risk thresholds for highlighting.\n- Use icons/colors that are accessible.\n- Tooltips or popovers should provide more detail.\n\n**Acceptance Criteria:**  \n- High-risk properties are clearly highlighted.\n- Hover/click shows risk breakdown.\n- Highlighting updates in real-time as data changes.\n- Visuals meet accessibility standards.",
     "labels": {
       "nodes": []
-    }
+    },
+    "issueType": {
+      "id": "IT_kwDODH0FwM4BljVo",
+      "name": "Story"
+    },
+    "parent": {
+      "id": "I_kwDOOhN35c60WYLt",
+      "title": "Real-Time Catastrophe Risk Visualization"
+    },
+    "issue_type": "Story",
+    "parent_id": "I_kwDOOhN35c60WYLt",
+    "parent_title": "Real-Time Catastrophe Risk Visualization"
   },
   {
     "id": "I_kwDOOhN35c61oOd4",
@@ -75,7 +130,18 @@
     "body": "**Description:**  \nEnable users to upload a CSV containing their property portfolio for risk analysis.\n\n**Additional Notes:**  \n- Validate column headers and data types.\n- Provide sample CSV template for download.\n- Handle large file uploads gracefully.\n\n**Acceptance Criteria:**  \n- CSV upload is available via UI.\n- System validates format and provides clear errors.\n- Properties are queued for risk analysis on upload.\n- Upload supports at least 5,000 properties per file.\n",
     "labels": {
       "nodes": []
-    }
+    },
+    "issueType": {
+      "id": "IT_kwDODH0FwM4BljVo",
+      "name": "Story"
+    },
+    "parent": {
+      "id": "I_kwDOOhN35c60WYRW",
+      "title": "Automated Portfolio Risk Assessment"
+    },
+    "issue_type": "Story",
+    "parent_id": "I_kwDOOhN35c60WYRW",
+    "parent_title": "Automated Portfolio Risk Assessment"
   },
   {
     "id": "I_kwDOOhN35c61oOm2",
@@ -88,7 +154,18 @@
     "body": "\n\n**Description:**  \nGenerate risk scores for each uploaded property, covering all supported catastrophe types.\n\n**Additional Notes:**  \n- Risk scoring model should be transparent and documented.\n- Cover edge cases (e.g., missing data, unknown locations).\n- Scores should be explainable to end-users.\n\n**Acceptance Criteria:**  \n- Each property receives per-peril risk scores.\n- Scores are included in both UI and downloadable reports.\n- Model deals gracefully with incomplete data.\n- Documentation for scoring is linked from results.",
     "labels": {
       "nodes": []
-    }
+    },
+    "issueType": {
+      "id": "IT_kwDODH0FwM4BljVo",
+      "name": "Story"
+    },
+    "parent": {
+      "id": "I_kwDOOhN35c60WYRW",
+      "title": "Automated Portfolio Risk Assessment"
+    },
+    "issue_type": "Story",
+    "parent_id": "I_kwDOOhN35c60WYRW",
+    "parent_title": "Automated Portfolio Risk Assessment"
   },
   {
     "id": "I_kwDOOhN35c61-9C_",
@@ -101,6 +178,17 @@
     "body": "",
     "labels": {
       "nodes": []
-    }
+    },
+    "issueType": {
+      "id": "IT_kwDODH0FwM4BljUj",
+      "name": "Task"
+    },
+    "parent": {
+      "id": "I_kwDOOhN35c60WYez",
+      "title": "Story 2"
+    },
+    "issue_type": "Task",
+    "parent_id": "I_kwDOOhN35c60WYez",
+    "parent_title": "Story 2"
   }
 ]
