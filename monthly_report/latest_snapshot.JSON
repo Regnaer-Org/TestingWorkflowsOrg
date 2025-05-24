@@ -1,0 +1,41 @@
+[
+  {
+    "id": "I_kwDOOhN35c60WY9g",
+    "number": 10,
+    "title": "Task 2",
+    "state": "CLOSED",
+    "url": "https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/10",
+    "createdAt": "2025-04-28T18:19:09Z",
+    "closedAt": "2025-05-05T20:12:20Z",
+    "body": "",
+    "labels": {
+      "nodes": []
+    }
+  },
+  {
+    "id": "I_kwDOOhN35c60ZdI4",
+    "number": 16,
+    "title": "Story D",
+    "state": "CLOSED",
+    "url": "https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/16",
+    "createdAt": "2025-04-29T00:08:12Z",
+    "closedAt": "2025-05-19T06:07:20Z",
+    "body": "",
+    "labels": {
+      "nodes": []
+    }
+  },
+  {
+    "id": "I_kwDOOhN35c61-9C_",
+    "number": 42,
+    "title": "this is a bad story",
+    "state": "CLOSED",
+    "url": "https://github.com/Regnaer-Org/TestingWorkflowsOrg/issues/42",
+    "createdAt": "2025-05-09T21:01:46Z",
+    "closedAt": "2025-05-19T05:23:16Z",
+    "body": "",
+    "labels": {
+      "nodes": []
+    }
+  }
+]
