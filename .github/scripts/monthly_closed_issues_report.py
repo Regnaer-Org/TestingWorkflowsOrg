@@ -59,13 +59,13 @@ query GetProjectV2Items($projectId: ID!, $cursor: String) {
               ... on ProjectV2ItemFieldSingleSelectValue {
                 name
                 field {
-                  ... on ProjectV2SingleSelectFieldConfiguration { name }
+                  ... on ProjectV2SingleSelectField { name }
                 }
               }
               ... on ProjectV2ItemFieldIterationValue {
                 title
                 field {
-                  ... on ProjectV2IterationFieldConfiguration { name }
+                  ... on ProjectV2IterationField { name }
                 }
               }
             }
