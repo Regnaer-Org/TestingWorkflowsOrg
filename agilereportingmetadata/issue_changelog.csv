@@ -434,3 +434,26 @@ date,issue_number,content_id,field,old_value,new_value,content_title,issue_type_
 2025.05.19,16,I_kwDOOhN35c60ZdI4,content_closed_at,,2025-05-19T06:07:20Z,Story D,Story,Team A,In Progress,Sprint 1,I_kwDOOhN35c60WYJd,,CLOSED,2025-05-19T06:07:20Z,
 2025.05.19,42,I_kwDOOhN35c61-9C_,content_state,OPEN,CLOSED,this is a bad story,Task,Team A,,Sprint 2,I_kwDOOhN35c60WYez,,CLOSED,2025-05-19T05:23:16Z,Release 1
 2025.05.19,42,I_kwDOOhN35c61-9C_,content_closed_at,,2025-05-19T05:23:16Z,this is a bad story,Task,Team A,,Sprint 2,I_kwDOOhN35c60WYez,,CLOSED,2025-05-19T05:23:16Z,Release 1
+2025.05.23,28,I_kwDOOhN35c61oNDc,content_state,OPEN,CLOSED,Highlight high-risk assets on the map,Story,Team B,Done,,I_kwDOOhN35c60WYLt,,CLOSED,2025-05-24T02:45:45Z,Release 2
+2025.05.23,28,I_kwDOOhN35c61oNDc,content_closed_at,,2025-05-24T02:45:45Z,Highlight high-risk assets on the map,Story,Team B,Done,,I_kwDOOhN35c60WYLt,,CLOSED,2025-05-24T02:45:45Z,Release 2
+2025.05.23,28,I_kwDOOhN35c61oNDc,status,,Done,Highlight high-risk assets on the map,Story,Team B,Done,,I_kwDOOhN35c60WYLt,,CLOSED,2025-05-24T02:45:45Z,Release 2
+2025.05.23,28,I_kwDOOhN35c61oNDc,team,,Team B,Highlight high-risk assets on the map,Story,Team B,Done,,I_kwDOOhN35c60WYLt,,CLOSED,2025-05-24T02:45:45Z,Release 2
+2025.05.23,26,I_kwDOOhN35c61oMz2,content_state,OPEN,CLOSED,Show flood risk overlays by region,Story,Team B,Done,,I_kwDOOhN35c60WYLt,,CLOSED,2025-05-24T02:45:31Z,Release 2
+2025.05.23,26,I_kwDOOhN35c61oMz2,content_closed_at,,2025-05-24T02:45:31Z,Show flood risk overlays by region,Story,Team B,Done,,I_kwDOOhN35c60WYLt,,CLOSED,2025-05-24T02:45:31Z,Release 2
+2025.05.23,26,I_kwDOOhN35c61oMz2,status,,Done,Show flood risk overlays by region,Story,Team B,Done,,I_kwDOOhN35c60WYLt,,CLOSED,2025-05-24T02:45:31Z,Release 2
+2025.05.23,26,I_kwDOOhN35c61oMz2,team,,Team B,Show flood risk overlays by region,Story,Team B,Done,,I_kwDOOhN35c60WYLt,,CLOSED,2025-05-24T02:45:31Z,Release 2
+2025.05.23,31,I_kwDOOhN35c61oOta,team,,Team B,Download portfolio risk assessment report,Story,Team B,,Sprint 1,I_kwDOOhN35c60WYRW,,OPEN,,Release 2
+2025.05.23,3,I_kwDOOhN35c60WYLt,team,,Team B,Real-Time Catastrophe Risk Visualization,Feature,Team B,,Sprint 3,I_kwDOOhN35c60WSvX,,OPEN,,Release 2
+2025.05.23,30,I_kwDOOhN35c61oOm2,content_state,OPEN,CLOSED,Automated risk scoring for each property,Story,Team B,Done,,I_kwDOOhN35c60WYRW,,CLOSED,2025-05-24T02:46:01Z,Release 2
+2025.05.23,30,I_kwDOOhN35c61oOm2,content_closed_at,,2025-05-24T02:46:01Z,Automated risk scoring for each property,Story,Team B,Done,,I_kwDOOhN35c60WYRW,,CLOSED,2025-05-24T02:46:01Z,Release 2
+2025.05.23,30,I_kwDOOhN35c61oOm2,status,,Done,Automated risk scoring for each property,Story,Team B,Done,,I_kwDOOhN35c60WYRW,,CLOSED,2025-05-24T02:46:01Z,Release 2
+2025.05.23,30,I_kwDOOhN35c61oOm2,team,,Team B,Automated risk scoring for each property,Story,Team B,Done,,I_kwDOOhN35c60WYRW,,CLOSED,2025-05-24T02:46:01Z,Release 2
+2025.05.23,29,I_kwDOOhN35c61oOd4,content_state,OPEN,CLOSED,Upload property portfolio via CSV,Story,Team B,Done,,I_kwDOOhN35c60WYRW,,CLOSED,2025-05-24T02:45:54Z,Release 2
+2025.05.23,29,I_kwDOOhN35c61oOd4,content_closed_at,,2025-05-24T02:45:54Z,Upload property portfolio via CSV,Story,Team B,Done,,I_kwDOOhN35c60WYRW,,CLOSED,2025-05-24T02:45:54Z,Release 2
+2025.05.23,29,I_kwDOOhN35c61oOd4,status,,Done,Upload property portfolio via CSV,Story,Team B,Done,,I_kwDOOhN35c60WYRW,,CLOSED,2025-05-24T02:45:54Z,Release 2
+2025.05.23,29,I_kwDOOhN35c61oOd4,team,,Team B,Upload property portfolio via CSV,Story,Team B,Done,,I_kwDOOhN35c60WYRW,,CLOSED,2025-05-24T02:45:54Z,Release 2
+2025.05.23,4,I_kwDOOhN35c60WYRW,team,,Team B,Automated Portfolio Risk Assessment,Feature,Team B,,,I_kwDOOhN35c60WSvX,,OPEN,,Release 2
+2025.05.23,27,I_kwDOOhN35c61oM81,content_state,OPEN,CLOSED,Enable interactive zoom and pan on catastrophe map,Story,Team B,Done,,I_kwDOOhN35c60WYLt,,CLOSED,2025-05-24T02:45:38Z,Release 2
+2025.05.23,27,I_kwDOOhN35c61oM81,content_closed_at,,2025-05-24T02:45:38Z,Enable interactive zoom and pan on catastrophe map,Story,Team B,Done,,I_kwDOOhN35c60WYLt,,CLOSED,2025-05-24T02:45:38Z,Release 2
+2025.05.23,27,I_kwDOOhN35c61oM81,status,,Done,Enable interactive zoom and pan on catastrophe map,Story,Team B,Done,,I_kwDOOhN35c60WYLt,,CLOSED,2025-05-24T02:45:38Z,Release 2
+2025.05.23,27,I_kwDOOhN35c61oM81,team,,Team B,Enable interactive zoom and pan on catastrophe map,Story,Team B,Done,,I_kwDOOhN35c60WYLt,,CLOSED,2025-05-24T02:45:38Z,Release 2
