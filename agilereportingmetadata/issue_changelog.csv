@@ -457,3 +457,6 @@ date,issue_number,content_id,field,old_value,new_value,content_title,issue_type_
 2025.05.23,27,I_kwDOOhN35c61oM81,content_closed_at,,2025-05-24T02:45:38Z,Enable interactive zoom and pan on catastrophe map,Story,Team B,Done,,I_kwDOOhN35c60WYLt,,CLOSED,2025-05-24T02:45:38Z,Release 2
 2025.05.23,27,I_kwDOOhN35c61oM81,status,,Done,Enable interactive zoom and pan on catastrophe map,Story,Team B,Done,,I_kwDOOhN35c60WYLt,,CLOSED,2025-05-24T02:45:38Z,Release 2
 2025.05.23,27,I_kwDOOhN35c61oM81,team,,Team B,Enable interactive zoom and pan on catastrophe map,Story,Team B,Done,,I_kwDOOhN35c60WYLt,,CLOSED,2025-05-24T02:45:38Z,Release 2
+2025.05.24,17,I_kwDOOhN35c60ZiDF,content_state,OPEN,CLOSED,Story E,Story,Team A,,,I_kwDOOhN35c60WYJd,,CLOSED,2025-05-24T04:00:24Z,
+2025.05.24,17,I_kwDOOhN35c60ZiDF,content_closed_at,,2025-05-24T04:00:24Z,Story E,Story,Team A,,,I_kwDOOhN35c60WYJd,,CLOSED,2025-05-24T04:00:24Z,
+2025.05.24,17,I_kwDOOhN35c60ZiDF,team,,Team A,Story E,Story,Team A,,,I_kwDOOhN35c60WYJd,,CLOSED,2025-05-24T04:00:24Z,
