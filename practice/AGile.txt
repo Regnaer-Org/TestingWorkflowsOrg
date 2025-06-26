@@ -1,0 +1,21 @@
+Why Agile and Scrum? A Collaborative Path to Better Products
+Have you ever felt like there's a bit of a gap between our big-picture product vision and the daily grind of bringing it to life? It's common to see Product Owners tracking high-level features in Aha! while the development team is deep in the weeds of tickets in Azure DevOps. Add to that the challenge of our teams being spread across continents – with vendor developers in Europe and our core team here in America – and it's easy for things to get lost in translation.
+
+We've also noticed that with internal IT managing both QA and Scrum Master duties, it can lead to some confusion about who's responsible for what. From the business side, there's often a feeling of not having enough control, and as Product Owners, you might even feel an "artificial barrier" between you and the development group, where direct, collaborative refinement of requirements doesn't happen as often as we'd like. And for our developers, who are used to a more traditional Waterfall approach, embracing something new can feel like a big shift.
+
+It's About Gaining Control, Not Losing It.
+This is precisely why embracing an Agile mindset, particularly through the Scrum framework, is so incredibly important for us right now. Forget the jargon for a moment, and think of Agile as a smarter, more adaptive way to build. It's not about giving up control; it's about gaining more effective and predictable oversight. Imagine a clear, real-time view of progress, allowing us to pivot and adapt rapidly as priorities shift or new insights emerge.
+
+The real power of Agile and Scrum lies in their ability to help us:
+
+Deliver Superior Products: By building incrementally and getting constant feedback, we ensure what we deliver truly meets customer needs and expectations.
+
+Boost Customer Satisfaction: Happier customers mean a more successful product.
+
+Accelerate Delivery: Smaller, frequent releases mean value gets to market faster.
+
+Mitigate Risks: We identify and address issues early, preventing major roadblocks down the line.
+
+Improve Team Morale: By fostering clearer communication, shared goals, and a sense of collective accomplishment.
+
+This presentation isn't just about processes; it's about shifting how we collaborate. We’ll explore practical, manageable steps to build a common understanding of requirements, establish clear definitions of "ready" (what we need to start) and "done" (what a finished piece of work looks like), and dramatically improve our communication channels. By clarifying the fundamental principles behind Agile and Scrum, we can empower all of us – Product Owners, Business Analysts, and Subject Matter Experts – to work together more seamlessly, deliver higher quality products, and truly own our collective success.
