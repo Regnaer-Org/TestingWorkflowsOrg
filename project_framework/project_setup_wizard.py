@@ -1,56 +1,70 @@
 import os
 import textwrap
+import subprocess
+import tempfile
 from datetime import datetime
 
-def prompt_for_list(title):
-    """Generic function to prompt for a list of items."""
-    print(f"\n--- {title} ---")
-    print(f"List the {title.lower()} (one per line, type 'done' when finished):")
-    items = []
-    while True:
-        item = input("> ")
-        if item.lower() == 'done':
-            break
-        items.append(item)
-    return items
+def get_multiline_input_from_editor(prompt):
+    """
+    Opens a command-line editor (nano) to get multi-line input from the user.
+    This allows for easy pasting of paragraphs from other documents.
+    """
+    print(f"\n--- {prompt} ---")
+    print("A text editor will now open. Please enter or paste your text.")
+    print("When you are finished, save the file and exit:")
+    print("  1. Press 'Ctrl+O' (Write Out), then 'Enter' to save.")
+    print("  2. Press 'Ctrl+X' to exit the editor.")
+    input("Press Enter to continue...")
+
+    editor = os.environ.get('EDITOR', 'nano')
+    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as tf:
+        tf.write(f"# {prompt}\n# Please enter your text below this line.\n")
+        temp_filename = tf.name
+
+    subprocess.run([editor, temp_filename])
+
+    with open(temp_filename, 'r') as tf:
+        # Read all lines and filter out the comment lines at the top
+        content = [line for line in tf.readlines() if not line.strip().startswith('#')]
+        
+    os.remove(temp_filename) # Clean up the temporary file
+    
+    # Join the lines back into a single string
+    return "".join(content).strip()
 
 def main():
     """Main function to run the project setup wizard."""
     # --- Get metadata ---
     current_time_utc = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-    # In a real scenario, you might get the user from the environment,
-    # but for this wizard, we'll prompt for it.
-    current_user = input("Enter your GitHub username (e.g., 'regnaer'): ")
+    current_user = "regnaer" # Hardcoded based on user login context
 
     print("\n--- Project Setup Wizard ---")
-    print("Let's get your new project set up. Please answer the following questions.\n")
+    print("This wizard will help you create the foundational documents for your project.")
 
     # --- Gather Information ---
-    project_name = input("Enter the project name (e.g., 'Reinsurance Pricing Engine'): ")
-    persona = input("Enter the primary user persona (e.g., 'Junior Actuarial Analyst'): ")
-    problem = input("Describe the core problem this project solves: ")
-    business_case = input("Describe the business case (why should we build this?): ")
-
-    goals = prompt_for_list("Project Goals")
-    stakeholders = prompt_for_list("Stakeholders")
-
-    print("\n--- Glossary ---")
-    print("Let's build a glossary.")
+    project_name = input("\nEnter the project name (e.g., 'Reinsurance Pricing Engine'): ")
+    persona = get_multiline_input_from_editor("Primary User Persona")
+    problem = get_multiline_input_from_editor("Core Problem Statement")
+    business_case = get_multiline_input_from_editor("Business Case")
+    goals = get_multiline_input_from_editor("Project Goals (as a bulleted list)")
+    stakeholders = get_multiline_input_from_editor("Key Stakeholders (as a bulleted list)")
+    glossary_input = get_multiline_input_from_editor("Glossary Terms (format: TERM: Definition, one per line)")
+    epics = get_multiline_input_from_editor("Epics / In-Scope Features (as a bulleted list)")
+    
+    # --- Process list-based inputs ---
+    goal_list = [line.strip().lstrip('-* ').capitalize() for line in goals.splitlines() if line.strip()]
+    stakeholder_list = [line.strip().lstrip('-* ').capitalize() for line in stakeholders.splitlines() if line.strip()]
+    epic_list = [line.strip().lstrip('-* ').capitalize() for line in epics.splitlines() if line.strip()]
+    
     glossary = {}
-    while True:
-        term = input("Enter a term (e.g., 'IBNR'): ")
-        definition = input(f"Enter the definition for '{term}': ")
-        glossary[term] = definition
-        another = input("Add another term? (y/n): ")
-        if another.lower() != 'y':
-            break
-
-    epics = prompt_for_list("Epics (In-Scope Features)")
+    for line in glossary_input.splitlines():
+        if ':' in line:
+            term, definition = line.split(':', 1)
+            glossary[term.strip()] = definition.strip()
 
     # --- Generate Files ---
     print("\nProcessing...")
 
-    # Create docs directory if it doesn't exist
     if not os.path.exists('docs'):
         os.makedirs('docs')
         print("- Creating docs/ directory")
@@ -63,20 +77,23 @@ def main():
 
     ## 1. Executive Summary
 
-    **Problem:** {problem}
+    ### Problem
+    {problem}
 
-    **Solution:** This project aims to deliver a solution that addresses the core problem by focusing on the goals outlined below. The primary user for this solution is the **{persona}**.
+    ### Solution
+    This project aims to deliver a solution that addresses the core problem by focusing on the goals outlined below. The primary user for this solution is the **{persona}**.
 
-    **Business Case:** {business_case}
+    ### Business Case
+    {business_case}
 
     ## 2. Project Goals
 
     The primary objectives for this project are:
-    {''.join([f'- {goal}\\n' for goal in goals])}
+    {''.join([f'- {goal}\\n' for goal in goal_list])}
     ## 3. Stakeholders
 
     The key stakeholders for this project are:
-    {''.join([f'- {stakeholder}\\n' for stakeholder in stakeholders])}
+    {''.join([f'- {stakeholder}\\n' for stakeholder in stakeholder_list])}
     """
     with open('README.md', 'w') as f:
         f.write(textwrap.dedent(readme_content).strip())
@@ -84,9 +101,7 @@ def main():
     # 2. Persona Card
     print("- Generating docs/persona_card.md")
     persona_content = f"""
-    # Persona Card
-
-    ## Primary Persona: {persona}
+    # Persona Card: {persona}
 
     *(This is a placeholder. The Product Owner should expand this with more details about the user's goals, frustrations, and daily tasks.)*
     """
@@ -104,16 +119,12 @@ def main():
     # 4. Epic Creation Script
     print("- Generating create_epics.sh to create your issues in GitHub")
     script_content = "#!/bin/sh\n"
-    script_content += "# This script was generated by the project_setup_wizard.py\n"
-    script_content += "# It will create the initial epics for your project in GitHub.\n\n"
-    for epic in epics:
-        # Escaping quotes for the shell command
+    for epic in epic_list:
         safe_epic_title = epic.replace("'", "'\\''")
-        script_content += f"gh issue create --title '{safe_epic_title}' --body 'This is an epic. It should be broken down into user stories.' --label 'epic'\n"
+        script_content += f"gh issue create --title 'Epic: {safe_epic_title}' --body 'This is an epic. It should be broken down into user stories.' --label 'epic'\n"
 
     with open('create_epics.sh', 'w') as f:
         f.write(script_content)
-    # Make the script executable
     os.chmod('create_epics.sh', 0o755)
 
     print("\n--- Setup Complete! ---")
@@ -121,7 +132,6 @@ def main():
     print("NEXT STEP: To create your initial epics in GitHub, run the following command:")
     print("sh create_epics.sh\n")
     print("After that, commit and push your newly generated files.")
-
 
 if __name__ == '__main__':
     main()
