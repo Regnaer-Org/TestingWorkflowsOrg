@@ -20,7 +20,6 @@ def get_multiline_input_from_editor(prompt):
     subprocess.run([editor, temp_filename])
     with open(temp_filename, 'r') as tf:
         content = tf.read().strip()
-        # Remove the placeholder prompt if it's still there
         content = re.sub(r'^#.*# Please enter your text below this line.\n?', '', content, flags=re.MULTILINE).strip()
     os.remove(temp_filename)
     return content
@@ -40,39 +39,84 @@ def print_copilot_pro_tip(prompt_example):
     print("\n" + textwrap.fill(f'"{prompt_example}"', 58, initial_indent="  ", subsequent_indent="  "))
     print("---------------------------\n")
 
-def sanitize_for_directory_name(name):
-    """Converts a project name into a filesystem-safe directory name."""
+def sanitize_for_filename(name):
+    """Converts a name into a filesystem-safe filename."""
     s = name.strip().lower()
     s = re.sub(r'\s+', '-', s)
     s = re.sub(r'[^a-z0-9-]', '', s)
     return s
 
+def handle_persona_selection():
+    """Manages the creation or selection of a user persona."""
+    persona_dir = "personas"
+    os.makedirs(persona_dir, exist_ok=True)
+    
+    existing_personas = [f for f in os.listdir(persona_dir) if f.endswith('.md')]
+    
+    if not existing_personas:
+        print("No existing personas found. Let's create the first one.")
+        return create_new_persona(persona_dir)
+
+    print("Found existing personas:")
+    for i, p_file in enumerate(existing_personas):
+        # Clean up the name for display
+        display_name = os.path.splitext(p_file)[0].replace('-', ' ').title()
+        print(f"  {i + 1}: {display_name}")
+    
+    print(f"  {len(existing_personas) + 1}: Create a new persona")
+
+    while True:
+        try:
+            choice = int(input("Choose an option: "))
+            if 1 <= choice <= len(existing_personas):
+                return os.path.join(persona_dir, existing_personas[choice - 1])
+            elif choice == len(existing_personas) + 1:
+                return create_new_persona(persona_dir)
+            else:
+                print("Invalid choice. Please try again.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+
+def create_new_persona(persona_dir):
+    """Guides the user to create a new persona file."""
+    print_step_header("Create a New User Persona", "A great persona is the foundation of a great project. Generate a detailed persona and paste the entire thing here.")
+    print_copilot_pro_tip("Create a detailed user persona card for a [persona title, e.g., 'Mid-level Reinsurance Actuary']. Include their goals, skills, daily tasks, and frustrations in Markdown format.")
+    
+    persona_title = input("What is the title of this new persona? (e.g., Mid-level Reinsurance Actuary): ")
+    filename = sanitize_for_filename(persona_title) + ".md"
+    filepath = os.path.join(persona_dir, filename)
+    
+    persona_content = get_multiline_input_from_editor(f"Paste the full persona card for '{persona_title}'")
+    
+    with open(filepath, 'w') as f:
+        f.write(f"# Persona: {persona_title}\n\n{persona_content}")
+    
+    print(f"\nPersona created and saved to: {filepath}")
+    return filepath
+
 def main():
     """Main function to run the project setup wizard."""
-    current_time_utc = "2025-07-03 02:57:28"
+    current_time_utc = "2025-07-03 03:10:49"
     current_user = "regnaer"
 
     print("="*60)
     print("        Welcome to the Initiative Brief Wizard!")
     print("="*60)
-    print("This wizard helps you document a new project or feature")
-    print("within this existing repository.")
     
+    # --- Persona ---
+    persona_path = handle_persona_selection()
+    
+    # --- Initiative Details ---
     initiative_name = input("\nWhat is the name of this new initiative or feature?: ")
-    dir_name = sanitize_for_directory_name(initiative_name)
+    dir_name = sanitize_for_filename(initiative_name)
     initiative_path = os.path.join("initiatives", dir_name)
 
     os.makedirs(initiative_path, exist_ok=True)
     print(f"\nGreat! We will create all documentation in: {initiative_path}/")
 
-    # --- Persona ---
-    print_step_header("Define the User Persona", "A great persona is the foundation of a great project. Generate a detailed persona and paste the entire thing here.")
-    print_copilot_pro_tip(f"I'm working on a '{initiative_name}' initiative. Can you create a detailed user persona card for a 'Mid-level Reinsurance Actuary'? Include their goals, skills, daily tasks, and frustrations in Markdown format.")
-    persona = get_multiline_input_from_editor(f"Paste the full User Persona for {initiative_name}")
-
     # --- Problem Statement ---
     print_step_header("Define the Problem", "Use Copilot to help you draft a clear and compelling problem statement, then paste the full text here.")
-    print_copilot_pro_tip(f"Based on the persona of a Mid-level Reinsurance Actuary, help me write a detailed problem statement about the challenges they face that our '{initiative_name}' initiative will solve. Use Markdown to structure it.")
+    print_copilot_pro_tip(f"Based on our selected persona, help me write a detailed problem statement about the challenges they face that our '{initiative_name}' initiative will solve. Use Markdown to structure it.")
     problem = get_multiline_input_from_editor("Paste the full Problem Statement")
 
     # --- Business Case ---
@@ -81,7 +125,7 @@ def main():
     business_case = get_multiline_input_from_editor("Paste the full Business Case")
 
     # --- Epics ---
-    print_step_header("List the Epic Titles", "Finally, list the titles of the major epics for this initiative. Enter one epic title per line. The issue bodies will link back to the brief you're creating now.")
+    print_step_header("List the Epic Titles", "Finally, list the titles of the major epics for this initiative. Enter one epic title per line.")
     print_copilot_pro_tip(f"Based on the business case for '{initiative_name}', suggest 3-5 high-level epic titles that would form the core of the MVP.")
     epics_raw = get_multiline_input_from_editor("List the Epic Titles (one per line)")
 
@@ -92,6 +136,9 @@ def main():
     epic_titles = [line.strip() for line in epics_raw.splitlines() if line.strip()]
 
     # Create the main brief document (BRIEF.md)
+    # Note: We use a relative link to the persona file.
+    relative_persona_path = os.path.join("..", "..", persona_path)
+
     brief_content = f"""
 # Initiative Brief: {initiative_name}
 **(Last Updated: {current_time_utc} by @{current_user})**
@@ -99,7 +146,8 @@ def main():
 ---
 
 ## Primary User Persona
-{persona}
+This initiative targets the following persona. See the full persona card for details.
+- **[{os.path.splitext(os.path.basename(persona_path))[0].replace('-', ' ').title()}]({relative_persona_path})**
 
 ---
 
@@ -146,7 +194,7 @@ The following epics represent the high-level scope for this initiative. See the 
     print("A script to create these epics in GitHub Issues has been generated.")
     print("\nIn your terminal, run the following command:")
     print(f"sh {script_path}\n")
-    print("After that, commit the new 'initiatives/' directory to save your work.")
+    print("After that, commit the new 'initiatives/' and 'personas/' directories to save your work.")
 
 if __name__ == '__main__':
     main()
