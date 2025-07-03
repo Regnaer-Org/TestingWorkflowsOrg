@@ -59,7 +59,6 @@ def handle_persona_selection():
 
     print("Found existing personas:")
     for i, p_file in enumerate(existing_personas):
-        # Clean up the name for display
         display_name = os.path.splitext(p_file)[0].replace('-', ' ').title()
         print(f"  {i + 1}: {display_name}")
     
@@ -96,7 +95,7 @@ def create_new_persona(persona_dir):
 
 def main():
     """Main function to run the project setup wizard."""
-    current_time_utc = "2025-07-03 03:10:49"
+    current_time_utc = "2025-07-03 03:14:10"
     current_user = "regnaer"
 
     print("="*60)
@@ -136,8 +135,7 @@ def main():
     epic_titles = [line.strip() for line in epics_raw.splitlines() if line.strip()]
 
     # Create the main brief document (BRIEF.md)
-    # Note: We use a relative link to the persona file.
-    relative_persona_path = os.path.join("..", "..", persona_path)
+    relative_persona_path = os.path.join("..", "..", persona_path).replace(os.path.sep, '/')
 
     brief_content = f"""
 # Initiative Brief: {initiative_name}
@@ -172,8 +170,10 @@ The following epics represent the high-level scope for this initiative. See the 
     print(f"- Generated {os.path.join(initiative_path, 'BRIEF.md')}")
 
     # Create the epic generation script
+    repo_slug = os.environ.get('GITHUB_REPOSITORY', 'owner/repo-name')
+    brief_url = f"https://github.com/{repo_slug}/blob/main/{initiative_path}/BRIEF.md"
+    
     script_content = f"#!/bin/sh\n# This script uses the GitHub CLI to create your epics as issues for the '{initiative_name}' initiative.\n\n"
-    brief_url = f"https://github.com/Regnaer-Org/TestingWorkflowsOrg/blob/main/{initiative_path}/BRIEF.md"
     
     for title in epic_titles:
         safe_title = title.replace("'", "'\\''")
