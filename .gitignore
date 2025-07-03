@@ -1,0 +1,6 @@
+# Ignore the project framework directory
+.project_framework/
+
+# Python cache
+__pycache__/
+*.pyc
