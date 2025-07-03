@@ -1,5 +1,6 @@
 import os
 import textwrap
+from datetime import datetime
 
 def prompt_for_list(title):
     """Generic function to prompt for a list of items."""
@@ -15,7 +16,13 @@ def prompt_for_list(title):
 
 def main():
     """Main function to run the project setup wizard."""
-    print("--- Project Setup Wizard ---")
+    # --- Get metadata ---
+    current_time_utc = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+    # In a real scenario, you might get the user from the environment,
+    # but for this wizard, we'll prompt for it.
+    current_user = input("Enter your GitHub username (e.g., 'regnaer'): ")
+
+    print("\n--- Project Setup Wizard ---")
     print("Let's get your new project set up. Please answer the following questions.\n")
 
     # --- Gather Information ---
@@ -52,6 +59,7 @@ def main():
     print("- Generating README.md")
     readme_content = f"""
     # {project_name}
+    **(Last Updated: {current_time_utc} by @{current_user})**
 
     ## 1. Executive Summary
 
@@ -112,7 +120,7 @@ def main():
     print("Your project foundation has been created.\n")
     print("NEXT STEP: To create your initial epics in GitHub, run the following command:")
     print("sh create_epics.sh\n")
-    print("After that, initialize your git repository, add the files, and push them to GitHub.")
+    print("After that, commit and push your newly generated files.")
 
 
 if __name__ == '__main__':
