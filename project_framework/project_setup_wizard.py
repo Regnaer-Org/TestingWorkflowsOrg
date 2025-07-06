@@ -18,17 +18,14 @@ def get_multiline_input_from_editor(prompt):
     print("TIP: You can set your preferred editor with the EDITOR environment variable (e.g. export EDITOR=micro).")
     input("Press Enter to continue...")
 
-    # Prefer micro, fallback to $EDITOR, then nano
     editor = os.environ.get('EDITOR', 'micro')
     with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix=".md") as tf:
         tf.write(f"# {prompt}\n# Please enter your text below this line.\n")
         temp_filename = tf.name
     subprocess.run([editor, temp_filename])
     with open(temp_filename, 'r') as tf:
-        lines = tf.read().splitlines()
-        # Remove any lines starting with '#' (prompts, instructions)
-        lines = [line for line in lines if not line.strip().startswith("#")]
-        content = "\n".join(lines).strip()
+        content = tf.read().strip()
+        content = re.sub(r'^#.*# Please enter your text below this line.\n?', '', content, flags=re.MULTILINE).strip()
     os.remove(temp_filename)
     return content
 
@@ -68,7 +65,7 @@ def write_initiative_file(initiative_name, content):
 def handle_persona_selection():
     persona_dir = "personas"
     os.makedirs(persona_dir, exist_ok=True)
-    existing_personas = [f for f in os.listdir(persona_dir) if f.endswith(".md")]
+    existing_personas = [f for f in os.listdir(persona_dir) if f.endswith('.md')]
     if not existing_personas:
         print("No existing personas found. Let's create the first one.")
         return [create_new_persona(persona_dir)]
@@ -78,9 +75,7 @@ def handle_persona_selection():
         print(f"  {i + 1}: {display_name}")
     print(f"  {len(existing_personas) + 1}: Create a new persona")
     selected = []
-    print(
-        "Select persona numbers separated by commas (e.g. 1,3) or type just the new option to add a new one."
-    )
+    print("Select persona numbers separated by commas (e.g. 1,3) or type just the new option to add a new one.")
     choices = input("Your selection: ").split(",")
     for choice in choices:
         choice = choice.strip()
@@ -118,16 +113,9 @@ def create_new_persona(persona_dir):
     return filepath
 
 def collect_existing_issues():
-    print_step_header(
-        "Link Existing Relevant Issues",
-        "You may want to reference existing issues that provide context for this initiative (e.g., bugs, feedback, dependencies, etc).",
-    )
-    print_copilot_pro_tip(
-        "Which existing issues in this repo are relevant to this initiative? Copy their GitHub URLs here (one per line)."
-    )
-    issues_raw = get_multiline_input_from_editor(
-        "Paste one or more GitHub issue URLs (or leave blank):"
-    )
+    print_step_header("Link Existing Relevant Issues", "You may want to reference existing issues that provide context for this initiative (e.g., bugs, feedback, dependencies, etc).")
+    print_copilot_pro_tip("Which existing issues in this repo are relevant to this initiative? Copy their GitHub URLs here (one per line).")
+    issues_raw = get_multiline_input_from_editor("Paste one or more GitHub issue URLs (or leave blank):")
     issue_links = [line.strip() for line in issues_raw.splitlines() if line.strip()]
     return issue_links
 
@@ -135,11 +123,7 @@ def parse_epic_titles(epic_lines):
     """
     Filter epic titles: Ignore lines that are empty or start with '#'.
     """
-    return [
-        line.strip()
-        for line in epic_lines
-        if line.strip() and not line.strip().startswith("#")
-    ]
+    return [line.strip() for line in epic_lines if line.strip() and not line.strip().startswith("#")]
 
 def create_github_issue(
     repo_owner,
@@ -160,35 +144,36 @@ def create_github_issue(
         "Authorization": f"token {github_pat}",
         "Accept": "application/vnd.github+json",
     }
-    data = {
+    payload = {
         "title": title,
         "body": body,
     }
-    if assignees:
-        data["assignees"] = assignees
-    if milestone:
-        data["milestone"] = milestone
     if labels:
-        data["labels"] = labels
-    tried_type = False
+        payload["labels"] = labels
+    if assignees:
+        payload["assignees"] = assignees
+    if milestone:
+        payload["milestone"] = milestone
     if issue_type_name:
-        data["issue_type"] = issue_type_name
-        tried_type = True
-    resp = requests.post(url, headers=headers, json=data)
-    if resp.status_code == 201:
+        payload["issue_type"] = issue_type_name
+    resp = requests.post(url, headers=headers, json=payload)
+    if resp.ok:
         return resp.json()
-    elif tried_type and resp.status_code == 422:
-        # Remove issue_type and try again (type not supported)
-        del data["issue_type"]
-        resp = requests.post(url, headers=headers, json=data)
-        if resp.status_code == 201:
-            return resp.json()
-        else:
-            print(f"Failed to create issue (fallback): {resp.status_code} {resp.text}")
-            return None
     else:
         print(f"Failed to create issue: {resp.status_code} {resp.text}")
         return None
+
+def print_git_push_instructions():
+    print("\n" + "="*60)
+    print("🎉 All done! To save your changes to GitHub, run the following commands:")
+    print("Copy and paste the block below into your terminal after reviewing your files:\n")
+    print("```sh")
+    print("git add .")
+    print('git commit -m "Save all changes"')
+    print("git push origin main")
+    print("```")
+    print("This will add, commit, and push all new and changed files to the main branch.\n")
+    print("="*60 + "\n")
 
 def main():
     print("=" * 60)
@@ -230,7 +215,7 @@ def main():
 
     existing_issues = collect_existing_issues()
 
-    # Fake repo_slug for testing; in real use, you would use os.environ.get('GITHUB_REPOSITORY', 'owner/repo')
+    # Fake repo_slug for testing; in real use, you would use os.environ.get("GITHUB_REPOSITORY", "owner/repo-name")
     repo_slug = os.environ.get("GITHUB_REPOSITORY", "owner/repo-name")
     brief_url = f"https://github.com/{repo_slug}/blob/main/{initiative_path}"
     hierarchy_url = f"https://github.com/{repo_slug}/blob/main/.project_framework/backlog_hierarchy_best_practices.md"
@@ -246,14 +231,13 @@ def main():
     diagram_desc = get_multiline_input_from_editor("Describe the process (optional):")
     diagram_mermaid = ""
     if diagram_desc:
-        # Simple heuristic to create a Mermaid flowchart scaffold from a list
         steps = [s.strip("-•> ").capitalize() for s in diagram_desc.splitlines() if s.strip()]
         if len(steps) >= 2:
             nodes = [chr(ord("A") + i) for i in range(len(steps))]
             mermaid_lines = [f"{nodes[i]}[{steps[i]}] --> {nodes[i+1]}[{steps[i+1]}]" for i in range(len(steps) - 1)]
             diagram_mermaid = "```mermaid\nflowchart TD\n    " + "\n    ".join(mermaid_lines) + "\n```"
 
-    # --- Write initiative file ---
+    # --- Write initial initiative file (before epic links) ---
     initiative_content = f"# Initiative: {initiative_name}\n\n"
     initiative_content += f"## Personas\n" + "\n".join(persona_links) + "\n\n"
     initiative_content += f"## Problem Statement\n{problem}\n\n"
@@ -287,6 +271,12 @@ def main():
             if issue:
                 print(f"Created Epic Issue: {issue['html_url']}")
                 epic_links.append(issue['html_url'])
+        # If epics were created, update the initiative file to include the epic links
+        if epic_links:
+            with open(filename, "a", encoding="utf-8") as f:
+                f.write("\n\n## Epic Issue Links\n")
+                for link in epic_links:
+                    f.write(f"- {link}\n")
     elif not github_pat and create_epics:
         print("ISSUE_WIZARD_PAT not set. Skipping GitHub Epic creation.")
 
@@ -300,6 +290,8 @@ def main():
     print("Next steps:")
     print("  - Refine the epic issues with additional details or link sub-issues as needed.")
     print("  - Optionally, add these epics to your GitHub Project board for tracking.")
+
+    print_git_push_instructions()
 
 if __name__ == "__main__":
     main()
