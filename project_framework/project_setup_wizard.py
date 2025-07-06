@@ -9,35 +9,34 @@ import requests
 INITIATIVE_AUTOGEN_START = "<!-- INITIATIVE-AUTO-GENERATED-START -->"
 INITIATIVE_AUTOGEN_END = "<!-- INITIATIVE-AUTO-GENERATED-END -->"
 
-
 def get_multiline_input_from_editor(prompt):
     print("\nA text editor will now open. Markdown formatting is encouraged!")
-    print("When you are finished, save the file and exit:")
-    print("  1. Press 'Ctrl+O' (Write Out), then 'Enter' to save.")
-    print("  2. Press 'Ctrl+X' to exit the editor.")
+    print("When you are finished, save and close the file:")
+    print("  - In micro: Ctrl+S to save, Ctrl+Q to quit.")
+    print("  - In nano:  Ctrl+O to save, Enter, then Ctrl+X to quit.")
+    print("  - In VS Code: Save & close the tab/window.")
+    print("TIP: You can set your preferred editor with the EDITOR environment variable (e.g. export EDITOR=micro).")
     input("Press Enter to continue...")
 
-    editor = os.environ.get('EDITOR', 'nano')
+    # Prefer micro, fallback to $EDITOR, then nano
+    editor = os.environ.get('EDITOR', 'micro')
     with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix=".md") as tf:
         tf.write(f"# {prompt}\n# Please enter your text below this line.\n")
         temp_filename = tf.name
     subprocess.run([editor, temp_filename])
     with open(temp_filename, 'r') as tf:
-        content = tf.read().strip()
-        # Remove all lines starting with "#" (prompt and Copilot tips)
-        content = "\n".join(
-            [line for line in content.splitlines() if not line.strip().startswith("#")]
-        ).strip()
+        lines = tf.read().splitlines()
+        # Remove any lines starting with '#' (prompts, instructions)
+        lines = [line for line in lines if not line.strip().startswith("#")]
+        content = "\n".join(lines).strip()
     os.remove(temp_filename)
     return content
-
 
 def print_step_header(title, description):
     print("\n" + "=" * 60)
     print(f"STEP: {title}")
     print(textwrap.fill(description, 60))
     print("=" * 60)
-
 
 def print_copilot_pro_tip(prompt_example):
     print("\n--- [ Copilot Pro-Tip ] ---")
@@ -51,7 +50,6 @@ def print_copilot_pro_tip(prompt_example):
     )
     print("---------------------------\n")
 
-
 def sanitize_for_filename(name):
     s = name.strip().lower()
     s = re.sub(r"\s+", "-", s)
@@ -60,14 +58,12 @@ def sanitize_for_filename(name):
         s = s.replace("--", "-")
     return s
 
-
 def write_initiative_file(initiative_name, content):
     os.makedirs("initiatives", exist_ok=True)
     filename = f"initiatives/{sanitize_for_filename(initiative_name)}.md"
     with open(filename, "w", encoding="utf-8") as f:
         f.write(content)
     return filename
-
 
 def handle_persona_selection():
     persona_dir = "personas"
@@ -100,7 +96,6 @@ def handle_persona_selection():
             print(f"Invalid input: {choice}")
     return selected
 
-
 def create_new_persona(persona_dir):
     print_step_header(
         "Create a New User Persona",
@@ -122,7 +117,6 @@ def create_new_persona(persona_dir):
     print(f"\nPersona created and saved to: {filepath}")
     return filepath
 
-
 def collect_existing_issues():
     print_step_header(
         "Link Existing Relevant Issues",
@@ -137,7 +131,6 @@ def collect_existing_issues():
     issue_links = [line.strip() for line in issues_raw.splitlines() if line.strip()]
     return issue_links
 
-
 def parse_epic_titles(epic_lines):
     """
     Filter epic titles: Ignore lines that are empty or start with '#'.
@@ -147,7 +140,6 @@ def parse_epic_titles(epic_lines):
         for line in epic_lines
         if line.strip() and not line.strip().startswith("#")
     ]
-
 
 def create_github_issue(
     repo_owner,
@@ -198,11 +190,11 @@ def create_github_issue(
         print(f"Failed to create issue: {resp.status_code} {resp.text}")
         return None
 
-
 def main():
     print("=" * 60)
     print("        Welcome to the Initiative Brief Wizard!")
     print("=" * 60)
+    print("TIP: For a friendlier Markdown editing experience, install 'micro' (https://micro-editor.github.io) and set it as your default editor with 'export EDITOR=micro' before running this script.")
 
     persona_paths = handle_persona_selection()
     persona_links = []
@@ -308,7 +300,6 @@ def main():
     print("Next steps:")
     print("  - Refine the epic issues with additional details or link sub-issues as needed.")
     print("  - Optionally, add these epics to your GitHub Project board for tracking.")
-
 
 if __name__ == "__main__":
     main()
