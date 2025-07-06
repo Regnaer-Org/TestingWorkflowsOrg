@@ -52,12 +52,12 @@ Investing in the 'Year over Year analysis MLE Custom Curves' initiative will del
 ## Architecture Diagram
 ```mermaid
 flowchart TD
-    A[**data ingestion:** import reinsurance treaty, claims, and exposure data from internal databases, spreadsheets, or cloud storage.] --> B[**data cleansing & transformation:** standardize, validate, and reconcile data from multiple sources to ensure consistency and accuracy.]
-    B[**data cleansing & transformation:** standardize, validate, and reconcile data from multiple sources to ensure consistency and accuracy.] --> C[**data storage:** store cleaned and transformed data in a centralized data warehouse or cloud-based storage for easy access.]
-    C[**data storage:** store cleaned and transformed data in a centralized data warehouse or cloud-based storage for easy access.] --> D[**custom curve application:** apply user-defined actuarial curves to the prepared data using maximum likelihood estimation (mle) algorithms.]
-    D[**custom curve application:** apply user-defined actuarial curves to the prepared data using maximum likelihood estimation (mle) algorithms.] --> E[**year-over-year analysis engine:** compare results across different years, generating reports and visualizations for trends and insights.]
-    E[**year-over-year analysis engine:** compare results across different years, generating reports and visualizations for trends and insights.] --> F[**user interface & reporting:** provide dashboards and exportable reports for actuaries and stakeholders to review results and support decision-making.]
-    F[**user interface & reporting:** provide dashboards and exportable reports for actuaries and stakeholders to review results and support decision-making.] --> G[**cloud components (if applicable):** utilize cloud services for scalable data processing, storage, and analytics (e.g., aws s3, azure data lake, google]
+    A[Data ingestion - import reinsurance treaty, claims, and exposure data from internal databases, spreadsheets, or cloud storage] --> B[Data cleansing and transformation - standardize, validate, and reconcile data from multiple sources to ensure consistency and accuracy]
+    B --> C[Data storage - store cleaned and transformed data in a centralized data warehouse or cloud-based storage for easy access]
+    C --> D[Custom curve application - apply user-defined actuarial curves to the prepared data using maximum likelihood estimation algorithms]
+    D --> E[Year-over-year analysis engine - compare results across different years, generating reports and visualizations for trends and insights]
+    E --> F[User interface and reporting - provide dashboards and exportable reports for actuaries and stakeholders to review results and support decision-making]
+    F --> G[Cloud components if applicable - utilize cloud services for scalable data processing, storage, and analytics e.g. AWS S3, Azure Data Lake, Google]
 ```
 
 *Created on 2025-07-06 by vscode*
