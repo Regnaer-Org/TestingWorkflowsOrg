@@ -1,0 +1,6 @@
+{
+  "name": "Default Codespaces Python DevContainer",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "features": {},
+  "postCreateCommand": "pip install -r requirements.txt"
+}
