@@ -1,16 +1,12 @@
 # Databricks notebook source
-# Title: Bulk Edit UI for gc_prod_sandbox.su_eric_regna.metarisk_releases_dim (Hardened Version)
+# Title: Bulk Edit UI (Paginated, Hardened, & Advanced Debugging)
 #
 # What this does:
-# - Provides a performant UI to bulk-edit a Delta table using ipydatagrid.
-# - Dynamically creates dropdown options to prevent UI rendering errors.
-# - Enforces a strict schema during the update process to prevent data type mismatch errors on MERGE.
-# - Hardening:
-#   - Robust change event handling for ipydatagrid (newValue/value fallback).
-#   - Avoid None in dropdown options via sentinel and convert back on submit.
-#   - Strict type coercion for dates and key column.
-#   - Safer MERGE result metrics via Delta history.
-#   - Defensive validation and clearer error messages.
+# - Provides a scalable, paginated UI for bulk-editing a Delta table.
+# - Includes a collapsible debug section for tracing data transformations and schemas.
+# - Adds advanced post-flight analysis to diagnose "zero update" scenarios,
+#   pinpointing whether merge keys were not found or if the data already matched.
+# - Provides clear, actionable error messages to help users instantly identify and fix issues.
 
 # COMMAND ----------
 
@@ -22,249 +18,235 @@
 import pyspark.sql.functions as F
 from pyspark.sql.types import StructType, StructField, StringType, DateType, LongType
 from delta.tables import DeltaTable
-
 import pandas as pd
 import ipywidgets as widgets
+from ipywidgets import AppLayout, Layout
 import ipydatagrid
-from IPython.display import display
+from IPython.display import display, clear_output
+import io
 
 # --- Configuration ---
 TABLE_PATH = "gc_prod_sandbox.su_eric_regna.metarisk_releases_dim"
 EDITABLE_COLUMNS = ["start_date", "Status", "Callouts", "Product"]
 KEY_COLUMN = "surrogate_key"
 NULL_SENTINEL = "<NULL>"
+PAGE_SIZE = 100
 
-# Base options for the dropdowns
+# Base options for dropdowns
 base_status_options = ["Not Started", "On-Track", "At-Risk", "Off-Track", "Completed", "Blocked"]
 base_product_options = ["MR Desktop", "MR Online", "Data", "Support", "MR Live"]
 
-# This dictionary will store the final state of changed cells
-changed_cells = {}
+changed_data = {}
+
+# --- UI Widget Declarations ---
+grid = None
+update_button = widgets.Button(description="Apply Updates", button_style="success", icon="check")
+status_label = widgets.Label(value="Status: Ready")
+pagination_buttons = widgets.HBox()
+output_area = widgets.Output(layout={'border': '1px solid black', 'padding': '5px', 'margin_top': '10px'})
+debug_output = widgets.Output(layout={'padding': '5px'})
+debug_accordion = widgets.Accordion(children=[debug_output], titles=('Debug Log',))
+debug_accordion.selected_index = None
+main_container = widgets.VBox()
 
 # COMMAND ----------
 # MAGIC %md
-# MAGIC ### Step 1: Load Data & Prepare UI Components
-# MAGIC Loading data and dynamically creating dropdown options to prevent rendering errors.
+# MAGIC ### Step 1: Load Data & Prepare UI
+# MAGIC Use the navigation buttons to browse data. Edits are logged in the main output area.
 
 # COMMAND ----------
 
-try:
-    spark_df = spark.table(TABLE_PATH)
-
-    # Validate required columns exist
-    required_cols = [KEY_COLUMN] + EDITABLE_COLUMNS
-    missing = [c for c in required_cols if c not in spark_df.columns]
-    if missing:
-        raise ValueError(f"Missing required column(s) in {TABLE_PATH}: {missing}")
-
-    # Dynamically create robust dropdown options (exclude NULLs; handle with sentinel)
-    existing_status = [r["Status"] for r in spark_df.select("Status").distinct().where(F.col("Status").isNotNull()).collect()]
-    existing_product = [r["Product"] for r in spark_df.select("Product").distinct().where(F.col("Product").isNotNull()).collect()]
-
-    STATUS_OPTIONS = sorted(set(base_status_options + existing_status)) + [NULL_SENTINEL]
-    PRODUCT_OPTIONS = sorted(set(base_product_options + existing_product)) + [NULL_SENTINEL]
-
-    # Load the full DataFrame into pandas for the UI
-    pandas_df = spark_df.toPandas()
-
-    # Ensure date columns are proper datetime objects for the DateRenderer
-    if "start_date" in pandas_df.columns:
-        pandas_df["start_date"] = pd.to_datetime(pandas_df["start_date"], errors="coerce")
-
-    # Sort by key for stable indexing in grid
-    pandas_df = pandas_df.sort_values(by=KEY_COLUMN).reset_index(drop=True)
-
-    print(f"✅ Successfully loaded {len(pandas_df)} records and {pandas_df.shape[1]} columns from {TABLE_PATH}.")
-
-except Exception as e:
-    import traceback
-    print(f"❌ Error during data loading or dropdown preparation: {e}")
-    traceback.print_exc()
-    dbutils.notebook.exit("Stopping notebook due to error.")
-
-# COMMAND ----------
-# MAGIC %md
-# MAGIC ### Step 2: Edit Your Data
-# MAGIC Use the table below to make your changes.
-
-# COMMAND ----------
-
-# Create the Editable Grid
-dropdown_status_renderer = ipydatagrid.DropdownRenderer(options=STATUS_OPTIONS)
-dropdown_product_renderer = ipydatagrid.DropdownRenderer(options=PRODUCT_OPTIONS)
-
-renderers = {}
-for col in pandas_df.columns:
-    if col not in EDITABLE_COLUMNS:
-        renderers[col] = ipydatagrid.TextRenderer(read_only=True)
-    elif col == "Status":
-        renderers[col] = dropdown_status_renderer
-    elif col == "Product":
-        renderers[col] = dropdown_product_renderer
-    elif col == "start_date":
-        renderers[col] = ipydatagrid.DateRenderer()
-    else:
-        renderers[col] = ipydatagrid.TextRenderer()
-
-grid = ipydatagrid.DataGrid(
-    dataframe=pandas_df,
-    editable=True,
-    renderers=renderers,
-    layout={"height": "500px"},
-)
-
-def _coerce_to_date_or_none(v):
-    if v is None or v == "" or (isinstance(v, float) and pd.isna(v)) or (isinstance(v, pd.Timestamp) and pd.isna(v)):
-        return None
-    # Handle strings or Timestamps
-    ts = pd.to_datetime(v, errors="coerce")
-    if pd.isna(ts):
-        return None
-    return ts.date()
-
-def on_cell_changed(evt: dict):
-    """
-    Callback to record a change. Supports various ipydatagrid event payload keys.
-    Expects keys: 'row', 'column', and 'newValue' (with fallback to 'value').
-    """
+def get_dropdown_options():
     try:
-        row = evt.get("row")
-        col = evt.get("column")
-        new_val = evt.get("newValue", evt.get("value"))
+        spark_df = spark.table(TABLE_PATH)
+        existing_status = [r["Status"] for r in spark_df.select("Status").distinct().where(F.col("Status").isNotNull()).collect()]
+        existing_product = [r["Product"] for r in spark_df.select("Product").distinct().where(F.col("Product").isNotNull()).collect()]
+        status_options = sorted(set(base_status_options + existing_status)) + [NULL_SENTINEL]
+        product_options = sorted(set(base_product_options + existing_product)) + [NULL_SENTINEL]
+        return status_options, product_options
+    except Exception as e:
+        with output_area: print(f"❌ Error fetching dropdown options: {e}")
+        raise
 
-        if row is None or col is None:
+def get_paginated_df(page_number: int, page_size: int):
+    offset = (page_number - 1) * page_size
+    spark_df = spark.table(TABLE_PATH).orderBy(F.col(KEY_COLUMN))
+    pandas_df = spark_df.offset(offset).limit(page_size).toPandas()
+
+    if "start_date" in pandas_df.columns: pandas_df["start_date"] = pd.to_datetime(pandas_df["start_date"], errors="coerce")
+    for col in ["Status", "Product"]:
+        if col in pandas_df.columns: pandas_df[col] = pandas_df[col].fillna(NULL_SENTINEL)
+    return pandas_df
+
+def on_cell_changed(change):
+    row_index, col_name, new_value = change['row'], change['column'], change['newValue']
+    key_value = grid.data.loc[row_index, KEY_COLUMN]
+    
+    with output_area: print(f"Change captured: Key={key_value}, Column='{col_name}', New Value='{new_value}'")
+
+    if new_value == NULL_SENTINEL: new_value = None
+    if col_name == "start_date" and pd.notna(new_value): new_value = pd.to_datetime(new_value).date()
+
+    if key_value not in changed_data: changed_data[key_value] = {}
+    changed_data[key_value][col_name] = new_value
+    status_label.value = f"Status: {len(changed_data)} record(s) have pending changes."
+
+def draw_grid(page_number):
+    global grid
+    with output_area:
+        output_area.clear_output(); print(f"Loading page {page_number}...")
+
+    try:
+        pandas_df = get_paginated_df(page_number, PAGE_SIZE)
+        if pandas_df.empty:
+            with output_area: output_area.clear_output(); print("No more data to display.")
             return
 
-        # Map sentinel back to None
-        if new_val == NULL_SENTINEL:
-            new_val = None
+        STATUS_OPTIONS, PRODUCT_OPTIONS = get_dropdown_options()
+        renderers = {
+            col: (ipydatagrid.TextRenderer(read_only=True) if col not in EDITABLE_COLUMNS else
+                  ipydatagrid.DropdownRenderer(options=STATUS_OPTIONS) if col == "Status" else
+                  ipydatagrid.DropdownRenderer(options=PRODUCT_OPTIONS) if col == "Product" else
+                  ipydatagrid.DateRenderer() if col == "start_date" else
+                  ipydatagrid.TextRenderer())
+            for col in pandas_df.columns
+        }
+        renderers[KEY_COLUMN] = ipydatagrid.TextRenderer(read_only=True)
 
-        # Coerce date column
-        if col == "start_date":
-            new_val = _coerce_to_date_or_none(new_val)
+        grid = ipydatagrid.DataGrid(dataframe=pandas_df, editable=True, renderers=renderers, layout={"height": "400px"})
+        grid.on_cell_changed(on_cell_changed)
+        main_container.children = [pagination_buttons, grid, update_button, status_label, output_area, debug_accordion]
+        
+        with output_area: output_area.clear_output(); status_label.value = "Status: Ready"
 
-        changed_cells[(row, col)] = new_val
     except Exception as e:
-        print(f"⚠️ Failed to process cell change event: {e}")
+        with output_area: output_area.clear_output(); print(f"❌ Failed to load page {page_number}: {e}")
 
-# Register event listener (note: some versions use on_cell_change; on_cell_changed is preferred)
+def create_pagination_controls():
+    total_records = spark.table(TABLE_PATH).count()
+    total_pages = (total_records + PAGE_SIZE - 1) // PAGE_SIZE
+    current_page = 1
+
+    def go_to_page(page):
+        nonlocal current_page
+        if 1 <= page <= total_pages:
+            current_page = page; draw_grid(current_page)
+            page_label.value = f"Page {current_page} of {total_pages}"
+
+    prev_button, next_button = widgets.Button(description="Previous", icon="arrow-left"), widgets.Button(description="Next", icon="arrow-right")
+    page_label = widgets.Label(f"Page {current_page} of {total_pages}")
+    prev_button.on_click(lambda b: go_to_page(current_page - 1))
+    next_button.on_click(lambda b: go_to_page(current_page + 1))
+    return widgets.HBox([prev_button, next_button, page_label])
+
 try:
-    grid.on_cell_changed(on_cell_changed)
-except Exception:
-    # Fallback for environments exposing on_cell_change
-    try:
-        grid.on_cell_change(on_cell_changed)
-    except Exception as e:
-        print(f"⚠️ Could not attach change handler: {e}")
-
-display(grid)
+    pagination_buttons = create_pagination_controls()
+    main_container.children = [pagination_buttons, update_button, status_label, output_area, debug_accordion]
+    display(main_container)
+    draw_grid(1)
+except Exception as e:
+    with output_area:
+        output_area.clear_output(); print(f"❌ Notebook initialization failed: {e}")
+        import traceback; traceback.print_exc()
 
 # COMMAND ----------
 # MAGIC %md
-# MAGIC ### Step 3: Apply Updates
-# MAGIC Click the button below to merge your changes into the table.
+# MAGIC ### Step 2: Apply Updates
+# MAGIC Click the button to merge changes. If the update reports 0 rows affected, the debug log will contain a diagnosis.
 
 # COMMAND ----------
-
-update_button = widgets.Button(description="Update Table", button_style="success")
-output_area = widgets.Output()
 
 def on_update_button_clicked(_):
-    with output_area:
-        output_area.clear_output()
+    with output_area: output_area.clear_output()
+    with debug_output: debug_output.clear_output()
 
-        if not changed_cells:
-            print("ℹ️ No changes detected. Nothing to update.")
-            return
+    if not changed_data:
+        with output_area: print("ℹ️ No changes detected. Nothing to update.")
+        return
 
-        print(f"Processing {len(changed_cells)} changed cell(s)...")
+    with output_area: print(f"Processing {len(changed_data)} changed record(s)...")
 
-        try:
-            # Identify the full rows that have at least one change
-            changed_row_indices = sorted(list({idx for (idx, _col) in changed_cells.keys()}))
-            if not changed_row_indices:
-                print("ℹ️ No effective changes detected.")
-                return
+    try:
+        # --- Create and Validate Pandas DataFrame ---
+        updates_list = [dict(v, **{KEY_COLUMN: k}) for k, v in changed_data.items()]
+        updates_pd = pd.DataFrame(updates_list)
 
-            # Build a working frame with only key + editable columns
-            work_cols = [KEY_COLUMN] + EDITABLE_COLUMNS
-            final_updates_pd = pandas_df.loc[changed_row_indices, work_cols].copy()
+        # Pre-flight check: Ensure keys are not null
+        if updates_pd[KEY_COLUMN].isnull().any():
+            raise ValueError(f"CRITICAL: One or more edited rows has a null value in the key column '{KEY_COLUMN}'. Cannot proceed.")
 
-            # Apply the edits to this smaller DataFrame
-            for (row_index, col_name), new_value in changed_cells.items():
-                if row_index in final_updates_pd.index and col_name in final_updates_pd.columns:
-                    final_updates_pd.loc[row_index, col_name] = new_value
+        for col in EDITABLE_COLUMNS:
+            if col not in updates_pd.columns: updates_pd[col] = pd.NA
+        
+        with debug_output:
+            print("--- [Debug 1/4] Raw Pandas DataFrame from UI changes ---")
+            display(updates_pd.head())
 
-            # Type coercions and validations
+        # --- Define Schema and Create Spark DataFrame ---
+        merge_schema = StructType([
+            StructField(KEY_COLUMN, LongType(), False), StructField("start_date", DateType(), True),
+            StructField("Status", StringType(), True), StructField("Callouts", StringType(), True),
+            StructField("Product", StringType(), True),
+        ])
+        
+        with debug_output:
+            print("\n--- [Debug 2/4] Schema for Spark DataFrame (for MERGE) ---"); print(merge_schema)
 
-            # 1) Key: non-nullable, integer-like
-            if final_updates_pd[KEY_COLUMN].isna().any():
-                raise ValueError(f"Null values found in key column '{KEY_COLUMN}'.")
-            final_updates_pd[KEY_COLUMN] = pd.to_numeric(final_updates_pd[KEY_COLUMN], errors="raise").astype("int64")
+        updates_spark_df = spark.createDataFrame(updates_pd, schema=merge_schema)
+        
+        with debug_output:
+            print("\n--- [Debug 3/4] Final Spark DataFrame sample before MERGE ---")
+            buf = io.StringIO(); updates_spark_df.show(5, False, output=buf); print(buf.getvalue())
 
-            # 2) Date: ensure Python date objects for Spark DateType
-            if "start_date" in final_updates_pd.columns:
-                final_updates_pd["start_date"] = pd.to_datetime(final_updates_pd["start_date"], errors="coerce").dt.date
+        # --- Perform MERGE ---
+        updates_spark_df.createOrReplaceTempView("updates_to_merge")
+        spark.sql(f"""
+            MERGE INTO {TABLE_PATH} AS target USING updates_to_merge AS source
+            ON target.{KEY_COLUMN} = source.{KEY_COLUMN}
+            WHEN MATCHED THEN UPDATE SET
+                target.start_date = source.start_date, target.Status = source.Status,
+                target.Callouts = source.Callouts, target.Product = source.Product
+        """)
 
-            # 3) Strings: normalize NaN to None
-            for c in ["Status", "Callouts", "Product"]:
-                if c in final_updates_pd.columns:
-                    final_updates_pd[c] = final_updates_pd[c].where(~pd.isna(final_updates_pd[c]), None)
-                    # Ensure not carrying sentinel accidentally
-                    final_updates_pd[c] = final_updates_pd[c].apply(lambda x: None if x == NULL_SENTINEL else x)
+        dt = DeltaTable.forName(spark, TABLE_PATH)
+        op_metrics = dt.history(1).select("operationMetrics").collect()[0][0] or {}
+        num_updated = int(op_metrics.get("numTargetRowsUpdated", op_metrics.get("numUpdatedRows", 0)))
 
-            # Deduplicate by key in case of multiple edits on same row
-            final_updates_pd = final_updates_pd.sort_index().drop_duplicates(subset=[KEY_COLUMN], keep="last")
+        # --- Post-Flight Analysis ---
+        if num_updated > 0:
+            with output_area:
+                print(f"✅ Success! {num_updated} record(s) were updated in {TABLE_PATH}.")
+        else:
+            # Diagnosis for "zero updates"
+            with output_area:
+                print(f"⚠️ Merge complete, but 0 records were updated. Running diagnosis...")
+            
+            keys_to_check = [row[KEY_COLUMN] for row in updates_spark_df.select(KEY_COLUMN).collect()]
+            target_df = spark.table(TABLE_PATH).where(F.col(KEY_COLUMN).isin(keys_to_check))
+            
+            with debug_output:
+                print(f"\n--- [Debug 4/4] Post-Flight Analysis for Zero Updates ---")
+                if target_df.count() == 0:
+                    print("DIAGNOSIS: No-Match Failure.")
+                    print(f"The key(s) you edited {keys_to_check} were NOT FOUND in the target table '{TABLE_PATH}'.")
+                    print("RESOLUTION: Verify that these keys exist in the table. They may have been changed or deleted by another process.")
+                else:
+                    print("DIAGNOSIS: Data Already Matched.")
+                    print("The keys you edited were found, but the data in the table already matches the values you submitted.")
+                    print("RESOLUTION: This is expected if you changed a value and then changed it back. No action needed.")
+                    print("Current data in table for submitted keys:")
+                    target_df.show(truncate=False)
 
-            # Select only the necessary columns for the merge operation (column order must match schema below)
-            merge_data = final_updates_pd[[KEY_COLUMN, "start_date", "Status", "Callouts", "Product"]]
+        changed_data.clear()
+        status_label.value = "Status: Ready"
+        debug_accordion.selected_index = 0 # Expand for review
 
-            # Define a strict schema for the Spark DataFrame to prevent inference/casting issues
-            merge_schema = StructType([
-                StructField(KEY_COLUMN, LongType(), False),
-                StructField("start_date", DateType(), True),
-                StructField("Status", StringType(), True),
-                StructField("Callouts", StringType(), True),
-                StructField("Product", StringType(), True),
-            ])
-
-            # Create the Spark DataFrame using the explicit schema to ensure type safety
-            updates_spark_df = spark.createDataFrame(merge_data, schema=merge_schema)
-            updates_spark_df.createOrReplaceTempView("updates_to_merge")
-
-            # Perform MERGE (update columns unconditionally on match)
-            merge_sql = f"""
-                MERGE INTO {TABLE_PATH} AS target
-                USING updates_to_merge AS source
-                ON target.{KEY_COLUMN} = source.{KEY_COLUMN}
-                WHEN MATCHED THEN UPDATE SET
-                    target.start_date = source.start_date,
-                    target.Status = source.Status,
-                    target.Callouts = source.Callouts,
-                    target.Product = source.Product
-            """
-            spark.sql(merge_sql)
-
-            # Fetch operation metrics from Delta history
-            dt = DeltaTable.forName(spark, TABLE_PATH)
-            op_metrics = dt.history(1).select("operationMetrics").collect()[0][0] or {}
-
-            # Try multiple possible keys depending on runtime version
-            num_updated = (
-                int(op_metrics.get("numTargetRowsUpdated") or 0)
-                if "numTargetRowsUpdated" in op_metrics
-                else int(op_metrics.get("numUpdatedRows") or 0)
-            )
-
-            print(f"✅ Success! {num_updated} record(s) were updated in {TABLE_PATH}.")
-
-            # Clear changes for the next run
-            changed_cells.clear()
-
-        except Exception as e:
-            import traceback
-            print("❌ An error occurred during the update:")
-            traceback.print_exc()
+    except Exception as e:
+        with output_area:
+            print("❌ An error occurred during the update. Check the debug log for the full error.")
+            debug_accordion.selected_index = 0
+        with debug_output:
+            import traceback; traceback.print_exc()
 
 update_button.on_click(on_update_button_clicked)
-display(update_button, output_area)
+```
