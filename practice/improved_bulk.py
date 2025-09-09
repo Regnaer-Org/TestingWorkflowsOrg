@@ -1,15 +1,20 @@
 # Databricks notebook source
-# Title: Bulk Edit UI for gc_prod_sandbox.su_eric_regna.metarisk_releases_dim (Optimized)
+# Title: Bulk Edit UI for gc_prod_sandbox.su_eric_regna.metarisk_releases_dim (Final Hardened Version)
+#
+# What this does:
+# - Provides a performant UI to bulk-edit a Delta table using ipydatagrid.
+# - Dynamically creates dropdown options to prevent UI rendering errors.
+# - Enforces a strict schema during the update process to prevent data type mismatch errors on MERGE.
 
 # COMMAND ----------
 
-# Install the required library. ipydatagrid is the key to making this performant.
+# Install the required library
 %pip install ipydatagrid
 
 # COMMAND ----------
 
 import pyspark.sql.functions as F
-from pyspark.sql.types import *
+from pyspark.sql.types import StructType, StructField, StringType, DateType, LongType
 import pandas as pd
 import ipywidgets as widgets
 import ipydatagrid
@@ -18,82 +23,84 @@ from IPython.display import display
 # --- Configuration ---
 TABLE_PATH = "gc_prod_sandbox.su_eric_regna.metarisk_releases_dim"
 EDITABLE_COLUMNS = ["start_date", "Status", "Callouts", "Product"]
-KEY_COLUMN = "surrogate_key"  # Primary key for merging
+KEY_COLUMN = "surrogate_key"
 
-# Dropdown options
-STATUS_OPTIONS = ["Not Started", "On-Track", "At-Risk", "Off-Track", "Completed", "Blocked"]
-PRODUCT_OPTIONS = ["MR Desktop", "MR Online", "Data", "Support", "MR Live"]
+# Base options for the dropdowns
+base_status_options = ["Not Started", "On-Track", "At-Risk", "Off-Track", "Completed", "Blocked"]
+base_product_options = ["MR Desktop", "MR Online", "Data", "Support", "MR Live"]
 
-# This dictionary will store the changes made by the user
-# Format: {(row_index, col_name): new_value}
+# This dictionary will store the final state of changed cells
 changed_cells = {}
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Step 1: Load Data
-# MAGIC Loading data from the Delta table.
+# MAGIC ### Step 1: Load Data & Prepare UI Components
+# MAGIC Loading data and dynamically creating dropdown options to prevent rendering errors.
 
 # COMMAND ----------
 
 try:
     spark_df = spark.table(TABLE_PATH)
+    
+    # Dynamically create robust dropdown options to prevent errors
+    existing_status = [row.Status for row in spark_df.select("Status").distinct().collect() if row.Status is not None]
+    existing_product = [row.Product for row in spark_df.select("Product").distinct().collect() if row.Product is not None]
+
+    # Combine predefined options with existing ones and add None to handle NULLs safely
+    STATUS_OPTIONS = sorted(list(set(base_status_options + existing_status))) + [None]
+    PRODUCT_OPTIONS = sorted(list(set(base_product_options + existing_product))) + [None]
+    
+    # Load the full DataFrame into pandas for the UI
     pandas_df = spark_df.toPandas()
-    # Ensure a consistent order for display
+    
+    # Ensure date columns are proper datetime objects for the DateRenderer
+    if 'start_date' in pandas_df.columns:
+        pandas_df['start_date'] = pd.to_datetime(pandas_df['start_date'])
+
     pandas_df = pandas_df.sort_values(by=KEY_COLUMN).reset_index(drop=True)
     
-    print(f"✅ Successfully loaded {len(pandas_df)} records from {TABLE_PATH}")
+    print(f"✅ Successfully loaded {len(pandas_df)} records.")
+
 except Exception as e:
-    print(f"❌ Error loading table: {e}")
-    dbutils.notebook.exit("Stopping notebook due to data loading error.")
+    print(f"❌ Error during data loading or dropdown preparation: {e}")
+    dbutils.notebook.exit("Stopping notebook due to error.")
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ### Step 2: Edit Your Data
-# MAGIC Use the table below to make your changes. The `start_date`, `Status`, `Callouts`, and `Product` columns are editable.
+# MAGIC Use the table below to make your changes.
 
 # COMMAND ----------
 
 # --- Create the Editable Grid ---
-
-# Define special cell renderers for dropdowns and dates
-text_renderer = ipydatagrid.TextRenderer
 dropdown_status_renderer = ipydatagrid.DropdownRenderer(options=STATUS_OPTIONS)
 dropdown_product_renderer = ipydatagrid.DropdownRenderer(options=PRODUCT_OPTIONS)
-date_renderer = ipydatagrid.DateRenderer()
 
-# Create a dictionary to map columns to their renderers
-renderers = {}
-for col in pandas_df.columns:
-    if col not in EDITABLE_COLUMNS:
-        # Make non-editable columns read-only
-        renderers[col] = ipydatagrid.TextRenderer(read_only=True)
-    elif col == "Status":
-        renderers[col] = dropdown_status_renderer
-    elif col == "Product":
-        renderers[col] = dropdown_product_renderer
-    elif col == "start_date":
-        renderers[col] = date_renderer
-    else: # Callouts and any other editable text field
-        renderers[col] = text_renderer()
+renderers = {
+    col: (
+        ipydatagrid.TextRenderer(read_only=True) if col not in EDITABLE_COLUMNS else
+        dropdown_status_renderer if col == "Status" else
+        dropdown_product_renderer if col == "Product" else
+        ipydatagrid.DateRenderer() if col == "start_date" else
+        ipydatagrid.TextRenderer()
+    )
+    for col in pandas_df.columns
+}
 
-# Create the grid
 grid = ipydatagrid.DataGrid(
     dataframe=pandas_df,
     editable=True,
     renderers=renderers,
-    layout={'height': '400px'} # Adjust height as needed
+    layout={'height': '400px'}
 )
 
-# --- Track Changes ---
 def on_cell_changed(change):
-    """Callback function to record a change made in the grid."""
-    # The change event provides the row index, column name, and new value
+    """Callback to record a change."""
     changed_cells[(change['row'], change['column'])] = change['value']
 
 grid.on_cell_changed(on_cell_changed)
-
 display(grid)
 
 # COMMAND ----------
@@ -118,34 +125,41 @@ def on_update_button_clicked(b):
         print(f"Processing {len(changed_cells)} changed cell(s)...")
 
         try:
-            # Create a DataFrame from the detected changes
-            updates = []
+            # Identify the full rows that have at least one change
+            changed_row_indices = sorted(list(set(idx for idx, col in changed_cells.keys())))
+            if not changed_row_indices:
+                print("ℹ️ No effective changes detected.")
+                return
+            
+            # Create a clean copy of the changed rows to avoid side effects
+            final_updates_pd = pandas_df.iloc[changed_row_indices].copy()
+
+            # Apply the edits to this smaller DataFrame
             for (row_index, col_name), new_value in changed_cells.items():
-                surrogate_key = pandas_df.loc[row_index, KEY_COLUMN]
-                updates.append({KEY_COLUMN: surrogate_key, "column": col_name, "value": new_value})
+                # Find the correct position in the smaller `final_updates_pd`
+                if row_index in final_updates_pd.index:
+                    final_updates_pd.loc[row_index, col_name] = new_value
 
-            updates_df = pd.DataFrame(updates)
-
-            # Pivot the changes into a DataFrame with one row per updated record
-            pivoted_updates = updates_df.pivot(index=KEY_COLUMN, columns='column', values='value').reset_index()
-
-            # Merge with original data to fill in unchanged editable columns
-            original_keys = pandas_df[[KEY_COLUMN] + EDITABLE_COLUMNS]
-            final_updates_pd = pd.merge(pivoted_updates, original_keys, on=KEY_COLUMN, how='left', suffixes=('_new', ''))
-
-            # Coalesce new and old values
-            for col in EDITABLE_COLUMNS:
-                if col + '_new' in final_updates_pd.columns:
-                     final_updates_pd[col] = final_updates_pd[col + '_new'].fillna(final_updates_pd[col])
-                
-            # Select only the key and editable columns for the merge
+            # --- CONFIRMED BEST PRACTICE: Define a strict schema for the Spark DataFrame ---
+            # This prevents type inference errors (e.g., date as string) during the MERGE.
+            # The schema must match the columns and types required for the MERGE statement.
+            merge_schema = StructType([
+                StructField(KEY_COLUMN, LongType(), False),
+                StructField("start_date", DateType(), True),
+                StructField("Status", StringType(), True),
+                StructField("Callouts", StringType(), True),
+                StructField("Product", StringType(), True),
+            ])
+            
+            # Select only the necessary columns for the merge operation
             merge_data = final_updates_pd[[KEY_COLUMN] + EDITABLE_COLUMNS]
 
-            # Convert to Spark DataFrame
-            updates_spark_df = spark.createDataFrame(merge_data)
+            # Create the Spark DataFrame using the explicit schema to ensure type safety
+            updates_spark_df = spark.createDataFrame(merge_data, schema=merge_schema)
             updates_spark_df.createOrReplaceTempView("updates_to_merge")
             
             # --- Perform MERGE ---
+            # The target column names (e.g., target.start_date) must match the physical table schema.
             merge_sql = f"""
                 MERGE INTO {TABLE_PATH} AS target
                 USING updates_to_merge AS source
@@ -158,18 +172,13 @@ def on_update_button_clicked(b):
             """
             
             result = spark.sql(merge_sql)
-            # Fetch the number of updated rows from the merge operation's result
+            # The result of MERGE in Databricks includes metrics about the operation
             num_updated = result.select(F.sum("num_updated_rows").alias("total_updated")).first()['total_updated']
 
             print(f"✅ Success! {num_updated} record(s) were updated in {TABLE_PATH}.")
             
-            # Clear changes and reload grid for next run
+            # Clear changes for the next run
             changed_cells.clear()
-            
-            # Optional: Refresh the grid in-place by resetting its data
-            # new_spark_df = spark.table(TABLE_PATH)
-            # grid.data = new_spark_df.toPandas().sort_values(by=KEY_COLUMN).reset_index(drop=True)
-
 
         except Exception as e:
             import traceback
@@ -177,7 +186,4 @@ def on_update_button_clicked(b):
             traceback.print_exc()
 
 update_button.on_click(on_update_button_clicked)
-
 display(update_button, output_area)
-
-# COMMAND ----------
