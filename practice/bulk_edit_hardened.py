@@ -1,16 +1,24 @@
 # Databricks notebook source
-# Title: Bulk Edit UI (Paginated, Hardened, & Advanced Debugging)
-#
-# What this does:
-# - Provides a scalable, paginated UI for bulk-editing a Delta table.
-# - Includes a collapsible debug section for tracing data transformations and schemas.
-# - Adds advanced post-flight analysis to diagnose "zero update" scenarios,
-#   pinpointing whether merge keys were not found or if the data already matched.
-# - Provides clear, actionable error messages to help users instantly identify and fix issues.
+# MAGIC %md
+# MAGIC # Bulk Edit UI (Paginated, Hardened, & Advanced Debugging)
+# MAGIC 
+# MAGIC This notebook provides a scalable UI to bulk-edit a Delta table.
+# MAGIC 
+# MAGIC ### Instructions
+# MAGIC 1. **Run Cell 1**: This will set up all the functions and render the interactive grid UI.
+# MAGIC 2. **Run Cell 2**: This attaches the final update logic to the "Apply Updates" button.
+# MAGIC 3. **Edit Data**: Use the grid to make your changes. You can navigate through pages.
+# MAGIC 4. **Apply Updates**: Click the "Apply Updates" button to merge your changes into the Delta table.
 
 # COMMAND ----------
 
-# Install the required library
+# MAGIC %md
+# MAGIC ### Cell 1: UI Setup and Rendering
+# MAGIC This cell defines and renders all UI components. Run this cell first.
+
+# COMMAND ----------
+
+# Install the required library if it's not already on the cluster
 %pip install ipydatagrid
 
 # COMMAND ----------
@@ -24,6 +32,7 @@ from ipywidgets import AppLayout, Layout
 import ipydatagrid
 from IPython.display import display, clear_output
 import io
+import traceback
 
 # --- Configuration ---
 TABLE_PATH = "gc_prod_sandbox.su_eric_regna.metarisk_releases_dim"
@@ -36,6 +45,7 @@ PAGE_SIZE = 100
 base_status_options = ["Not Started", "On-Track", "At-Risk", "Off-Track", "Completed", "Blocked"]
 base_product_options = ["MR Desktop", "MR Online", "Data", "Support", "MR Live"]
 
+# This dictionary stores the final state of changed cells across all pages
 changed_data = {}
 
 # --- UI Widget Declarations ---
@@ -49,12 +59,7 @@ debug_accordion = widgets.Accordion(children=[debug_output], titles=('Debug Log'
 debug_accordion.selected_index = None
 main_container = widgets.VBox()
 
-# COMMAND ----------
-# MAGIC %md
-# MAGIC ### Step 1: Load Data & Prepare UI
-# MAGIC Use the navigation buttons to browse data. Edits are logged in the main output area.
-
-# COMMAND ----------
+# --- Function Definitions ---
 
 def get_dropdown_options():
     try:
@@ -120,7 +125,10 @@ def draw_grid(page_number):
         with output_area: output_area.clear_output(); status_label.value = "Status: Ready"
 
     except Exception as e:
-        with output_area: output_area.clear_output(); print(f"❌ Failed to load page {page_number}: {e}")
+        with output_area:
+            output_area.clear_output()
+            print(f"❌ Failed to load page {page_number}: {e}")
+            traceback.print_exc()
 
 def create_pagination_controls():
     total_records = spark.table(TABLE_PATH).count()
@@ -131,30 +139,41 @@ def create_pagination_controls():
         nonlocal current_page
         if 1 <= page <= total_pages:
             current_page = page; draw_grid(current_page)
-            page_label.value = f"Page {current_page} of {total_pages}"
+            page_label.value = "Page {} of {}".format(current_page, total_pages)
 
     prev_button, next_button = widgets.Button(description="Previous", icon="arrow-left"), widgets.Button(description="Next", icon="arrow-right")
-    page_label = widgets.Label(f"Page {current_page} of {total_pages}")
+    page_label = widgets.Label("Page {} of {}".format(current_page, total_pages))
+    
     prev_button.on_click(lambda b: go_to_page(current_page - 1))
     next_button.on_click(lambda b: go_to_page(current_page + 1))
     return widgets.HBox([prev_button, next_button, page_label])
 
+
+# --- Main Execution Block for Cell 1 ---
 try:
+    # Create UI components and display them
     pagination_buttons = create_pagination_controls()
     main_container.children = [pagination_buttons, update_button, status_label, output_area, debug_accordion]
     display(main_container)
+    
+    # Initial grid render
     draw_grid(1)
 except Exception as e:
     with output_area:
-        output_area.clear_output(); print(f"❌ Notebook initialization failed: {e}")
-        import traceback; traceback.print_exc()
+        output_area.clear_output()
+        print(f"❌ Notebook initialization failed. See details below.")
+        traceback.print_exc()
 
 # COMMAND ----------
+
 # MAGIC %md
-# MAGIC ### Step 2: Apply Updates
-# MAGIC Click the button to merge changes. If the update reports 0 rows affected, the debug log will contain a diagnosis.
+# MAGIC ### Cell 2: Update Logic
+# MAGIC This cell defines and attaches the logic for the "Apply Updates" button. Run this cell after running Cell 1.
 
 # COMMAND ----------
+
+# This cell defines the logic that runs when the "Apply Updates" button is clicked.
+# The button was created and the event handler was attached in the previous cell.
 
 def on_update_button_clicked(_):
     with output_area: output_area.clear_output()
@@ -171,7 +190,6 @@ def on_update_button_clicked(_):
         updates_list = [dict(v, **{KEY_COLUMN: k}) for k, v in changed_data.items()]
         updates_pd = pd.DataFrame(updates_list)
 
-        # Pre-flight check: Ensure keys are not null
         if updates_pd[KEY_COLUMN].isnull().any():
             raise ValueError(f"CRITICAL: One or more edited rows has a null value in the key column '{KEY_COLUMN}'. Cannot proceed.")
 
@@ -217,7 +235,6 @@ def on_update_button_clicked(_):
             with output_area:
                 print(f"✅ Success! {num_updated} record(s) were updated in {TABLE_PATH}.")
         else:
-            # Diagnosis for "zero updates"
             with output_area:
                 print(f"⚠️ Merge complete, but 0 records were updated. Running diagnosis...")
             
@@ -239,7 +256,7 @@ def on_update_button_clicked(_):
 
         changed_data.clear()
         status_label.value = "Status: Ready"
-        debug_accordion.selected_index = 0 # Expand for review
+        debug_accordion.selected_index = 0
 
     except Exception as e:
         with output_area:
@@ -248,5 +265,9 @@ def on_update_button_clicked(_):
         with debug_output:
             import traceback; traceback.print_exc()
 
+# --- Main Execution Block for Cell 2 ---
+# This line attaches the function above to the button that was created in Cell 1.
 update_button.on_click(on_update_button_clicked)
+
+print("Update logic has been attached to the 'Apply Updates' button.")
 ```
