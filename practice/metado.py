@@ -1,10 +1,11 @@
 # Databricks notebook to ingest Azure DevOps work items into a Delta table
-# Version 2: Includes enhanced error logging for missing fields and robust processing.
+# Version 3: Implements more explicit Authorization header for robustness in SSO/proxy environments.
 
 import requests
 import json
+import base64
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, explode, lit
+from pyspark.sql.functions import col
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, BooleanType, TimestampType
 
 # --------------------------------------------------------------------------
@@ -32,8 +33,6 @@ target_table_name = "ado_milestones_dim"
 full_table_name = f"{target_catalog}.{target_schema}.{target_table_name}"
 
 # Fields to retrieve from Azure DevOps work items
-# This dictionary maps a friendly name (which will become the column name)
-# to the API reference name we expect from Azure DevOps.
 fields_to_return = {
     "AreaPath": "System.AreaPath",
     "AssignedTo": "System.AssignedTo",
@@ -50,7 +49,7 @@ fields_to_return = {
     "Tags": "System.Tags",
     "TargetDate": "Microsoft.VSTS.Scheduling.TargetDate",
     "Title": "System.Title",
-    "WorkItemID": "System.Id", # This is the ID of the work item itself
+    "WorkItemID": "System.Id",
     "WorkItemType": "System.WorkItemType"
 }
 
@@ -67,15 +66,21 @@ except Exception as e:
     print(f"Error retrieving secret: {e}")
     dbutils.notebook.exit("Failed to retrieve ADO PAT from Databricks secrets. Please check scope and key names.")
 
-# Set up the authorization headers for the API request
+# --- NEW: Explicit Authorization Header Construction ---
+# Manually create the Basic Authentication header. This is often more reliable in corporate proxy environments.
+# The format is "Basic " followed by a base64 encoding of ":<PAT>".
+auth_string = f":{personal_access_token}"
+encoded_auth_string = base64.b64encode(auth_string.encode('ascii')).decode('ascii')
+
 headers = {
     'Content-Type': 'application/json',
+    'Authorization': f'Basic {encoded_auth_string}'
 }
 
 # Initialize Spark Session
 spark = SparkSession.builder.appName("AzureDevOpsIngestion").getOrCreate()
 
-print("Configuration and authentication complete.")
+print("Configuration and authentication complete. Using explicit Authorization header.")
 
 # --------------------------------------------------------------------------
 # 3. Fetch Work Item IDs using WIQL (Work Item Query Language)
@@ -85,7 +90,6 @@ all_work_item_ids = []
 for project in ado_projects:
     print(f"Fetching work item IDs for project: '{project}'...")
 
-    # WIQL query to get all 'Milestone' work items for the project
     wiql_query = {
         "query": f"""
             SELECT [System.Id]
@@ -96,7 +100,9 @@ for project in ado_projects:
         """
     }
     wiql_url = f"{ado_organization_url}/{project}/_apis/wit/wiql?api-version=7.1-preview.2"
-    response = requests.post(wiql_url, auth=('', personal_access_token), headers=headers, data=json.dumps(wiql_query))
+    
+    # Make the API call using the manually constructed headers, REMOVING the 'auth' parameter.
+    response = requests.post(wiql_url, headers=headers, data=json.dumps(wiql_query))
 
     if response.status_code == 200:
         results = response.json()
@@ -105,8 +111,10 @@ for project in ado_projects:
         all_work_item_ids.extend(project_ids)
         print(f"  Found {len(project_ids)} 'Milestone' work items in '{project}'.")
     else:
+        # Provide more detailed error info
         print(f"  ERROR fetching work items for project '{project}'. Status Code: {response.status_code}")
-        print(f"  Response: {response.text}")
+        print(f"  Response Headers: {response.headers}")
+        print(f"  Response Body: {response.text}")
 
 print(f"\nTotal 'Milestone' work item IDs found across all projects: {len(all_work_item_ids)}")
 
@@ -116,31 +124,33 @@ print(f"\nTotal 'Milestone' work item IDs found across all projects: {len(all_wo
 work_item_details_list = []
 
 if all_work_item_ids:
-    # Use a comma-separated list of field reference names for the API call
     field_list_for_api = ",".join(fields_to_return.values())
     
-    batch_size = 200 # API limit is 200
+    batch_size = 200
     for i in range(0, len(all_work_item_ids), batch_size):
         batch_ids = all_work_item_ids[i:i + batch_size]
         print(f"Fetching details for batch {i//batch_size + 1}...")
 
         work_items_url = f"{ado_organization_url}/_apis/wit/workitems?ids={','.join(map(str, batch_ids))}&fields={field_list_for_api}&api-version={api_version}"
-        response = requests.get(work_items_url, auth=('', personal_access_token), headers=headers)
+        
+        # Make the API call using the manually constructed headers, REMOVING the 'auth' parameter.
+        response = requests.get(work_items_url, headers=headers)
 
         if response.status_code == 200:
             work_item_details_list.extend(response.json().get('value', []))
         else:
             print(f"  ERROR fetching work item details for batch. Status Code: {response.status_code}")
-            print(f"  Response: {response.text}")
+            print(f"  Response Headers: {response.headers}")
+            print(f"  Response Body: {response.text}")
 
 print(f"\nTotal work item details retrieved: {len(work_item_details_list)}")
 
+
 # --------------------------------------------------------------------------
-# 5. Process Data and Create Spark DataFrame with Error Logging
+# 5. Process Data and Create Spark DataFrame (Logic remains the same)
 # --------------------------------------------------------------------------
 if work_item_details_list:
     processed_rows = []
-    # Set to track fields we've already logged as missing, to avoid log spam
     missing_fields_tracker = set()
 
     print("\nProcessing work item details and checking for missing fields...")
@@ -153,10 +163,8 @@ if work_item_details_list:
             continue
             
         row = {}
-        # Use the WorkItemID from the top level of the item, not from the fields dictionary
         row['WorkItemID'] = work_item_id
         
-        # Loop through our expected fields and try to extract them
         for friendly_name, api_name in fields_to_return.items():
             if api_name not in api_fields:
                 if api_name not in missing_fields_tracker:
@@ -165,15 +173,12 @@ if work_item_details_list:
                 row[friendly_name] = None
                 continue
 
-            # Safely extract value
             value = api_fields.get(api_name)
 
-            # Handle special cases for nested fields (e.g., user objects)
             if (friendly_name == 'AssignedTo' or friendly_name == 'ActionOwner') and value:
                 if isinstance(value, dict) and 'displayName' in value:
                     row[friendly_name] = value['displayName']
                 else:
-                    # Log if the structure is not what we expect
                     if friendly_name not in missing_fields_tracker:
                          print(f"  WARNING: Field '{friendly_name}' for work item {work_item_id} was not a dictionary with 'displayName'. Value: {value}. This message will not be repeated.")
                          missing_fields_tracker.add(friendly_name)
@@ -184,9 +189,8 @@ if work_item_details_list:
         processed_rows.append(row)
 
     if missing_fields_tracker:
-        print("\nNOTE: One or more fields were not found in the API response. Please verify the custom field names in your Azure DevOps project process settings. The API reference name (e.g., 'Custom.MyField') is required.")
+        print("\nNOTE: One or more fields were not found in the API response. Please verify the custom field names in your Azure DevOps project process settings.")
 
-    # Define the schema for the DataFrame
     schema = StructType([
         StructField("WorkItemID", IntegerType(), True),
         StructField("AreaPath", StringType(), True),
@@ -207,14 +211,13 @@ if work_item_details_list:
         StructField("WorkItemType", StringType(), True),
     ])
 
-    # Create the DataFrame
     final_df = spark.createDataFrame(processed_rows, schema)
     
     print("\nDataFrame created successfully. Schema:")
     final_df.printSchema()
     
     # --------------------------------------------------------------------------
-    # 6. Write DataFrame to Delta Table
+    # 6. Write DataFrame to Delta Table (Logic remains the same)
     # --------------------------------------------------------------------------
     print(f"\nWriting data to Delta table: {full_table_name}")
 
