@@ -1,0 +1,61 @@
+Step 1: Create a New Blank Query
+This will be the home for our custom function.
+
+In the Power Query Editor, look at the Queries pane on the left.
+Right-click on the empty space in the pane.
+Select New Query -> Blank Query.
+A new query named Query1 will appear.
+Step 2: Create the Custom Function using M Code
+Select the new Query1.
+Go to the Home tab on the ribbon and click on Advanced Editor.
+Delete all the text that is currently in the Advanced Editor window.
+Copy and paste the following M code into the empty window. This code defines the function that will call the API for each work item.
+M
+(WorkItemID as text, ProjectName as text) =>
+let
+    // Step 1: Construct the REST API URL for the specific work item
+    Source = "https://dev.azure.com/guycarp/" & ProjectName & "/_apis/wit/workitems/" & WorkItemID & "?$fields=System.Description&api-version=7.1",
+
+    // Step 2: Call the API. Power BI will handle authentication.
+    GetAPIData = Web.Contents(Source, [Headers=[#"Content-Type"="application/json"]]),
+
+    // Step 3: Parse the JSON response from the API
+    ParsedJSON = Json.Document(GetAPIData),
+
+    // Step 4: Safely navigate to the Description field. If it's missing or null, return an empty string.
+    Description = try ParsedJSON[fields][#"System.Description"] otherwise ""
+in
+    Description
+Click Done.
+Step 3: Rename and Configure the Function
+Your Query1 has now turned into a function. In the Query Settings pane on the right, rename it to something meaningful, like GetWorkItemDescription.
+Power BI will likely show a yellow bar asking for permission to run the query. Click Edit Credentials.
+In the dialog box for dev.azure.com, select Organizational account.
+Click the Sign in button and use your normal company credentials (the same ones you use for Power BI and Azure DevOps).
+After signing in, click Connect. The privacy warning should disappear.
+Step 4: Invoke the Custom Function on Your Main Table
+Now, go back to your main Work Items query where all the data from the connector is.
+
+Click on the Work Items query in the left pane.
+
+Go to the Add Column tab on the ribbon.
+
+Click Invoke Custom Function.
+
+The "Invoke Custom Function" window will appear. Fill it out as follows:
+
+New column name: Description (or whatever you prefer).
+Function query: Select GetWorkItemDescription from the dropdown.
+WorkItemID (parameter): Select Column and choose the Work Item ID column from your table (it might be named Id or Work Item Id).
+ProjectName (parameter): Select Column and choose the Project Name column from your table (it might be named Project.Name or similar).
+Click OK.
+
+Step 5: Expand the New Column to See the Text
+A new Description column will be added to your table, but it will contain [Record] or [List] objects. You need to expand it to get the actual text.
+
+Find the new Description column you just created.
+Click the Expand button (two arrows pointing in opposite directions) on the right side of the column header.
+A dropdown will appear. It should show the fields returned by your function. Since our function just returns the text directly, you might just see a simple option to expand. Uncheck "Use original column name as prefix" and click OK.
+The column will now be populated with the actual description text for each work item.
+Final Step: Close and Apply
+You're all set! Go to the Home tab and click Close & Apply. Your data model will now load into Power BI with the Description field included, and you can start building your visuals.
