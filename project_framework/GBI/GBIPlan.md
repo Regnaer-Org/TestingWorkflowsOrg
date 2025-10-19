@@ -187,3 +187,75 @@ This plan is explicitly designed to create a "two-speed" system that protects R&
 - (New) Innovation Metric: Number of R&D experiments run per quarter (this will be highly visible and valuable to your stakeholder).
 
 ---
+
+# Artifacts, Metrics, and Learning
+
+Summary: Artifacts, Metrics, and Learning  
+This section details the tangible items ("artifacts") we will create, the metrics we will use to measure success, and resources for anyone who wants to learn more.
+
+---
+
+## 1. List of Outputs (Our "Artifacts")
+
+These are the only new tangible items the team will need to create. They are designed to be simple and replace existing, less efficient processes (like status update emails or vague project requests).
+
+- **The Global BI Kanban Board**  
+  The single source of truth for all work. This is a digital board (MS Planner, Trello, etc.) that visually tracks every project.
+
+- **The "BI Project Brief" (Standard)**  
+  A 1‑page template (e.g., an MS Form or fields on a planner card) that defines any new Production or Development project. It answers:
+  - What's the question?
+  - Who is the audience?
+  - What's the deadline?
+  - What does "Done" look like?
+
+- **The "BI Experiment Brief" (R&D)**  
+  A simplified brief for R&D work. It answers:
+  - What's our hypothesis?
+  - What's the time-box (e.g., 2 weeks)?
+  - What data do we need?
+  - What does "learning" look like?
+
+- **The BI Resource Hub**  
+  A central location (e.g., a Teams Channel or SharePoint site) for key resources, templates, data source links, and the "who-to-ask" expert list.
+
+- **Showcase & Retro Summaries**  
+  Simple, bullet-point notes from the "Product & Learning Showcase" and "Quarterly Retrospective" to track successes, learnings, and action items for improvement.
+
+---
+
+## 2. Key Metrics for Success
+
+We will track a few simple metrics to prove this new process is working. The data can be captured directly from the Kanban board.
+
+| Metric | How to Capture | How to Interpret | Value It Provides |
+|---|---|---|---|
+| Project Throughput | Count the number of cards moved to the "Done" column per month. | A steady or increasing number indicates improved efficiency, flow, and fewer bottlenecks. | Proves the team is delivering more value with less friction. Helps in forecasting future work. |
+| Work Type Balance | Quarterly, count the "Done" cards by label: Production vs. Development vs. R&D. | Are we meeting our goal (e.g., 20% R&D)? Or is Production (fire-fighting) taking over? | This is the key metric for your leader. It proves you are creating capacity for high-value innovative work (like AI) instead of just "keeping the lights on." |
+| Qualitative Feedback | Notes from the "Quarterly Retrospective" ("What worked? What didn't?"). | Look for trends. Are "Frustration" comments decreasing? Are "Skills" or "Incentives" comments increasing? | Measures team morale and validates the 5‑part change model. Tells you where to focus your next improvement. |
+| Rework Rate | Count how many cards move backward (e.g., from "In Review" to "In Progress"). | A high rate means the "Project Brief" isn't clear enough or scope is changing. A low rate means "Vision" is clear. | A direct measure of wasted effort. Reducing it frees up significant team capacity. |
+
+---
+
+## 3. Additional Resources (For Self-Study)
+
+For team members who are interested in the "why" behind these concepts, here are practical, non-academic resources:
+
+- Website: **Atlassian's Agile Coach**  
+  One of the best free resources on the web. Simple, practical guides on Kanban, Scrum, retrospectives, and more — written for real-world teams.
+
+- Book: **Making Work Visible** by Dominica DeGrandis  
+  A short, focused book on using Kanban to manage "knowledge work" (like BI and analysis). Great for teams overwhelmed by invisible requests.
+
+- Book: **The Phoenix Project** by Gene Kim  
+  A novel that teaches core concepts of Agile, flow, and bottlenecks through an engaging story. Highly recommended for you and your stakeholder.
+
+- Online Learning: **LinkedIn Learning** (if available at your firm)  
+  Search for courses such as "Agile Foundations," "Kanban Fundamentals," or "Agile for Non-Technical Teams." These 1–2 hour courses are great primers.
+
+---
+
+## Notes / Next Steps (suggested)
+- Publish the markdown to the BI Resource Hub (Teams/SharePoint) and link it from the Kanban board.
+- Create the initial templates (BI Project Brief and BI Experiment Brief) and add them to the Resource Hub.
+- Start capturing the metrics from Day 1 on the Kanban board to build baseline data.
